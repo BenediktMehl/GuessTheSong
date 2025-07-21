@@ -1,19 +1,23 @@
 import React from 'react'
+import { handleSpotifyLogin } from '../util/spotify'
 
 export default function Host() {
-  // Placeholder for Spotify login
-  const handleSpotifyLogin = () => {
-    // TODO: Implement Spotify OAuth flow
-    alert('Spotify login flow will be implemented here.')
-  }
-
   return (
-    <main>
-      <h2>Host Game</h2>
-      <button onClick={handleSpotifyLogin}>
-        Log in with Spotify
-      </button>
-      <p>After logging in, you will be able to create a game room and select a playlist.</p>
+    <main className="min-h-screen flex items-center justify-center bg-base-200">
+      <div className="card w-full max-w-md bg-base-100 shadow-xl">
+        <div className="card-body items-center text-center">
+          <h2 className="card-title text-2xl mb-2">Host Game</h2>
+          <button
+            className="btn btn-outline btn-success mb-4"
+            onClick={handleSpotifyLogin}
+          >
+            Log in with Spotify
+          </button>
+          <p className="text-base-content">
+            After logging in, you will be able to create a game room and select a playlist.
+          </p>
+        </div>
+      </div>
     </main>
   )
 }
