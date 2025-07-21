@@ -1,5 +1,5 @@
 import React from 'react'
-import { handleSpotifyLogin } from '../util/spotify'
+import { handleSpotifyLogin } from '../util/spotifyAuth'
 
 export default function Host() {
   return (

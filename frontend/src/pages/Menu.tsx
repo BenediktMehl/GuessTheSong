@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { getSpotifyProfile, handleSpotifyLogin, handleSpotifyLoginCallback, handleSpotifyLogout } from '../util/spotify'
+import { getSpotifyProfile, handleSpotifyLogin, handleSpotifyLoginCallback, handleSpotifyLogout } from '../util/spotifyAuth'
 
 
 export default function Menu() {
@@ -79,7 +79,7 @@ export default function Menu() {
                         )}
                         </>
                     )}
-                    <a href="/host" className="btn btn-success">Start Game</a>
+                    <a href="/hostgame" className="btn btn-success">Start Game</a>
                 </div>
             </div>
         </main >

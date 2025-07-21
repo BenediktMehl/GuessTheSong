@@ -5,7 +5,8 @@ import Host from './pages/Host'
 import Join from './pages/Join'
 import SpofiyLoginCallback from './pages/SpofiyLoginCallback'
 import Menu from './pages/Menu'
-import { spotifyIsLoggedIn } from './util/spotify'
+import { spotifyIsLoggedIn } from './util/spotifyAuth'
+import HostGame from './pages/HostGame'
 
 function Home() {
   const hostAGameClickHandler = async () => {
@@ -56,6 +57,7 @@ function App() {
         <Route path="/join" element={<Join />} />
         <Route path="/spotify_callback" element={<SpofiyLoginCallback />} />
         <Route path="/menu" element={<Menu />} />
+        <Route path="/hostgame" element={<HostGame />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

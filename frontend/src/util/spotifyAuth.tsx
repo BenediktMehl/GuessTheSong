@@ -154,7 +154,7 @@ export async function handleSpotifyLogin() {
     // Log all available env keys for debugging
     console.log("Available import.meta.env keys:", Object.keys(import.meta.env));
     console.log("Using Spotify Client ID:", clientId);
-    const scope = 'user-read-private user-read-email';
+    const scope = 'user-read-private user-read-email user-modify-playback-state user-read-playback-state';
     const authUrl = new URL("https://accounts.spotify.com/authorize")
 
     // generated in the previous step
