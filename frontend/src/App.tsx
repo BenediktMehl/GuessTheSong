@@ -1,12 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 
 // Placeholder pages for initial routing
-import Host from './pages/Host'
-import Join from './pages/Join'
-import SpofiyLoginCallback from './pages/SpofiyLoginCallback'
-import Menu from './pages/Menu'
-import { spotifyIsLoggedIn } from './util/spotifyAuth'
-import HostGame from './pages/HostGame'
+import Host from './pages/Roles/GameHost/Host'
+import Join from './pages/Welcome'
+import SpofiyLoginCallback from './pages/Roles/MusicHost/SpofiyLoginCallback'
+import Menu from './pages/Roles/GameHost/Menu'
+import { spotifyIsLoggedIn } from './pages/Roles/MusicHost/spotifyAuth'
+import HostGame from './pages/Roles/GameHost/HostGame'
+import { Player } from './pages/Types/Player/Player'
 
 function Home() {
   const hostAGameClickHandler = async () => {
@@ -59,6 +60,7 @@ function App() {
         <Route path="/menu" element={<Menu />} />
         <Route path="/hostgame" element={<HostGame />} />
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/play" element={<Player />} />
       </Routes>
     </Router>
   )

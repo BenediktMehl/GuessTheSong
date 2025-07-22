@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { getSpotifyProfile, handleSpotifyLogin, handleSpotifyLoginCallback, handleSpotifyLogout } from '../util/spotifyAuth'
+import { getSpotifyProfile, handleSpotifyLogout } from '../MusicHost/spotifyAuth'
 
 
 export default function Menu() {
     const location = useLocation()
-    const [isLoggedInSpotify, setIsLoggedInSpotify] = useState<boolean | null>(null)
     const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [userProfile, setUserProfile] = useState<any>(null)
     const [showCopiedToast, setShowCopiedToast] = useState(false);

@@ -1,5 +1,5 @@
 import React from 'react'
-import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState } from '../util/spotifyMusic'
+import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState } from '../MusicHost/spotifyMusic'
 
 export default function HostGame() {
     const [spotifyStatus, setSpotifyStatus] = React.useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);

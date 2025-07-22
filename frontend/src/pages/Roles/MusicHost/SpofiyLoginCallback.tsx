@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { handleSpotifyLogin, handleSpotifyLoginCallback } from '../util/spotifyAuth'
+import { handleSpotifyLogin, handleSpotifyLoginCallback } from './spotifyAuth'
 
 
 export default function SpofiyLoginCallback() {
