@@ -9,6 +9,11 @@ function generateSessionId() {
   return crypto.randomBytes(2).toString('hex').toUpperCase();
 }
 
+function generatePlayerId() {
+  // Generates a UUID for player ID
+  return crypto.randomUUID();
+}
+
 wss.on('connection', (ws) => {
   ws.on('message', (msg) => {
     let data;
@@ -49,15 +54,20 @@ wss.on('connection', (ws) => {
       ws.sessionId = normalizedSessionId;
       ws.role = 'player';
       ws.playerName = payload?.name; // Store player name on the ws connection
-      ws.send(JSON.stringify({ type: 'join-success', sessionId: normalizedSessionId }));
+      ws.playerId = generatePlayerId(); // Generate and store playerId
+
+      // Send join-success with playerId to player
+      ws.send(JSON.stringify({ type: 'join-success', sessionId: normalizedSessionId, playerId: ws.playerId }));
+
       console.log(`Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`);
 
-      // Notify host that a new player joined, send the player's name
+      // Notify host that a new player joined, send the player's name and id
       const host = sessions[normalizedSessionId].host;
       if (host) {
         host.send(JSON.stringify({
           type: 'player-joined',
-          name: ws.playerName
+          name: ws.playerName,
+          playerId: ws.playerId
         }));
       }
     } else if (type === 'player-action') {
@@ -68,7 +78,8 @@ wss.on('connection', (ws) => {
           type: 'player-action',
           payload,
           serverTimestamp: Date.now(),
-          name: ws.playerName // Attach player name
+          name: ws.playerName, // Attach player name
+          playerId: ws.playerId // Attach player id
         }));
       } else {
         ws.send(JSON.stringify({ type: 'error', message: 'Session does not exist.' }));
@@ -85,19 +96,20 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    const { sessionId, role, playerName } = ws;
+    const { sessionId, role, playerName, playerId } = ws;
     if (!sessionId) return;
     if (role === 'player') {
       sessions[sessionId]?.players.delete(ws);
       if (sessions[sessionId]) {
         console.log(`Player left session ${sessionId}. Players in session: ${sessions[sessionId].players.size}`);
-        // Notify host that a player left, send the player's name
+        // Notify host that a player left, send the player's name and id
         const host = sessions[sessionId].host;
         if (host) {
           host.send(JSON.stringify({
             type: 'player-left',
             sessionId,
-            name: playerName
+            name: playerName,
+            playerId: playerId
           }));
         }
       }

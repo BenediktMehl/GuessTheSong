@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Background } from "../Background";
 
 export const Player = () => {
     const [position, setPosition] = useState<number>(-1);
@@ -77,8 +76,7 @@ export const Player = () => {
             className="relative h-screen w-screen overflow-hidden"
             onClick={guessSong}
         >
-            <Background />
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+            <div className="relative flex flex-col items-center justify-center h-full">
                 {getText()}
             </div>
         </div>

@@ -1,28 +1,24 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 
 // Placeholder pages for initial routing
-import Host from './pages/Roles/GameHost/Host'
-import Join from './pages/Welcome'
-import SpofiyLoginCallback from './pages/Roles/MusicHost/SpofiyLoginCallback'
-import Menu from './pages/Roles/GameHost/Menu'
+import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen'
+import Join from './pages/Join'
+import SpotifyLoginCallback from './pages/Roles/MusicHost/LoginCallback'
+import Settings from './pages/Roles/GameHost/Settings'
 import { spotifyIsLoggedIn } from './pages/Roles/MusicHost/spotifyAuth'
 import HostGame from './pages/Roles/GameHost/HostGame'
 import { Player } from './pages/Types/Player/Player'
 
 function Home() {
   const hostAGameClickHandler = async () => {
-    if(await spotifyIsLoggedIn()) {
-      window.location.href = '/menu'
-    } else {
-      window.location.href = '/host'
-    }
+      window.location.href = '/settings'
   }
   const joinAGameClickHandler = () => {
     window.location.href = '/join'
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-base-200">
+    <main className="min-h-screen flex items-center justify-center">
       <div className="hero">
         <div className="hero-content flex-col">
           <h1 className="text-5xl font-bold text-primary mb-4">GuessTheSong</h1>
@@ -54,10 +50,10 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/host" element={<Host />} />
         <Route path="/join" element={<Join />} />
-        <Route path="/spotify_callback" element={<SpofiyLoginCallback />} />
-        <Route path="/menu" element={<Menu />} />
+        <Route path="/spotifylogin" element={<SpotifyLoginScreen />} />
+        <Route path="/spotifycallback" element={<SpotifyLoginCallback />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/hostgame" element={<HostGame />} />
         <Route path="*" element={<Navigate to="/" />} />
         <Route path="/play" element={<Player />} />

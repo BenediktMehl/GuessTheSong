@@ -1,5 +1,5 @@
 const localDevBaseUrl = 'http://127.0.0.1:5173'
-const redirectUri = '/spotify_callback'
+const redirectUri = '/spotifycallback'
 let clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 
 const generateRandomString = (length: number) => {

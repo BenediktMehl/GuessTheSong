@@ -3,11 +3,9 @@ import { useLocation } from 'react-router-dom'
 import { handleSpotifyLogin, handleSpotifyLoginCallback } from './spotifyAuth'
 
 
-export default function SpofiyLoginCallback() {
+export default function SpotifyLoginCallback() {
     const location = useLocation()
     const [isLoggedInSpotify, setIsLoggedInSpotify] = useState<boolean | null>(null)
-    const [inviteLink, setInviteLink] = useState<string | null>(null)
-    const [userProfile, setUserProfile] = useState<any>(null)
     const hasHandled = useRef(false);
 
 
@@ -22,11 +20,6 @@ export default function SpofiyLoginCallback() {
                 window.location.href = '/menu'
             }
         })
-        const codeParam = "placeHolder"
-        if (codeParam) {
-            // In a real app, you would exchange the code for a token and create a real invite link
-            setInviteLink(`${window.location.origin}/join?invite=${encodeURIComponent(codeParam)}`)
-        }
     }, [location.search])
 
     return (
@@ -34,7 +27,7 @@ export default function SpofiyLoginCallback() {
             <div className="card w-full max-w-md bg-base-100 shadow-xl">
                 <div className="card-body items-center text-center">
                     {isLoggedInSpotify ? (
-                       <p>Now redirecting to game menu</p>
+                       <p>Now redirecting to game</p>
                     ) : (
                         <>
                             <h2 className="card-title text-2xl mb-2">Spotify Login not Successful</h2>
