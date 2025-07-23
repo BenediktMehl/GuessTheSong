@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGameContext } from "../game/context";
 import { joinGame } from "../game/player";
 
@@ -7,6 +7,14 @@ export default function Join() {
   const [nickname, setNickname] = useState('');
   const [joinFailed, setJoinFailed] = useState(false);
   const gameContext = useGameContext();
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('id');
+    if (roomId) {
+      setRoom(roomId.toUpperCase());
+    }
+  }, []);
 
   const handleJoin = (e: React.FormEvent) => {
     const playerName = nickname.trim();
