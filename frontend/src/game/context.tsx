@@ -35,21 +35,16 @@ export interface GameContextType {
     sessionId: string,
     musicHostLoggedIn: boolean
   ) => void;
-  removePlayer: (playerId: string) => void;
   setPlayers: (players: Player[]) => void;
   setWaitingPlayers: (waitingPlayers: Player[]) => void;
   setGuessedPlayers: (guessedPlayers: Player[]) => void;
-  setReferee: (referee: Player) => void;
+  setReferee: (referee: Player | null) => void;
   setGameHost: (gameHost: Player) => void;
-  setMusicHost: (musicHost: Player) => void;
+  setMusicHost: (musicHost: Player| null) => void;
   setMusicHostLoggedIn: (isLoggedIn: boolean) => void;
   setStatus: (status: GameStatus) => void;
   setWsStatus: (wsStatus: WsStatus) => void;
   setSessionId: (sessionId: string) => void;
-  addPlayer: (player: Player) => void;
-  addToWaitingPlayers: (waitingPlayer: Player) => void;
-  addToGuessedPlayers: (guessedPlayer: Player) => void;
-  guessingPlayerGuessed: () => void;
 }
 
 // Individual default constants for each game state attribute
@@ -104,38 +99,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
     setMusicHostLoggedIn(newMusicHostLoggedIn);
   };
 
-  const removePlayer = (playerId: string) => {
-    setPlayers(players.filter(player => player.id !== playerId));
-    setWaitingPlayers(waitingPlayers.filter(player => player.id !== playerId));
-    setGuessedPlayers(guessedPlayers.filter(player => player.id !== playerId));
-    setReferee(referee?.id === playerId ? null : referee);
-    setGameHost(gameHost?.id === playerId ? null : gameHost);
-    setMusicHost(musicHost?.id === playerId ? null : musicHost);
-    if (iAm?.id === playerId) {
-      setIAm(null);
-    }
-  };
-
-  const addPlayer = (player: Player) => {
-    setPlayers(prevPlayers => [...prevPlayers, player]);
-  };
-
-  const addToWaitingPlayers = (waitingPlayer: Player) => {
-    setWaitingPlayers(prevWaitingPlayers => [...prevWaitingPlayers, waitingPlayer]);
-  };
-
-  const addToGuessedPlayers = (guessedPlayer: Player) => {
-    setGuessedPlayers(prevGuessedPlayers => [...prevGuessedPlayers, guessedPlayer]);
-  };
-
-  const guessingPlayerGuessed = () => {
-    setGuessedPlayers(prevGuessedPlayers => [
-      ...prevGuessedPlayers,
-      waitingPlayers[0]
-    ]);
-    setWaitingPlayers(prevWaitingPlayers => prevWaitingPlayers.slice(1));
-  };
-
   return (
     <GameContext.Provider
       value={{
@@ -152,7 +115,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
         sessionId,
         setIAm,
         setGameState,
-        removePlayer,
         setPlayers,
         setWaitingPlayers,
         setGuessedPlayers,
@@ -163,10 +125,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
         setStatus,
         setWsStatus,
         setSessionId,
-        addPlayer,
-        addToWaitingPlayers,
-        addToGuessedPlayers,
-        guessingPlayerGuessed
       }}
     >
       {children}

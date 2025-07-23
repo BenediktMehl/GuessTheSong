@@ -20,9 +20,8 @@ describe('GuessTheSong WebSocket backend', () => {
   test('Host can create a session', async () => {
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ type: 'host', action: 'create' }));
+    host.send(JSON.stringify({ action: 'create' }));
     const msg = await waitForMessage(host);
-    expect(msg.type).toBe('host');
     expect(msg.action).toBe('created');
     expect(msg.payload.sessionId).toMatch(/^[A-F0-9]{4}$/);
   });
@@ -31,14 +30,13 @@ describe('GuessTheSong WebSocket backend', () => {
     // Host creates session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ type: 'host', action: 'create' }));
+    host.send(JSON.stringify({ action: 'create' }));
     const created = await waitForMessage(host);
 
     // Player joins
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: created.payload.sessionId, 
@@ -47,7 +45,6 @@ describe('GuessTheSong WebSocket backend', () => {
     }));
     
     const joinMsg = await waitForMessage(player1);
-    expect(joinMsg.type).toBe('host');
     expect(joinMsg.action).toBe('join-success');
     expect(joinMsg.payload.sessionId).toBe(created.payload.sessionId);
     expect(joinMsg.payload).toHaveProperty('playerId');
@@ -55,7 +52,6 @@ describe('GuessTheSong WebSocket backend', () => {
 
     // Host receives player-joined
     const hostMsg = await waitForMessage(host);
-    expect(hostMsg.type).toBe('player-forward');
     expect(hostMsg.action).toBe('player-joined');
     expect(hostMsg.payload.name).toBe('Alice');
     expect(hostMsg.payload).toHaveProperty('playerId');
@@ -67,14 +63,13 @@ describe('GuessTheSong WebSocket backend', () => {
     // Host creates session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ type: 'host', action: 'create' }));
+    host.send(JSON.stringify({ action: 'create' }));
     const created = await waitForMessage(host);
 
     // Player joins
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: created.payload.sessionId, 
@@ -87,13 +82,11 @@ describe('GuessTheSong WebSocket backend', () => {
 
     // Player sends action
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'guessed', 
       payload: { guess: 'Song A' } 
     }));
     
     const hostMsg = await waitForMessage(host);
-    expect(hostMsg.type).toBe('player-forward');
     expect(hostMsg.action).toBe('guessed');
     expect(hostMsg.payload.guess).toEqual('Song A');
     expect(hostMsg.payload.playerName).toBe('Bob');
@@ -107,14 +100,13 @@ describe('GuessTheSong WebSocket backend', () => {
     // Host creates session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ type: 'host', action: 'create' }));
+    host.send(JSON.stringify({ action: 'create' }));
     const created = await waitForMessage(host);
 
     // First player joins successfully
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: created.payload.sessionId, 
@@ -123,7 +115,6 @@ describe('GuessTheSong WebSocket backend', () => {
     }));
     
     const joinMsg1 = await waitForMessage(player1);
-    expect(joinMsg1.type).toBe('host');
     expect(joinMsg1.action).toBe('join-success');
     await waitForMessage(host); // player-joined notification to host
 
@@ -131,7 +122,6 @@ describe('GuessTheSong WebSocket backend', () => {
     player2 = new WebSocket(WS_URL);
     await new Promise(res => player2.once('open', res));
     player2.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: created.payload.sessionId, 
@@ -142,7 +132,6 @@ describe('GuessTheSong WebSocket backend', () => {
     const joinMsg2 = await waitForMessage(player2);
     
     // Verify the second player gets rejected
-    expect(joinMsg2.type).toBe('host');
     expect(joinMsg2.action).toBe('join-failed');
     expect(joinMsg2.payload.reason).toBe('A player with this name already exists in the session.');
   });
@@ -151,14 +140,13 @@ describe('GuessTheSong WebSocket backend', () => {
     // Create first session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ type: 'host', action: 'create' }));
+    host.send(JSON.stringify({ action: 'create' }));
     const created = await waitForMessage(host);
     
     // Player joins first session
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: created.payload.sessionId, 
@@ -167,13 +155,11 @@ describe('GuessTheSong WebSocket backend', () => {
     }));
     
     const joinMsg1 = await waitForMessage(player1);
-    expect(joinMsg1.type).toBe('host');
     expect(joinMsg1.action).toBe('join-success');
     await waitForMessage(host); // player-joined notification
     
     // Player tries to join another session with same connection
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: created.payload.sessionId, 
@@ -184,7 +170,6 @@ describe('GuessTheSong WebSocket backend', () => {
     const joinMsg2 = await waitForMessage(player1);
     
     // Verify the join attempt is rejected
-    expect(joinMsg2.type).toBe('host');
     expect(joinMsg2.action).toBe('join-failed');
     expect(joinMsg2.payload.reason).toBe('You are already connected to a session as a player.');
   });
@@ -193,7 +178,6 @@ describe('GuessTheSong WebSocket backend', () => {
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      type: 'player', 
       action: 'join', 
       payload: { 
         sessionId: 'ZZZZ', 
@@ -202,7 +186,6 @@ describe('GuessTheSong WebSocket backend', () => {
     }));
     
     const msg = await waitForMessage(player1);
-    expect(msg.type).toBe('host');
     expect(msg.action).toBe('join-failed');
     expect(msg.payload.reason).toBe('Session does not exist.');
   });
@@ -212,7 +195,6 @@ describe('GuessTheSong WebSocket backend', () => {
     await new Promise(res => player1.once('open', res));
     player1.send('not a json');
     const msg = await waitForMessage(player1);
-    expect(msg.type).toBe('host');
     expect(msg.action).toBe('error');
     expect(msg.payload.message).toMatch(/invalid JSON/i);
   });

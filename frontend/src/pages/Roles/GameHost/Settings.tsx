@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGameContext } from "../../../game/context";
-import { musicHostChanged, useGameInitializer } from "../../../game/host";
+import { sendMusicHostChangedAction, useGameInitializer } from "../../../game/host";
 
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -62,7 +62,7 @@ export default function Settings() {
             console.log("Setting music host to:", selected.name);
             // Force a new object to ensure context updates
             setMusicHost({...selected});
-            musicHostChanged(selectedId);
+            sendMusicHostChangedAction(selectedId);
         }
     };
 

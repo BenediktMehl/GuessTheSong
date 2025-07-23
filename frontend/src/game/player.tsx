@@ -10,12 +10,7 @@ let currentPlayerId: string | null = null;
 
 export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string): Promise<boolean> {
     return new Promise((resolve) => {
-        const { 
-            setGameState,
-            setPlayers,
-            setWaitingPlayers,
-            setGuessedPlayers 
-        } = gameContext;
+        
         
         // Close existing connection if any
         if (ws) {
@@ -35,9 +30,11 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
             clearTimeout(timeout);
             if (ws) {
                 ws.send(JSON.stringify({ 
-                    type: 'join', 
-                    payload: { name: playerName }, 
-                    sessionId 
+                    action: 'join', 
+                    payload: { 
+                        sessionId: sessionId, 
+                        name: playerName 
+                    }
                 }));
                 console.log('Joining game with session ID:', sessionId);
             } else {
@@ -60,68 +57,30 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                 const message = JSON.parse(event.data);
                 console.log('Received message:', message);
 
-                switch (message.type) {
+                switch (message.action) {
                     case 'join-success':
                         // Store the player ID for future actions
-                        currentPlayerId = message.playerId;
+                        currentPlayerId = message.payload.playerId;
                         resolve(true);
                         break;
 
                     case 'join-failed':
-                        console.error('Failed to join game:', message.reason);
+                        console.error('Failed to join game:', message.payload.reason);
                         resolve(false);
                         break;
 
-                    case 'update':
-                        // Handle game state updates from the host
-                        const { 
-                            players, 
-                            waitingPlayers, 
-                            guessedPlayers, 
-                            referee, 
-                            gameHost, 
-                            musicHost,
-                            musicHostLoggedIn, 
-                            status, 
-                            wsStatus, 
-                            sessionId: updatedSessionId 
-                        } = message.payload;
-
-                        // Update the full game state
-                        if (setGameState) {
-                            setGameState(
-                                players || [],
-                                waitingPlayers || [],
-                                guessedPlayers || [],
-                                referee || null,
-                                gameHost || null,
-                                musicHost || null,
-                                musicHostLoggedIn || false,
-                                status || 'notStartet',
-                                wsStatus || 'open',
-                                updatedSessionId || sessionId
-                            );
-                        } else {
-                            // Update individual state parts if setGameState is not available
-                            if (players && setPlayers) setPlayers(players);
-                            if (waitingPlayers && setWaitingPlayers) setWaitingPlayers(waitingPlayers);
-                            if (guessedPlayers && setGuessedPlayers) setGuessedPlayers(guessedPlayers);
-                        }
-                        break;
-
                     case 'session-closed':
-                        console.log('Game session closed:', message.reason);
-                        alert(`The game session has ended: ${message.reason}`);
-                        // Redirect to home or show appropriate UI
+                        console.log('Game session closed:', message.payload.reason);
+                        alert(`The game session has ended: ${message.payload.reason}`);
                         window.location.href = '/';
                         break;
 
                     case 'error':
-                        console.error('Server error:', message.message);
+                        console.error('Server error:', message.payload.message);
                         break;
 
                     default:
-                        console.log('Unknown message type:', message.type);
+                        console.log('Unknown message action:', message.action);
                 }
             } catch (error) {
                 console.error('Error processing message:', error);
@@ -130,7 +89,7 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
     });
 }
 
-export function sendPlayerAction(action: string, data?: any) {
+export function sendPlayerAction(action: string, payload?: any) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         console.error('WebSocket is not connected');
         return false;
@@ -138,12 +97,11 @@ export function sendPlayerAction(action: string, data?: any) {
 
     try {
         ws.send(JSON.stringify({
-            type: 'player-action',
+            action: 'player-action',
             payload: {
                 action,
-                data,
-                playerId: currentPlayerId,
-                imestamp: Date.now()
+                payload,
+                localTimestamp: Date.now()
             }
         }));
         return true;
@@ -153,32 +111,8 @@ export function sendPlayerAction(action: string, data?: any) {
     }
 }
 
-export function loggedInToSpotify(): boolean {
-    return sendPlayerAction('loggedInToSpotify');
-}
-
-export function loggedOutOfSpotify(): boolean {
-    return sendPlayerAction('loggedOutOfSpotify');
-}
-
-export function submitGuess(songGuess: string) {
-    return sendPlayerAction('guess', { songGuess });
-}
-
-export function requestMusicHostRole() {
-    return sendPlayerAction('requestRole', { role: 'musicHost' });
-}
-
-export function requestRefereeRole() {
-    return sendPlayerAction('requestRole', { role: 'referee' });
-}
-
-export function voteToSkip() {
-    return sendPlayerAction('voteSkip');
-}
-
-export function playerReady() {
-    return sendPlayerAction('ready');
+export function sendPlayerBuzzedAction(): boolean {
+    return sendPlayerAction('player-buzzed');
 }
 
 export function disconnectFromGame() {
@@ -189,12 +123,6 @@ export function disconnectFromGame() {
     }
 }
 
-// Check if the player is currently connected
 export function isConnected(): boolean {
     return ws !== null && ws.readyState === WebSocket.OPEN;
-}
-
-// Get the current player ID
-export function getPlayerId(): string | null {
-    return currentPlayerId;
 }

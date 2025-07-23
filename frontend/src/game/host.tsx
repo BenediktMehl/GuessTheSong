@@ -9,17 +9,7 @@ let ws: WebSocket | null = null;
 // Convert to a custom hook
 export function useGameInitializer() {
     const gameContext = useGameContext();
-    const {
-        setWsStatus,
-        setSessionId,
-        addPlayer,
-        removePlayer,
-        musicHost,
-        musicHostLoggedIn,
-        setMusicHostLoggedIn
-    } = gameContext;
 
-    // Return an init function that can be called from event handlers
     const initGame = useCallback(() => {
         // Close existing connection if any
         if (ws) {
@@ -30,10 +20,10 @@ export function useGameInitializer() {
 
         ws.onopen = () => {
             console.log("WebSocket connection opened");
-            setWsStatus('open');
+            gameContext.setWsStatus('open');
 
             if (ws) {
-                const createMsg = { type: 'create' };
+                const createMsg = { action: 'create' };
                 console.log("Sending create message:", createMsg);
                 ws.send(JSON.stringify(createMsg));
             }
@@ -44,32 +34,53 @@ export function useGameInitializer() {
                 const msg = JSON.parse(event.data);
                 console.log('Received message:', msg);
 
-                if (msg.type === 'created') {
-                    console.log('Session created with ID:', msg.sessionId);
-                    setSessionId(msg.sessionId);
-                }
+                // Handle messages based on action rather than type
+                switch (msg.action) {
+                    case 'created':
+                        console.log('Session created with ID:', msg.payload.sessionId);
+                        gameContext.setSessionId(msg.payload.sessionId);
+                        break;
 
-                if (msg.type === 'player-joined') {
-                    const newPlayer = {
-                        id: msg.id,
-                        name: msg.name,
-                        points: 0,
-                    };
+                    case 'player-joined':
+                        handlePlayerJoined(gameContext, msg);
+                        break;
 
-                    addPlayer(newPlayer);
-                    console.log('Player joined:', msg.name);
-                }
+                    case 'player-buzzed':
+                        handlePlayerBuzzed(gameContext, msg);
+                        break;
 
-                if (msg.type === 'player-left') {
-                    removePlayer(msg.id);
-                    console.log('Player left:', msg.name);
-                }
+                    case 'player-guessed-wrong':
+                        handlePlayerGuessedWrong(gameContext);
+                        break;
 
-                if (msg.type === 'player-action') {
-                    handlePlayerAction(msg, musicHost,
-                        musicHostLoggedIn,
-                        setMusicHostLoggedIn);
-                    console.log('Player action:', msg.name, msg.payload);
+                    case 'player-guessed-right':
+                        handlePlayerGuessedRight(gameContext);
+                        break;
+
+                    case 'player-left':
+                        handlePlayerLeft(gameContext, msg.payload.playerId);
+                        break;
+
+                    case 'loggedInToSpotify':
+                        if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && !gameContext.musicHostLoggedIn) {
+                            gameContext.setMusicHostLoggedIn(true);
+                            console.log(`Music host ${msg.payload.playerName} logged in to Spotify`);
+                        }
+                        break;
+
+                    case 'loggedOutOfSpotify':
+                        if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && gameContext.musicHostLoggedIn) {
+                            gameContext.setMusicHostLoggedIn(false);
+                            console.log(`Music host ${msg.payload.playerName} logged out of Spotify`);
+                        }
+                        break;
+
+                    case 'error':
+                        console.error('Server error:', msg.payload.message);
+                        break;
+
+                    default:
+                        console.warn('Unknown action:', msg.action);
                 }
             } catch (e) {
                 console.error('Failed to parse message', e);
@@ -77,15 +88,15 @@ export function useGameInitializer() {
         };
 
         ws.onclose = () => {
-            setWsStatus('closed');
+            gameContext.setWsStatus('closed');
             console.log('WebSocket connection closed');
         };
 
         ws.onerror = () => {
-            setWsStatus('error');
+            gameContext.setWsStatus('error');
             console.error('WebSocket error occurred');
         };
-    }, [setWsStatus, setSessionId, addPlayer, removePlayer]); // Add all context values used
+    }, [gameContext]);
 
     const endGame = useCallback(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -97,43 +108,78 @@ export function useGameInitializer() {
 
     return { initGame, endGame };
 }
-function handlePlayerAction(msg: any, musicHost: Player | null, musicHostLoggedIn: boolean, setMusicHostLoggedIn: (isLoggedIn: boolean) => void) {
-    // Assuming msg.payload contains the action details
-    if (!msg.payload || !msg.payload.actionType) {
-        console.error('Invalid player action message:', msg);
+
+function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
+    const { players, waitingPlayers, guessedPlayers, referee, musicHost, iAm } = gameContext;
+    const { setPlayers, setWaitingPlayers, setGuessedPlayers, setReferee, setMusicHost, setIAm } = gameContext;
+    setPlayers(players.filter(player => player.id !== playerId));
+    setWaitingPlayers(waitingPlayers.filter(player => player.id !== playerId));
+    setGuessedPlayers(guessedPlayers.filter(player => player.id !== playerId));
+    setReferee(referee?.id === playerId ? null : referee);
+    setMusicHost(musicHost?.id === playerId ? null : musicHost);
+    if (iAm?.id === playerId) {
+        setIAm(null);
+    }
+};
+
+function handlePlayerJoined(gameContext: GameContextType, msg: any) {
+    const newPlayer = {
+        id: msg.payload.playerId,
+        name: msg.payload.name,
+        points: 0,
+    };
+    const { players, setPlayers } = gameContext;
+    const newPlayers = [...players, newPlayer]
+    setPlayers(newPlayers);
+    sendPlayersChangedAction(newPlayers);
+};
+
+function handlePlayerBuzzed(gameContext: GameContextType, msg: any) {
+    const waitingPlayerId = msg.payload.playerId;
+    const waitingPlayer = gameContext.players.find(player => player.id === waitingPlayerId);
+    if (!waitingPlayer) {
+        console.error(`Player with ID ${waitingPlayerId} not found`);
         return;
     }
+    const { waitingPlayers, setWaitingPlayers } = gameContext;
+    const newWaitingPlayers = [...waitingPlayers, waitingPlayer];
+    setWaitingPlayers(newWaitingPlayers);
+    sendWaitingPlayersChangedAction(newWaitingPlayers);
+};
 
-    switch (msg.payload.actionType) {
-        case 'loggedInToSpotify':
-            console.log(`Player ${msg.name} guessed: ${msg.payload.guess}`);
-                if (musicHost && musicHost.id === msg.id && !musicHostLoggedIn) {
-                    setMusicHostLoggedIn(true);
-                }
-                break;
-        case 'loggedOutOfSpotify':
-            console.log(`Player ${msg.name} requested to skip the song`);
-            if (musicHost && musicHost.id === msg.id && musicHostLoggedIn) {
-                setMusicHostLoggedIn(false);
-            }
-            break;
-        default:
-            console.warn('Unknown action type:', msg.payload.actionType);
-    }
-}
 
-function sendHostAction(action: string, playerId: string) {
+function handlePlayerGuessedWrong(gameContext: GameContextType) {
+    const { waitingPlayers, guessedPlayers, setWaitingPlayers, setGuessedPlayers } = gameContext;
+    const firstWaitingPlayer = waitingPlayers[0];
+    const newGuessedPlayers = [...guessedPlayers, firstWaitingPlayer];
+    setGuessedPlayers(newGuessedPlayers);
+    const newWaitingPlayers = waitingPlayers.slice(1);
+    setWaitingPlayers(newWaitingPlayers);
+    sendWaitingPlayersChangedAction(newWaitingPlayers);
+    sendGuessedPlayersChangedAction(newGuessedPlayers);
+};
+
+function handlePlayerGuessedRight(gameContext: GameContextType) {
+    const { players, waitingPlayers, setWaitingPlayers, setGuessedPlayers } = gameContext;
+    const firstWaitingPlayer = waitingPlayers[0];
+    setGuessedPlayers([]);
+    setWaitingPlayers([]);
+    sendWaitingPlayersChangedAction([]);
+    sendGuessedPlayersChangedAction([]);
+
+    firstWaitingPlayer.points += 1;
+    sendPlayersChangedAction(players)
+};
+
+function sendHostAction(serverPayload: any) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         console.error('WebSocket is not connected');
         return false;
     }
     try {
         ws.send(JSON.stringify({
-            type: 'host-broadcast',
-            action,
-            payload: {
-                playerId
-            }
+            serverAction: 'broadcast',
+            serverPayload
         }));
         return true;
     } catch (error) {
@@ -142,6 +188,47 @@ function sendHostAction(action: string, playerId: string) {
     }
 }
 
-export function musicHostChanged(newMusicHostId: string) {
-    return sendHostAction('musicHostChanged', newMusicHostId);
-}   
+export function sendMusicHostChangedAction(newMusicHostId: string) {
+    return sendHostAction({
+        action: 'musicHostChanged',
+        data: {
+            musicHostId: newMusicHostId
+        }
+    });
+}
+
+export function sendRefereeChangedAction(newRefereeId: string) {
+    return sendHostAction({
+        action: 'refereeChanged',
+        data: {
+            refereeId: newRefereeId
+        }
+    });
+}
+
+function sendPlayersChangedAction(players: Player[]) {
+    return sendHostAction({
+        action: 'playersChanged',
+        data: {
+            players
+        }
+    });
+}
+
+function sendWaitingPlayersChangedAction(buzzedPlayers: Player[]) {
+    return sendHostAction({
+        action: 'waitingPlayersChanged',
+        data: {
+            buzzedPlayers
+        }
+    });
+}
+
+function sendGuessedPlayersChangedAction(guessedPlayers: Player[]) {
+    return sendHostAction({
+        action: 'guessedPlayersChanged',
+        data: {
+            guessedPlayers
+        }
+    });
+}
