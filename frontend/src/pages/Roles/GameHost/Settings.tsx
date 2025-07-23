@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useGameContext } from "../../../game/context";
-import { sendMusicHostChangedAction, useGameInitializer } from "../../../game/host";
+import { playerJoined, sendMusicHostChangedAction, useGameInitializer } from "../../../game/host";
 
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
+    const gameContext = useGameContext();
     const { 
         players, 
         referee, 
@@ -11,11 +12,10 @@ export default function Settings() {
         sessionId, 
         status, 
         iAm, 
-        setIAm, 
-        addPlayer, 
+        setIAm,  
         setMusicHost, 
         setReferee
-    } = useGameContext();
+    } = gameContext
     const [inviteLink, setInviteLink] = useState("");
     const [myName, setMyName] = useState<string>("");
     const [hostNameSaved, setHostNameSaved] = useState(false);
@@ -62,7 +62,7 @@ export default function Settings() {
             console.log("Setting music host to:", selected.name);
             // Force a new object to ensure context updates
             setMusicHost({...selected});
-            sendMusicHostChangedAction(selectedId);
+            sendMusicHostChangedAction(selectedId, false);
         }
     };
 
@@ -102,7 +102,7 @@ export default function Settings() {
             points: 0,
         };
         setIAm(newPlayer);
-        addPlayer(newPlayer);
+        playerJoined(gameContext, newPlayer);
         setHostNameSaved(true);
         setTimeout(() => setHostNameSaved(false), 2000);
     }

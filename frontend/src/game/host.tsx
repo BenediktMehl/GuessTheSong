@@ -23,7 +23,7 @@ export function useGameInitializer() {
             gameContext.setWsStatus('open');
 
             if (ws) {
-                const createMsg = { action: 'create' };
+                const createMsg = { serverAction: 'create' };
                 console.log("Sending create message:", createMsg);
                 ws.send(JSON.stringify(createMsg));
             }
@@ -62,17 +62,11 @@ export function useGameInitializer() {
                         break;
 
                     case 'loggedInToSpotify':
-                        if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && !gameContext.musicHostLoggedIn) {
-                            gameContext.setMusicHostLoggedIn(true);
-                            console.log(`Music host ${msg.payload.playerName} logged in to Spotify`);
-                        }
+                        handleLoggedInToSpotify(gameContext, msg);
                         break;
 
                     case 'loggedOutOfSpotify':
-                        if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && gameContext.musicHostLoggedIn) {
-                            gameContext.setMusicHostLoggedIn(false);
-                            console.log(`Music host ${msg.payload.playerName} logged out of Spotify`);
-                        }
+                        handleLoggedOutOfSpotify(gameContext, msg);
                         break;
 
                     case 'error':
@@ -96,7 +90,7 @@ export function useGameInitializer() {
             gameContext.setWsStatus('error');
             console.error('WebSocket error occurred');
         };
-    }, [gameContext]);
+    }, []);
 
     const endGame = useCallback(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -122,16 +116,20 @@ function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
     }
 };
 
+export function playerJoined(gameContext: GameContextType, newPlayer: Player) {
+    const { players, setPlayers } = gameContext;
+    const newPlayers = [...players, newPlayer]
+    setPlayers(newPlayers);
+    sendPlayersChangedAction(newPlayers);
+}
+
 function handlePlayerJoined(gameContext: GameContextType, msg: any) {
     const newPlayer = {
         id: msg.payload.playerId,
         name: msg.payload.name,
         points: 0,
     };
-    const { players, setPlayers } = gameContext;
-    const newPlayers = [...players, newPlayer]
-    setPlayers(newPlayers);
-    sendPlayersChangedAction(newPlayers);
+    playerJoined(gameContext, newPlayer);
 };
 
 function handlePlayerBuzzed(gameContext: GameContextType, msg: any) {
@@ -171,6 +169,26 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
     sendPlayersChangedAction(players)
 };
 
+function handleLoggedInToSpotify(gameContext: GameContextType, msg: any) {
+    if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && !gameContext.musicHostLoggedIn) {
+        gameContext.setMusicHostLoggedIn(true);
+        console.log(`Music host ${msg.payload.playerName} logged in to Spotify`);
+        sendMusicHostChangedAction(gameContext.musicHost.id, true);
+    }
+}
+
+function handleLoggedOutOfSpotify(gameContext: GameContextType, msg: any) {
+    if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && gameContext.musicHostLoggedIn) {
+        gameContext.setMusicHostLoggedIn(false);
+        console.log(`Music host ${msg.payload.playerName} logged out of Spotify`);
+        sendMusicHostChangedAction(gameContext.musicHost.id, false);
+    }
+}
+
+
+
+//------------ SENDING ACTIONS ------------//
+
 function sendHostAction(serverPayload: any) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         console.error('WebSocket is not connected');
@@ -188,11 +206,12 @@ function sendHostAction(serverPayload: any) {
     }
 }
 
-export function sendMusicHostChangedAction(newMusicHostId: string) {
+export function sendMusicHostChangedAction(newMusicHostId: string, isLoggedIn: boolean) {
     return sendHostAction({
         action: 'musicHostChanged',
         data: {
-            musicHostId: newMusicHostId
+            musicHostId: newMusicHostId,
+            isLoggedIn
         }
     });
 }
@@ -232,3 +251,5 @@ function sendGuessedPlayersChangedAction(guessedPlayers: Player[]) {
         }
     });
 }
+
+

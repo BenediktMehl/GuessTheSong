@@ -10,8 +10,6 @@ let currentPlayerId: string | null = null;
 
 export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string): Promise<boolean> {
     return new Promise((resolve) => {
-        
-        
         // Close existing connection if any
         if (ws) {
             ws.close();
@@ -30,8 +28,8 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
             clearTimeout(timeout);
             if (ws) {
                 ws.send(JSON.stringify({ 
-                    action: 'join', 
-                    payload: { 
+                    serverAction: 'join', 
+                    serverPayload: { 
                         sessionId: sessionId, 
                         name: playerName 
                     }
@@ -59,7 +57,6 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
 
                 switch (message.action) {
                     case 'join-success':
-                        // Store the player ID for future actions
                         currentPlayerId = message.payload.playerId;
                         resolve(true);
                         break;

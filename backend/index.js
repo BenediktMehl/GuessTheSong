@@ -124,7 +124,7 @@ function handleBroadcast(ws, serverPayload) {
   }
 }
 
-function handlePlayerDisconnect(ws) {
+function handlePlayerDisconnect(ws, sessionId) {
   sessions[sessionId]?.players.delete(ws);
   if (sessions[sessionId]) {
     console.log(`Player left session ${sessionId}. Players in session: ${sessions[sessionId].players.size}`);
@@ -141,7 +141,7 @@ function handlePlayerDisconnect(ws) {
   }
 }
 
-function handleGameHostDisconnect(ws) {
+function handleGameHostDisconnect(ws, sessionId) {
   if (sessions[sessionId]) {
     // Notify all players in the session
     sessions[sessionId].players.forEach(playerWs => {
@@ -163,9 +163,9 @@ function handleDisconnect(ws) {
   const isPlayer = sessions[sessionId]?.host !== ws;
 
   if (isPlayer) {
-    handlePlayerDisconnect(ws);
+    handlePlayerDisconnect(ws, sessionId);
   } else {
-    handleGameHostDisconnect(ws);
+    handleGameHostDisconnect(ws, sessionId);
   }
 }
 
