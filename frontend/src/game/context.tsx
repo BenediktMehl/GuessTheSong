@@ -11,6 +11,7 @@ export type WsStatus = 'connecting' | 'open' | 'closed' | 'error';
 export type GameStatus = 'notStarted' | 'waiting' | 'listening' | 'guessing' | 'finished';
 
 export interface GameContextType {
+  iAm: Player | null;
   players: Player[];
   waitingPlayers: Player[];
   guessedPlayers: Player[];
@@ -19,7 +20,8 @@ export interface GameContextType {
   musicHost: Player | null;
   status: GameStatus;
   wsStatus: WsStatus;
-  sessionId: string; // Add this new property
+  sessionId: string;
+  setIAm: (player: Player | null) => void;
   setGameState: (
     players: Player[],
     waitingPlayers: Player[],
@@ -47,6 +49,7 @@ export interface GameContextType {
   guessingPlayerGuessed: () => void;
 }
 // Individual default constants for each game state attribute
+export const DEFAULT_I_AM: Player | null = null;
 const DEFAULT_PLAYERS: Player[] = [];
 const DEFAULT_WAITING_PLAYERS: Player[] = [];
 const DEFAULT_GUESSED_PLAYERS: Player[] = [];
@@ -60,6 +63,7 @@ const DEFAULT_SESSION_ID: string = '';
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): JSX.Element => {
+  const [iAm, setIAm] = useState<Player | null>(DEFAULT_I_AM);
   const [players, setPlayers] = useState<Player[]>(DEFAULT_PLAYERS);
   const [waitingPlayers, setWaitingPlayers] = useState<Player[]>(DEFAULT_WAITING_PLAYERS);
   const [guessedPlayers, setGuessedPlayers] = useState<Player[]>(DEFAULT_GUESSED_PLAYERS);
@@ -96,6 +100,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
     setPlayers(players.filter(player => player.id !== playerId));
     setWaitingPlayers(waitingPlayers.filter(player => player.id !== playerId));
     setGuessedPlayers(guessedPlayers.filter(player => player.id !== playerId));
+    setReferee(referee?.id === playerId ? null : referee);
+    setGameHost(gameHost?.id === playerId ? null : gameHost);
+    setMusicHost(musicHost?.id === playerId ? null : musicHost);
+    if (iAm?.id === playerId) {
+      setIAm(null);
+    }
   };
 
   const addPlayer = (player: Player) => {
@@ -121,6 +131,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
   return (
     <GameContext.Provider
       value={{
+        iAm,
         players,
         waitingPlayers,
         guessedPlayers,
@@ -130,6 +141,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
         status,
         wsStatus,
         sessionId,
+        setIAm,
         setGameState,
         removePlayer,
         setPlayers,

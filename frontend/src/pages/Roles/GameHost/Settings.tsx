@@ -4,11 +4,41 @@ import { useGameInitializer } from "../../../game/host";
 
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
-    const { players, referee, musicHost, sessionId, setSessionId, status } = useGameContext();
+    const { 
+        players, 
+        referee, 
+        musicHost, 
+        sessionId, 
+        status, 
+        iAm, 
+        setIAm, 
+        addPlayer, 
+        setMusicHost, 
+        setReferee 
+    } = useGameContext();
     const [inviteLink, setInviteLink] = useState("");
+    const [myName, setMyName] = useState<string>("");
+    const [hostNameSaved, setHostNameSaved] = useState(false);
+    const [isRotatingReferee, setIsRotatingReferee] = useState(true);
+    // Add local state to track selections
+    const [localMusicHostId, setLocalMusicHostId] = useState<string>(musicHost?.id || "");
+    const [localRefereeId, setLocalRefereeId] = useState<string>(referee?.id || "");
     const isGameRunning = status !== 'notStarted' && status !== 'finished';
     const { initGame } = useGameInitializer();
 
+    // Sync local state with context when context changes
+    useEffect(() => {
+        if (musicHost?.id) {
+            setLocalMusicHostId(musicHost.id);
+
+        }
+    }, [musicHost]);
+
+    useEffect(() => {
+        if (referee?.id) {
+            setLocalRefereeId(referee.id);
+        }
+    }, [referee]);
 
     useEffect(() => {
         const inviteLink = sessionId ? `${window.location.origin}/join?id=${sessionId}` : "";
@@ -16,12 +46,70 @@ export default function Settings() {
     }, [sessionId]);
 
     useEffect(() => {
-        initGame()
-    }, []);
+        if(sessionId) return;
+        initGame();
+    }, [sessionId, initGame]);
+
+    // Handle music host selection
+    const handleMusicHostChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedId = e.target.value;
+        console.log("Selected music host ID:", selectedId);
+        // Update local state immediately for responsive UI
+        setLocalMusicHostId(selectedId);
+        
+        const selected = players.find(player => player.id === selectedId);
+        if (selected) {
+            console.log("Setting music host to:", selected.name);
+            // Force a new object to ensure context updates
+            setMusicHost({...selected});
+        }
+    };
+
+    // Handle referee selection
+    const handleRefereeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedId = e.target.value;
+        console.log("Selected referee ID:", selectedId);
+        // Update local state immediately for responsive UI
+        setLocalRefereeId(selectedId);
+        
+        const selected = players.find(player => player.id === selectedId);
+        if (selected) {
+            console.log("Setting referee to:", selected.name);
+            // Force a new object to ensure context updates
+            setReferee({...selected});
+        }
+    };
+
+    // Handle referee mode toggle
+    const handleRefereeToggle = () => {
+        setIsRotatingReferee(!isRotatingReferee);
+        if (!isRotatingReferee && players.length > 0) {
+            // If switching to random/rotating, set a random referee
+            const randomIndex = Math.floor(Math.random() * players.length);
+            setReferee(players[randomIndex]);
+        }
+    };
+
+    function handleUserNameSubmit(): void {
+        if (myName.trim() === "") {
+            alert("Name cannot be empty.");
+            return;
+        }
+        const newPlayer = {
+            id: crypto.randomUUID(),
+            name: myName.trim(),
+            points: 0,
+        };
+        setIAm(newPlayer);
+        addPlayer(newPlayer);
+        setHostNameSaved(true);
+        setTimeout(() => setHostNameSaved(false), 2000);
+    }
 
     return (
         <main className="min-h-screen flex flex-col items-center justify-center">
             <h2 className="text-2xl mb-2 text-center">Settings</h2>
+
             {inviteLink ? (
                 <>
                     <p className="mb-4 text-base-content text-center">
@@ -59,6 +147,87 @@ export default function Settings() {
                 <div className="mb-4 text-gray-500">Something went wrong. Please try again later.</div>
             )}
             <div className="w-full max-w-md mt-4">
+                {!iAm && (<div className="mb-4 flex items-center gap-2 w-full max-w-md justify-center">
+                    <input
+                        type="text"
+                        className="input input-bordered w-full"
+                        value={myName}
+                        onChange={e => setMyName(e.target.value)}
+                        maxLength={16}
+                        placeholder="Enter your name"
+                    />
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleUserNameSubmit}
+                    >
+                        Save
+                    </button>
+                </div>)}
+                {hostNameSaved && (
+                    <div className="toast toast-top toast-center">
+                        <div className="alert alert-success">
+                            <span>Host name saved!</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Music Host Selection */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium mb-1">Music Host (Spotify)</label>
+                    <select 
+                        className="select select-bordered w-full" 
+                        value={localMusicHostId}
+                        onChange={handleMusicHostChange}
+                        disabled={players.length === 0}
+                    >
+                        <option value="" disabled>Select a player</option>
+                        {players.map(player => (
+                            <option key={player.id} value={player.id}>
+                                {player.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                
+                {/* Referee Selection */}
+                <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium">Referee</label>
+                        <div className="flex items-center">
+                            <span className="mr-2 text-sm">Rotate</span>
+                            <input 
+                                type="checkbox" 
+                                className="toggle toggle-primary" 
+                                checked={!isRotatingReferee}
+                                onChange={handleRefereeToggle}
+                            />
+                            <span className="ml-2 text-sm">Fixed</span>
+                        </div>
+                    </div>
+                    
+                    {!isRotatingReferee && (
+                        <select 
+                            className="select select-bordered w-full" 
+                            value={localRefereeId}
+                            onChange={handleRefereeChange}
+                            disabled={players.length === 0}
+                        >
+                            <option value="" disabled>Select a referee</option>
+                            {players.map(player => (
+                                <option key={player.id} value={player.id}>
+                                    {player.name}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    
+                    {isRotatingReferee && (
+                        <p className="text-sm text-gray-500">
+                            A random player will be selected as referee for the next round. Then the role will rotate.
+                        </p>
+                    )}
+                </div>
+
                 <h3 className="text-lg font-semibold mb-2">Current Players:</h3>
                 <ul className="list-disc list-inside">
                     {players.length === 0 ? (
@@ -68,20 +237,6 @@ export default function Settings() {
                             <li key={player.id} className="mb-1 flex items-center">
                                 <span>{player.name}</span>
                                 <span className="ml-2 text-sm text-gray-500">({player.points} pts)</span>
-                                {musicHost?.id === player.id && (
-                                    <img
-                                        src="/spotify_logo.png"
-                                        alt="Music Host"
-                                        className="ml-2 h-4 w-4"
-                                        title="Music Host"
-                                    />
-                                )}
-                                {referee?.id === player.id && (
-                                    <div
-                                        className="ml-2 h-4 w-3 bg-yellow-400 border border-yellow-600"
-                                        title="Referee"
-                                    ></div>
-                                )}
                             </li>
                         ))
                     )}
