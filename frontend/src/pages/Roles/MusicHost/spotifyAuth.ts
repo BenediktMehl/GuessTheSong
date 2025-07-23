@@ -1,3 +1,5 @@
+import { loggedInToSpotify, loggedOutOfSpotify } from "../../../game/player";
+
 const localDevBaseUrl = 'http://127.0.0.1:5173'
 const redirectUri = '/spotifycallback'
 let clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
@@ -179,24 +181,28 @@ export function handleSpotifyLogout() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('expires_at');
     localStorage.removeItem('code_verifier');
+    loggedOutOfSpotify();
 }
 
 export async function spotifyIsLoggedIn(secondTry = false) {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken || accessToken === 'undefined') {
         console.log("Not logged in with Spotify");
+        loggedOutOfSpotify();
         return false;
     }
 
     const expiresAt = Number(localStorage.getItem('expires_at'))
     if (!expiresAt) {
         console.log("Expires at not found in localStorage");
+        loggedOutOfSpotify();
         return false;
     }
     const timeEpsilon = 1000;
     if (expiresAt - Number(Date.now()) < timeEpsilon) {
         if (secondTry) {
             console.error("Spotify access token is expired or about to expire, but refresh failed.");
+            loggedOutOfSpotify();
             return false;
         }
         console.log("Spotify access token is expired or about to expire: refreshing token...");
@@ -206,5 +212,6 @@ export async function spotifyIsLoggedIn(secondTry = false) {
     }
 
     console.log("Logged in with Spotify");
+    loggedInToSpotify();
     return true;
 }

@@ -18,6 +18,7 @@ export interface GameContextType {
   referee: Player | null;
   gameHost: Player | null;
   musicHost: Player | null;
+  musicHostLoggedIn: boolean;
   status: GameStatus;
   wsStatus: WsStatus;
   sessionId: string;
@@ -31,7 +32,8 @@ export interface GameContextType {
     musicHost: Player | null,
     status: GameStatus,
     wsStatus: WsStatus,
-    sessionId: string
+    sessionId: string,
+    musicHostLoggedIn: boolean
   ) => void;
   removePlayer: (playerId: string) => void;
   setPlayers: (players: Player[]) => void;
@@ -40,14 +42,16 @@ export interface GameContextType {
   setReferee: (referee: Player) => void;
   setGameHost: (gameHost: Player) => void;
   setMusicHost: (musicHost: Player) => void;
+  setMusicHostLoggedIn: (isLoggedIn: boolean) => void;
   setStatus: (status: GameStatus) => void;
   setWsStatus: (wsStatus: WsStatus) => void;
-  setSessionId: (sessionId: string) => void; // Add this setter
+  setSessionId: (sessionId: string) => void;
   addPlayer: (player: Player) => void;
   addToWaitingPlayers: (waitingPlayer: Player) => void;
   addToGuessedPlayers: (guessedPlayer: Player) => void;
   guessingPlayerGuessed: () => void;
 }
+
 // Individual default constants for each game state attribute
 export const DEFAULT_I_AM: Player | null = null;
 const DEFAULT_PLAYERS: Player[] = [];
@@ -56,6 +60,7 @@ const DEFAULT_GUESSED_PLAYERS: Player[] = [];
 const DEFAULT_REFEREE: Player | null = null;
 const DEFAULT_GAME_HOST: Player | null = null;
 const DEFAULT_MUSIC_HOST: Player | null = null;
+const DEFAULT_MUSIC_HOST_LOGGED_IN: boolean = false; // New default value
 const DEFAULT_STATUS: GameStatus = 'notStarted';
 const DEFAULT_WS_STATUS: WsStatus = 'closed';
 const DEFAULT_SESSION_ID: string = '';
@@ -70,6 +75,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
   const [referee, setReferee] = useState<Player | null>(DEFAULT_REFEREE);
   const [gameHost, setGameHost] = useState<Player | null>(DEFAULT_GAME_HOST);
   const [musicHost, setMusicHost] = useState<Player | null>(DEFAULT_MUSIC_HOST);
+  const [musicHostLoggedIn, setMusicHostLoggedIn] = useState<boolean>(DEFAULT_MUSIC_HOST_LOGGED_IN); // New state
   const [status, setStatus] = useState<GameStatus>(DEFAULT_STATUS);
   const [wsStatus, setWsStatus] = useState<WsStatus>(DEFAULT_WS_STATUS);
   const [sessionId, setSessionId] = useState<string>(DEFAULT_SESSION_ID);
@@ -83,7 +89,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
     newMusicHost: Player | null,
     newStatus: GameStatus,
     newWsStatus: WsStatus,
-    newSessionId: string
+    newSessionId: string,
+    newMusicHostLoggedIn: boolean
   ) => {
     setPlayers(newPlayers);
     setWaitingPlayers(newWaitingPlayers);
@@ -94,7 +101,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
     setStatus(newStatus);
     setWsStatus(newWsStatus);
     setSessionId(newSessionId);
-  }; 
+    setMusicHostLoggedIn(newMusicHostLoggedIn);
+  };
 
   const removePlayer = (playerId: string) => {
     setPlayers(players.filter(player => player.id !== playerId));
@@ -138,6 +146,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
         referee,
         gameHost,
         musicHost,
+        musicHostLoggedIn,
         status,
         wsStatus,
         sessionId,
@@ -150,6 +159,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }): J
         setReferee,
         setGameHost,
         setMusicHost,
+        setMusicHostLoggedIn,
         setStatus,
         setWsStatus,
         setSessionId,

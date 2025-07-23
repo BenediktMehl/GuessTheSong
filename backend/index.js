@@ -20,42 +20,36 @@ wss.on('connection', (ws) => {
     try {
       data = JSON.parse(msg);
     } catch (e) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Could not interpret the command (invalid JSON).' }));
+      ws.send(JSON.stringify({ 
+        type: "host", 
+        action: "error", 
+        payload: { message: 'Could not interpret the command (invalid JSON).' }
+      }));
       return;
     }
-    const { type, payload, sessionId } = data;
+    
+    const { type, action, payload } = data;
 
-    if (type === 'create') {
-      // Host requests to create a new session
-      let newSessionId;
-      let attempts = 0;
-      do {
-        newSessionId = generateSessionId();
-        attempts++;
-        // Prevent infinite loop in the rare case of collision
-        if (attempts > 100) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Could not generate unique session ID.' }));
-          return;
-        }
-      } while (sessions[newSessionId]);
-      sessions[newSessionId] = { host: ws, players: new Set() };
-      ws.sessionId = newSessionId;
-      ws.send(JSON.stringify({ type: 'created', sessionId: newSessionId }));
-      console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
-    } else if (type === 'join') {
+    // Handle incoming messages based on type and action
+    if (type === 'player' && action === 'join') {
       // Check if this WebSocket is already a player
       if (ws.playerName && ws.playerName !== '') {
         ws.send(JSON.stringify({ 
-          type: 'join-failed', 
-          reason: 'You are already connected to a session as a player.' 
+          type: 'host', 
+          action: 'join-failed', 
+          payload: { reason: 'You are already connected to a session as a player.' }
         }));
         return;
       }
 
       // Accept sessionId in any case (upper/lower)
-      const normalizedSessionId = sessionId?.toUpperCase();
+      const normalizedSessionId = payload?.sessionId?.toUpperCase();
       if (!normalizedSessionId || !sessions[normalizedSessionId]) {
-        ws.send(JSON.stringify({ type: 'join-failed', reason: 'Session does not exist.' }));
+        ws.send(JSON.stringify({ 
+          type: 'host', 
+          action: 'join-failed', 
+          payload: { reason: 'Session does not exist.' }
+        }));
         return;
       }
 
@@ -66,7 +60,11 @@ wss.on('connection', (ws) => {
       );
       
       if (isDuplicate) {
-        ws.send(JSON.stringify({ type: 'join-failed', reason: 'A player with this name already exists in the session.' }));
+        ws.send(JSON.stringify({ 
+          type: 'host', 
+          action: 'join-failed', 
+          payload: { reason: 'A player with this name already exists in the session.' }
+        }));
         return;
       }
       
@@ -76,7 +74,11 @@ wss.on('connection', (ws) => {
       ws.playerId = generatePlayerId();
 
       // Send join-success with playerId to player
-      ws.send(JSON.stringify({ type: 'join-success', sessionId: normalizedSessionId, playerId: ws.playerId }));
+      ws.send(JSON.stringify({ 
+        type: 'host', 
+        action: 'join-success', 
+        payload: { sessionId: normalizedSessionId, playerId: ws.playerId }
+      }));
 
       console.log(`Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`);
 
@@ -84,31 +86,74 @@ wss.on('connection', (ws) => {
       const host = sessions[normalizedSessionId].host;
       if (host) {
         host.send(JSON.stringify({
-          type: 'player-joined',
-          name: ws.playerName,
-          playerId: ws.playerId
+          type: 'player-forward',
+          action: 'player-joined',
+          payload: {
+            name: ws.playerName,
+            playerId: ws.playerId
+          }
         }));
       }
-    } else if (type === 'player-action') {
+    } 
+    else if (type === 'host' && action === 'create') {
+      // Host requests to create a new session
+      let newSessionId;
+      let attempts = 0;
+      do {
+        newSessionId = generateSessionId();
+        attempts++;
+        // Prevent infinite loop in the rare case of collision
+        if (attempts > 100) {
+          ws.send(JSON.stringify({ 
+            type: 'host', 
+            action: 'error', 
+            payload: { message: 'Could not generate unique session ID.' }
+          }));
+          return;
+        }
+      } while (sessions[newSessionId]);
+      sessions[newSessionId] = { host: ws, players: new Set() };
+      ws.sessionId = newSessionId;
+      ws.send(JSON.stringify({ 
+        type: 'host', 
+        action: 'created', 
+        payload: { sessionId: newSessionId }
+      }));
+      console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
+    } 
+    else if (type === 'player' && (action === 'guessed' || action === 'wantToGuess' || 
+             action === 'musicHostChanged' || action === 'refereeChanged')) {
       // Player sends action → forward to Host with timestamp and player name
       const playerSessionId = ws.sessionId;
       if (playerSessionId && sessions[playerSessionId]) {
         sessions[playerSessionId].host.send(JSON.stringify({
-          type: 'player-action',
-          payload,
-          serverTimestamp: Date.now(),
-          name: ws.playerName, // Attach player name
-          playerId: ws.playerId // Attach player id
+          type: 'player-forward',
+          action: action,
+          payload: {
+            ...payload,
+            serverTimestamp: Date.now(),
+            playerId: ws.playerId,
+            playerName: ws.playerName
+          }
         }));
       } else {
-        ws.send(JSON.stringify({ type: 'error', message: 'Session does not exist.' }));
+        ws.send(JSON.stringify({ 
+          type: 'host', 
+          action: 'error', 
+          payload: { message: 'Session does not exist.' }
+        }));
       }
-    } else if (type === 'host-broadcast') {
+    } 
+    else if (type === 'host' && action === 'broadcast') {
       // Host sends update → broadcast to all players
       const hostSessionId = ws.sessionId;
       if (hostSessionId && sessions[hostSessionId]) {
         sessions[hostSessionId].players.forEach(playerWs => {
-          playerWs.send(JSON.stringify({ type: 'update', payload }));
+          playerWs.send(JSON.stringify({ 
+            type: 'host-broadcast', 
+            action: payload.action || 'update', 
+            payload: payload.data || payload
+          }));
         });
       }
     }
@@ -126,10 +171,13 @@ wss.on('connection', (ws) => {
         const host = sessions[sessionId].host;
         if (host) {
           host.send(JSON.stringify({
-            type: 'player-left',
-            sessionId,
-            name: playerName,
-            playerId: playerId
+            type: 'player-forward',
+            action: 'player-left',
+            payload: {
+              sessionId,
+              name: playerName,
+              playerId: playerId
+            }
           }));
         }
       }
@@ -137,7 +185,11 @@ wss.on('connection', (ws) => {
       if (sessions[sessionId]) {
         // Notify all players in the session
         sessions[sessionId].players.forEach(playerWs => {
-          playerWs.send(JSON.stringify({ type: 'session-closed', reason: 'Host disconnected' }));
+          playerWs.send(JSON.stringify({ 
+            type: 'host-broadcast', 
+            action: 'session-closed', 
+            payload: { reason: 'Host disconnected' }
+          }));
           playerWs.close();
         });
         delete sessions[sessionId];

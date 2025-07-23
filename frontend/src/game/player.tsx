@@ -1,4 +1,4 @@
-import type { GameContextType, Player, GameStatus } from './context';
+import type { GameContextType } from './context';
 
 const WS_URL = 'ws://localhost:8080';
 
@@ -80,7 +80,8 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                             guessedPlayers, 
                             referee, 
                             gameHost, 
-                            musicHost, 
+                            musicHost,
+                            musicHostLoggedIn, 
                             status, 
                             wsStatus, 
                             sessionId: updatedSessionId 
@@ -95,6 +96,7 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                                 referee || null,
                                 gameHost || null,
                                 musicHost || null,
+                                musicHostLoggedIn || false,
                                 status || 'notStartet',
                                 wsStatus || 'open',
                                 updatedSessionId || sessionId
@@ -141,7 +143,7 @@ export function sendPlayerAction(action: string, data?: any) {
                 action,
                 data,
                 playerId: currentPlayerId,
-                timestamp: Date.now()
+                imestamp: Date.now()
             }
         }));
         return true;
@@ -149,6 +151,14 @@ export function sendPlayerAction(action: string, data?: any) {
         console.error('Error sending action:', error);
         return false;
     }
+}
+
+export function loggedInToSpotify(): boolean {
+    return sendPlayerAction('loggedInToSpotify');
+}
+
+export function loggedOutOfSpotify(): boolean {
+    return sendPlayerAction('loggedOutOfSpotify');
 }
 
 export function submitGuess(songGuess: string) {

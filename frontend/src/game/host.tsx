@@ -1,4 +1,4 @@
-import { useGameContext, type GameContextType } from './context';
+import { useGameContext, type GameContextType, type Player } from './context';
 import { useCallback } from 'react';
 
 const WS_URL = 'ws://localhost:8080';
@@ -9,27 +9,29 @@ let ws: WebSocket | null = null;
 // Convert to a custom hook
 export function useGameInitializer() {
     const gameContext = useGameContext();
-    const { 
+    const {
         setWsStatus,
         setSessionId,
         addPlayer,
         removePlayer,
-        // ...other context values you need
+        musicHost,
+        musicHostLoggedIn,
+        setMusicHostLoggedIn
     } = gameContext;
-    
+
     // Return an init function that can be called from event handlers
     const initGame = useCallback(() => {
         // Close existing connection if any
         if (ws) {
             ws.close();
         }
-        
+
         ws = new WebSocket(WS_URL);
 
         ws.onopen = () => {
             console.log("WebSocket connection opened");
             setWsStatus('open');
-            
+
             if (ws) {
                 const createMsg = { type: 'create' };
                 console.log("Sending create message:", createMsg);
@@ -41,30 +43,32 @@ export function useGameInitializer() {
             try {
                 const msg = JSON.parse(event.data);
                 console.log('Received message:', msg);
-                
+
                 if (msg.type === 'created') {
                     console.log('Session created with ID:', msg.sessionId);
                     setSessionId(msg.sessionId);
                 }
-                
+
                 if (msg.type === 'player-joined') {
                     const newPlayer = {
                         id: msg.id,
                         name: msg.name,
                         points: 0,
                     };
-                    
+
                     addPlayer(newPlayer);
                     console.log('Player joined:', msg.name);
                 }
-                
+
                 if (msg.type === 'player-left') {
                     removePlayer(msg.id);
                     console.log('Player left:', msg.name);
                 }
-                
+
                 if (msg.type === 'player-action') {
-                    // Handle player action (e.g., guess, etc.)
+                    handlePlayerAction(msg, musicHost,
+                        musicHostLoggedIn,
+                        setMusicHostLoggedIn);
                     console.log('Player action:', msg.name, msg.payload);
                 }
             } catch (e) {
@@ -93,3 +97,51 @@ export function useGameInitializer() {
 
     return { initGame, endGame };
 }
+function handlePlayerAction(msg: any, musicHost: Player | null, musicHostLoggedIn: boolean, setMusicHostLoggedIn: (isLoggedIn: boolean) => void) {
+    // Assuming msg.payload contains the action details
+    if (!msg.payload || !msg.payload.actionType) {
+        console.error('Invalid player action message:', msg);
+        return;
+    }
+
+    switch (msg.payload.actionType) {
+        case 'loggedInToSpotify':
+            console.log(`Player ${msg.name} guessed: ${msg.payload.guess}`);
+                if (musicHost && musicHost.id === msg.id && !musicHostLoggedIn) {
+                    setMusicHostLoggedIn(true);
+                }
+                break;
+        case 'loggedOutOfSpotify':
+            console.log(`Player ${msg.name} requested to skip the song`);
+            if (musicHost && musicHost.id === msg.id && musicHostLoggedIn) {
+                setMusicHostLoggedIn(false);
+            }
+            break;
+        default:
+            console.warn('Unknown action type:', msg.payload.actionType);
+    }
+}
+
+function sendHostAction(action: string, playerId: string) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket is not connected');
+        return false;
+    }
+    try {
+        ws.send(JSON.stringify({
+            type: 'host-broadcast',
+            action,
+            payload: {
+                playerId
+            }
+        }));
+        return true;
+    } catch (error) {
+        console.error('Error sending host action:', error);
+        return false;
+    }
+}
+
+export function musicHostChanged(newMusicHostId: string) {
+    return sendHostAction('musicHostChanged', newMusicHostId);
+}   
