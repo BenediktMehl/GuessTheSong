@@ -243,11 +243,30 @@ export default function Settings() {
                 </ul>
             </div>
             <a
-                href="/hostgame"
-                className={`btn ${isGameRunning ? 'btn-primary' : 'btn-success'} mt-4`}
+                href={(players.length >= 3 && iAm) ? "/hostgame" : "#"}
+                className={`btn ${isGameRunning ? 'btn-primary' : 'btn-success'} mt-4 ${(players.length < 3 || !iAm) ? 'btn-disabled' : ''}`}
+                onClick={(e) => {
+                    if (players.length < 3 || !iAm) {
+                        e.preventDefault();
+                    }
+                }}
             >
                 {isGameRunning ? 'Save' : 'Start Game'}
             </a>
+            {!isGameRunning && (
+                <>
+                    {!iAm && (
+                        <p className="text-sm text-error mt-2 text-center">
+                            Please enter your name first.
+                        </p>
+                    )}
+                    {iAm && players.length < 3 && (
+                        <p className="text-sm text-error mt-2 text-center">
+                            You need at least 3 players to start the game.
+                        </p>
+                    )}
+                </>
+            )}
         </main >
     )
 }
