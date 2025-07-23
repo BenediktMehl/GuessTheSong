@@ -1,8 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export const Player = () => {
     const [position, setPosition] = useState<number>(-1);
     const [guesser, setGuesser] = useState<string | null>(null);
+    const [showJoinedToast, setShowJoinedToast] = useState(true);
+
+    useEffect(() => {
+        if (showJoinedToast) {
+            const timer = setTimeout(() => setShowJoinedToast(false), 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [showJoinedToast]);
 
     const guessSong = () => {
         // Random position between -1 and 2
@@ -76,6 +84,13 @@ export const Player = () => {
             className="relative h-screen w-screen overflow-hidden"
             onClick={guessSong}
         >
+            {showJoinedToast && (
+                <div className="toast toast-top toast-center mt-4">
+                    <div className="alert alert-success">
+                        <span>Successfully joined the game!</span>
+                    </div>
+                </div>
+            )}
             <div className="relative flex flex-col items-center justify-center h-full">
                 {getText()}
             </div>

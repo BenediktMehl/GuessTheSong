@@ -30,10 +30,6 @@ export const SpotifyAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
         }
     };
 
-    useEffect(() => {
-        refreshProfile();
-    }, []);
-
     const logout = async () => {
         await handleSpotifyLogout();
         setProfile(null);

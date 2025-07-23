@@ -23,7 +23,7 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({ type: 'error', message: 'Could not interpret the command (invalid JSON).' }));
       return;
     }
-    const { type, role, payload, sessionId } = data;
+    const { type, payload, sessionId } = data;
 
     if (type === 'create') {
       // Host requests to create a new session
@@ -40,21 +40,40 @@ wss.on('connection', (ws) => {
       } while (sessions[newSessionId]);
       sessions[newSessionId] = { host: ws, players: new Set() };
       ws.sessionId = newSessionId;
-      ws.role = 'host';
       ws.send(JSON.stringify({ type: 'created', sessionId: newSessionId }));
       console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
     } else if (type === 'join') {
+      // Check if this WebSocket is already a player
+      if (ws.playerName && ws.playerName !== '') {
+        ws.send(JSON.stringify({ 
+          type: 'join-failed', 
+          reason: 'You are already connected to a session as a player.' 
+        }));
+        return;
+      }
+
       // Accept sessionId in any case (upper/lower)
       const normalizedSessionId = sessionId?.toUpperCase();
       if (!normalizedSessionId || !sessions[normalizedSessionId]) {
         ws.send(JSON.stringify({ type: 'join-failed', reason: 'Session does not exist.' }));
         return;
       }
+
+      // Check if a player with the same name already exists in the session
+      const playerName = payload?.name;
+      const isDuplicate = Array.from(sessions[normalizedSessionId].players).some(player => 
+        player.playerName === playerName
+      );
+      
+      if (isDuplicate) {
+        ws.send(JSON.stringify({ type: 'join-failed', reason: 'A player with this name already exists in the session.' }));
+        return;
+      }
+      
       sessions[normalizedSessionId].players.add(ws);
       ws.sessionId = normalizedSessionId;
-      ws.role = 'player';
-      ws.playerName = payload?.name; // Store player name on the ws connection
-      ws.playerId = generatePlayerId(); // Generate and store playerId
+      ws.playerName = playerName; 
+      ws.playerId = generatePlayerId();
 
       // Send join-success with playerId to player
       ws.send(JSON.stringify({ type: 'join-success', sessionId: normalizedSessionId, playerId: ws.playerId }));
@@ -96,9 +115,10 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    const { sessionId, role, playerName, playerId } = ws;
+    const { sessionId, playerName, playerId } = ws;
     if (!sessionId) return;
-    if (role === 'player') {
+    const isPlayer = sessions[sessionId]?.host !== ws;
+    if (isPlayer) {
       sessions[sessionId]?.players.delete(ws);
       if (sessions[sessionId]) {
         console.log(`Player left session ${sessionId}. Players in session: ${sessions[sessionId].players.size}`);
@@ -113,9 +133,7 @@ wss.on('connection', (ws) => {
           }));
         }
       }
-    }
-    // If host disconnects, close session and notify all players
-    if (role === 'host') {
+    } else {
       if (sessions[sessionId]) {
         // Notify all players in the session
         sessions[sessionId].players.forEach(playerWs => {

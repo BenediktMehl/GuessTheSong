@@ -78,6 +78,66 @@ describe('GuessTheSong WebSocket backend', () => {
     expect(hostMsg.playerId).toBe(joinMsg.playerId);
   });
 
+  test('Player cannot join with duplicate name', async () => {
+    // Host creates session
+    host = new WebSocket(WS_URL);
+    await new Promise(res => host.once('open', res));
+    host.send(JSON.stringify({ type: 'create', role: 'host' }));
+    const created = await waitForMessage(host);
+
+    // First player joins successfully
+    player1 = new WebSocket(WS_URL);
+    await new Promise(res => player1.once('open', res));
+    player1.send(JSON.stringify({ type: 'join', role: 'player', sessionId: created.sessionId, payload: { name: 'DuplicateName' } }));
+    const joinMsg1 = await waitForMessage(player1);
+    expect(joinMsg1.type).toBe('join-success');
+    await waitForMessage(host); // player-joined notification to host
+
+    // Second player tries to join with the same name
+    player2 = new WebSocket(WS_URL);
+    await new Promise(res => player2.once('open', res));
+    player2.send(JSON.stringify({ type: 'join', role: 'player', sessionId: created.sessionId, payload: { name: 'DuplicateName' } }));
+    const joinMsg2 = await waitForMessage(player2);
+    
+    // Verify the second player gets rejected
+    expect(joinMsg2.type).toBe('join-failed');
+    expect(joinMsg2.reason).toBe('A player with this name already exists in the session.');
+  });
+
+  test('Player cannot join multiple sessions with same connection', async () => {
+    // Create first session
+    host = new WebSocket(WS_URL);
+    await new Promise(res => host.once('open', res));
+    host.send(JSON.stringify({ type: 'create', role: 'host' }));
+    const created = await waitForMessage(host);
+    
+    // Player joins first session
+    player1 = new WebSocket(WS_URL);
+    await new Promise(res => player1.once('open', res));
+    player1.send(JSON.stringify({ 
+      type: 'join', 
+      role: 'player', 
+      sessionId: created.sessionId, 
+      payload: { name: 'Player1' } 
+    }));
+    const joinMsg1 = await waitForMessage(player1);
+    expect(joinMsg1.type).toBe('join-success');
+    await waitForMessage(host); // player-joined notification
+    
+    // Player tries to join another session with same connection
+    player1.send(JSON.stringify({ 
+      type: 'join', 
+      role: 'player', 
+      sessionId: created.sessionId, 
+      payload: { name: 'AnotherName' } 
+    }));
+    const joinMsg2 = await waitForMessage(player1);
+    
+    // Verify the join attempt is rejected
+    expect(joinMsg2.type).toBe('join-failed');
+    expect(joinMsg2.reason).toBe('You are already connected to a session as a player.');
+  });
+
   test('Illegal command: join non-existent session', async () => {
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));

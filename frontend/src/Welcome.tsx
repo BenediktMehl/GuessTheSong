@@ -1,17 +1,16 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 
-// Placeholder pages for initial routing
 import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen'
 import Join from './pages/Join'
 import SpotifyLoginCallback from './pages/Roles/MusicHost/LoginCallback'
 import Settings from './pages/Roles/GameHost/Settings'
-import { spotifyIsLoggedIn } from './pages/Roles/MusicHost/spotifyAuth'
 import HostGame from './pages/Roles/GameHost/HostGame'
 import { Player } from './pages/Types/Player/Player'
 
-function Home() {
-  const hostAGameClickHandler = async () => {
-      window.location.href = '/settings'
+
+function Welcome() {
+  const hostAGameClickHandler = () => {
+    window.location.href = '/settings'
   }
   const joinAGameClickHandler = () => {
     window.location.href = '/join'
@@ -45,11 +44,11 @@ function Home() {
   )
 }
 
-function App() {
+export function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Welcome />} />
         <Route path="/join" element={<Join />} />
         <Route path="/spotifylogin" element={<SpotifyLoginScreen />} />
         <Route path="/spotifycallback" element={<SpotifyLoginCallback />} />
@@ -61,5 +60,3 @@ function App() {
     </Router>
   )
 }
-
-export default App

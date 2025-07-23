@@ -30,5 +30,5 @@ wscat -c ws://localhost:8080
 {"type": "host-broadcast", "payload": {"state": "next-turn", "guesser": "Player1"}}
 
 ### Player
-{"type": "join", "sessionId": "ABCD", "payload": {"name": "Alice"}}
+{"type": "join", "sessionId": "C661", "payload": {"name": "Alice"}}
 {"type": "player-action", "payload": {"action": "guess", "value": "Song Title"}}

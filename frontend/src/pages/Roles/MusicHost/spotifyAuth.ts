@@ -179,8 +179,6 @@ export function handleSpotifyLogout() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('expires_at');
     localStorage.removeItem('code_verifier');
-    console.log("Spotify logout successful, redirecting to home page...");
-    window.location.href = '/';
 }
 
 export async function spotifyIsLoggedIn(secondTry = false) {
