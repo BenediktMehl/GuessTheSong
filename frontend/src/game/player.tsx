@@ -9,6 +9,8 @@ let ws: WebSocket | null = null;
 let currentPlayerId: string | null = null;
 
 export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string): Promise<boolean> {
+    console.log(gameContext, "currentPlayerId:", currentPlayerId);
+    
     return new Promise((resolve) => {
         // Close existing connection if any
         if (ws) {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, type JSX, type ReactNode } from 'react';
+import { createContext, useContext, useState, type JSX, type ReactNode } from 'react';
 
 export type Player = {
   id: string;

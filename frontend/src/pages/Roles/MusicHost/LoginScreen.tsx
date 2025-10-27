@@ -1,4 +1,4 @@
-import React, { use, useEffect } from 'react'
+import { useEffect } from 'react'
 import { handleSpotifyLogin, spotifyIsLoggedIn } from './spotifyAuth'
 
 export default function SpotifyLoginScreen() {

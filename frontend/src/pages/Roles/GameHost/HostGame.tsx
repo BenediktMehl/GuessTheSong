@@ -1,11 +1,11 @@
-import React from 'react'
+import { useState, useEffect } from 'react';
 import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState } from '../MusicHost/spotifyMusic'
 
 export default function HostGame() {
-    const [spotifyStatus, setSpotifyStatus] = React.useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);
-    const [showToast, setShowToast] = React.useState(true);
-    const [skippedTrack, setSkippedTrack] = React.useState<Boolean>(false);
-    const [currentTrack, setCurrentTrack] = React.useState<any>(null);
+    const [spotifyStatus, setSpotifyStatus] = useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);
+    const [showToast, setShowToast] = useState(true);
+    const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
+    const [currentTrack, setCurrentTrack] = useState<any>(null);
 
     // Fetch current track info
     const fetchCurrentTrack = async () => {
@@ -17,7 +17,7 @@ export default function HostGame() {
         }
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         fetchCurrentTrack();
         // Optionally, poll every few seconds:
         // const interval = setInterval(fetchCurrentTrack, 5000);

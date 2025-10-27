@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 export const Player = () => {
     const [position, setPosition] = useState<number>(-1);
