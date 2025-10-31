@@ -49,6 +49,10 @@ describe('GuessTheSong WebSocket backend', () => {
     expect(joinMsg.payload.sessionId).toBe(created.payload.sessionId);
     expect(joinMsg.payload).toHaveProperty('playerId');
     expect(typeof joinMsg.payload.playerId).toBe('string');
+    expect(joinMsg.payload).toHaveProperty('players');
+    expect(Array.isArray(joinMsg.payload.players)).toBe(true);
+    expect(joinMsg.payload.players.length).toBe(1); // Only Alice at this point
+    expect(joinMsg.payload.players[0].name).toBe('Alice');
 
     // Host receives player-joined
     const hostMsg = await waitForMessage(host);
@@ -325,5 +329,46 @@ describe('GuessTheSong WebSocket backend', () => {
     duplicateTest1.close();
     duplicateTest3.close();
     duplicateTest5.close();
+  });
+
+  test('Players receive complete player list on join', async () => {
+    // Host creates session
+    host = new WebSocket(WS_URL);
+    await new Promise(res => host.once('open', res));
+    host.send(JSON.stringify({ serverAction: 'create' }));
+    const created = await waitForMessage(host);
+    const sessionId = created.payload.sessionId;
+
+    // Player 1 joins
+    player1 = new WebSocket(WS_URL);
+    await new Promise(res => player1.once('open', res));
+    player1.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player1' } 
+    }));
+    const join1Msg = await waitForMessage(player1);
+    expect(join1Msg.action).toBe('join-success');
+    expect(join1Msg.payload).toHaveProperty('players');
+    expect(join1Msg.payload.players.length).toBe(1);
+    expect(join1Msg.payload.players[0].name).toBe('Player1');
+    
+    await waitForMessage(host); // host notification
+
+    // Player 2 joins - should get list of 2 players
+    player2 = new WebSocket(WS_URL);
+    await new Promise(res => player2.once('open', res));
+    player2.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player2' } 
+    }));
+    
+    const join2Msg = await waitForMessage(player2);
+    expect(join2Msg.action).toBe('join-success');
+    expect(join2Msg.payload).toHaveProperty('players');
+    expect(join2Msg.payload.players.length).toBe(2);
+    
+    const playerNames = join2Msg.payload.players.map(p => p.name);
+    expect(playerNames).toContain('Player1');
+    expect(playerNames).toContain('Player2');
   });
 });

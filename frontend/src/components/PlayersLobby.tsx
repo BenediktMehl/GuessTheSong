@@ -38,8 +38,8 @@ export default function PlayersLobby({ players, minPlayers = 2, currentPlayerId 
                                     <span className="font-medium text-sm">
                                         {player.name}
                                         {isCurrentPlayer && (
-                                            <span className="ml-1 text-success text-xs font-bold">
-                                                👤
+                                            <span className="ml-2 text-success text-xs font-bold">
+                                                (You)
                                             </span>
                                         )}
                                     </span>

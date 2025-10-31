@@ -97,15 +97,26 @@ function handleJoin(ws, serverPayload) {
   // Now add to session
   sessions[normalizedSessionId].players.add(ws);
 
-  // Send join-success with playerId to player
+  // Get list of all players for the new player
+  const allPlayers = Array.from(sessions[normalizedSessionId].players).map(p => ({
+    id: p.playerId,
+    name: p.playerName,
+    points: 0 // Initial points
+  }));
+
+  // Send join-success with playerId and all players to the new player
   ws.send(JSON.stringify({
     action: 'join-success',
-    payload: { sessionId: normalizedSessionId, playerId: ws.playerId }
+    payload: { 
+      sessionId: normalizedSessionId, 
+      playerId: ws.playerId,
+      players: allPlayers // Send list of all players
+    }
   }));
 
   console.log(`Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`);
 
-  // Notify host that a new player joined, send the player's name and id
+  // Notify host that a new player joined
   const host = sessions[normalizedSessionId].host;
   if (host) {
     host.send(JSON.stringify({
@@ -116,6 +127,19 @@ function handleJoin(ws, serverPayload) {
       }
     }));
   }
+
+  // Notify all OTHER players in the session about the new player
+  sessions[normalizedSessionId].players.forEach(playerWs => {
+    if (playerWs !== ws) { // Don't send to the player who just joined
+      playerWs.send(JSON.stringify({
+        action: 'player-joined',
+        payload: {
+          name: ws.playerName,
+          playerId: ws.playerId
+        }
+      }));
+    }
+  });
 }
 
 function handleCreate(ws) {
@@ -188,6 +212,14 @@ function handlePlayerDisconnect(ws, sessionId) {
               payload: { playerId }
             }));
           }
+
+          // Notify all other players that this player left
+          sessions[sessionId].players.forEach(playerWs => {
+            playerWs.send(JSON.stringify({
+              action: 'player-left',
+              payload: { playerId }
+            }));
+          });
         }
       }
     }, RECONNECT_GRACE_PERIOD_MS);

@@ -119,7 +119,24 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                         gameContext.setSessionId(sessionId);
                         gameContext.setWsStatus('open');
                         gameContext.setCurrentPlayerId(message.payload.playerId);
+                        
+                        // Set initial players list if provided
+                        if (message.payload.players && Array.isArray(message.payload.players)) {
+                            console.log('Setting initial players list:', message.payload.players);
+                            gameContext.setPlayers(message.payload.players);
+                        }
+                        
                         resolve(true);
+                        break;
+
+                    case 'player-joined':
+                        // Another player joined the session
+                        handlePlayerJoinedForPlayer(gameContext, message);
+                        break;
+
+                    case 'player-left':
+                        // Another player left the session
+                        handlePlayerLeftForPlayer(gameContext, message.payload.playerId);
                         break;
 
                     case 'join-failed':
@@ -145,6 +162,31 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
             }
         };
     });
+}
+
+function handlePlayerJoinedForPlayer(gameContext: GameContextType, msg: any) {
+    const newPlayer = {
+        id: msg.payload.playerId,
+        name: msg.payload.name,
+        points: 0,
+    };
+    console.log('Player joined (player perspective):', newPlayer);
+    
+    gameContext.setPlayers((currentPlayers) => {
+        // Check if player already exists (avoid duplicates)
+        if (currentPlayers.some(p => p.id === newPlayer.id)) {
+            return currentPlayers;
+        }
+        return [...currentPlayers, newPlayer];
+    });
+}
+
+function handlePlayerLeftForPlayer(gameContext: GameContextType, playerId: string) {
+    console.log('Player left (player perspective):', playerId);
+    
+    gameContext.setPlayers((currentPlayers) => 
+        currentPlayers.filter(player => player.id !== playerId)
+    );
 }
 
 export function sendPlayerAction(action: string, payload?: any) {
