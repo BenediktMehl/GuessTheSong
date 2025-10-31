@@ -7,6 +7,7 @@ interface GameCodeProps {
 
 export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCopyError }: GameCodeProps) {
     const inviteLink = `${window.location.origin}/join?id=${sessionId}`;
+    const canShare = typeof navigator !== 'undefined' && navigator.share;
 
     const handleCopy = async () => {
         try {
@@ -26,6 +27,19 @@ export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCo
             if (onCopyError) {
                 onCopyError();
             }
+        }
+    };
+
+    const handleShare = async () => {
+        try {
+            await navigator.share({
+                title: 'Join my GuessTheSong game!',
+                text: `Join my game with code: ${sessionId}`,
+                url: inviteLink
+            });
+        } catch (err) {
+            // User cancelled or share not supported
+            console.log('Share cancelled or not supported:', err);
         }
     };
 
@@ -52,9 +66,19 @@ export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCo
                         <button
                             className="btn btn-primary"
                             onClick={handleCopy}
+                            title="Copy link"
                         >
                             📋
                         </button>
+                        {canShare && (
+                            <button
+                                className="btn btn-success"
+                                onClick={handleShare}
+                                title="Share link"
+                            >
+                                🔗
+                            </button>
+                        )}
                     </div>
                 </>
             )}
