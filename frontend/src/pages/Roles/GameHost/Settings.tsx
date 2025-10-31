@@ -29,9 +29,10 @@ export default function Settings() {
     }, [isHost, setIsHost]);
 
     useEffect(() => {
-        if(sessionId) return;
+        // Don't try to init if we already have a session or if connection has failed
+        if(sessionId || wsStatus === 'failed') return;
         initGame();
-    }, [sessionId, initGame]);
+    }, [sessionId, initGame, wsStatus]);
 
     const handleCopyLink = () => {
         setShowCopiedToast(true);

@@ -11,6 +11,7 @@ let currentPlayerName: string | null = null;
 let reconnectAttempts = 0;
 let reconnectTimeout: number | null = null;
 const MAX_RECONNECT_ATTEMPTS = 3;
+let hasFailed = false; // Track if we've permanently failed
 
 function attemptReconnect(gameContext: GameContextType) {
     if (!currentSessionId || !currentPlayerName || !currentPlayerId) {
@@ -18,8 +19,9 @@ function attemptReconnect(gameContext: GameContextType) {
         return;
     }
     
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        console.log('Max reconnect attempts reached');
+    if (hasFailed || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.log('Max reconnect attempts reached or already failed');
+        hasFailed = true;
         gameContext.setWsStatus('failed');
         return;
     }
@@ -34,6 +36,13 @@ function attemptReconnect(gameContext: GameContextType) {
 
 export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string, playerId?: string): Promise<boolean> {
     console.log(gameContext, "currentPlayerId:", currentPlayerId, "reconnecting with:", playerId);
+    
+    // Check if we've already permanently failed
+    if (hasFailed) {
+        console.log('Connection has permanently failed. Not attempting to join.');
+        gameContext.setWsStatus('failed');
+        return Promise.resolve(false);
+    }
     
     // Store for reconnection
     currentPlayerName = playerName;
@@ -102,6 +111,7 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                     case 'join-success':
                         currentPlayerId = message.payload.playerId;
                         reconnectAttempts = 0; // Reset on successful connection
+                        hasFailed = false; // Reset failed flag on success
                         if (reconnectTimeout) {
                             clearTimeout(reconnectTimeout);
                             reconnectTimeout = null;
