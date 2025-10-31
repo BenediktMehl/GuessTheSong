@@ -130,11 +130,11 @@ function handlePlayerDisconnect(ws, sessionId) {
     console.log(`Player left session ${sessionId}. Players in session: ${sessions[sessionId].players.size}`);
     // Notify host that a player left, send the player's id
     const host = sessions[sessionId].host;
-    if (host) {
+    if (host && ws.playerId) {
       host.send(JSON.stringify({
         action: 'player-left',
         payload: {
-          playerId
+          playerId: ws.playerId
         }
       }));
     }

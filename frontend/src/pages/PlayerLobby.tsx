@@ -5,7 +5,7 @@ import GameCode from "../components/GameCode";
 import PlayersLobby from "../components/PlayersLobby";
 
 export default function PlayerLobby() {
-    const { sessionId, players, status } = useGameContext();
+    const { sessionId, players, status, currentPlayerId } = useGameContext();
     const navigate = useNavigate();
 
     // Wenn das Spiel startet, zur Play-Ansicht wechseln
@@ -28,7 +28,7 @@ export default function PlayerLobby() {
             
             {sessionId && <GameCode sessionId={sessionId} showCopyLink={false} />}
             
-            <PlayersLobby players={players} minPlayers={2} />
+            <PlayersLobby players={players} minPlayers={2} currentPlayerId={currentPlayerId} />
 
             <div className="card bg-base-300 shadow-lg p-6 w-full max-w-md text-center">
                 <div className="text-5xl mb-4 animate-bounce">⏳</div>

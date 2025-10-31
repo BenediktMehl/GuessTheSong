@@ -19,6 +19,7 @@ export interface GameContextType {
   status: GameStatus;
   wsStatus: WsStatus;
   sessionId: string;
+  currentPlayerId: string;
   setIsHost: (isHost: boolean) => void;
   setPlayers: (players: Player[]) => void;
   setWaitingPlayers: (waitingPlayers: Player[]) => void;
@@ -27,6 +28,7 @@ export interface GameContextType {
   setStatus: (status: GameStatus) => void;
   setWsStatus: (wsStatus: WsStatus) => void;
   setSessionId: (sessionId: string) => void;
+  setCurrentPlayerId: (playerId: string) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -40,6 +42,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [status, setStatus] = useState<GameStatus>('notStarted');
   const [wsStatus, setWsStatus] = useState<WsStatus>('closed');
   const [sessionId, setSessionId] = useState('');
+  const [currentPlayerId, setCurrentPlayerId] = useState('');
 
   return (
     <GameContext.Provider
@@ -52,6 +55,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         status,
         wsStatus,
         sessionId,
+        currentPlayerId,
         setIsHost,
         setPlayers,
         setWaitingPlayers,
@@ -60,6 +64,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setStatus,
         setWsStatus,
         setSessionId,
+        setCurrentPlayerId,
       }}
     >
       {children}

@@ -3,9 +3,10 @@ import type { Player } from "../game/context";
 interface PlayersLobbyProps {
     players: Player[];
     minPlayers?: number;
+    currentPlayerId?: string;
 }
 
-export default function PlayersLobby({ players, minPlayers = 2 }: PlayersLobbyProps) {
+export default function PlayersLobby({ players, minPlayers = 2, currentPlayerId }: PlayersLobbyProps) {
     return (
         <div className="card bg-base-200 shadow-xl p-6 w-full max-w-md">
             <h3 className="text-xl font-semibold mb-4 text-center">
@@ -19,22 +20,36 @@ export default function PlayersLobby({ players, minPlayers = 2 }: PlayersLobbyPr
                 </div>
             ) : (
                 <ul className="space-y-2">
-                    {players.map((player, index) => (
-                        <li 
-                            key={player.id} 
-                            className="flex items-center justify-between p-3 bg-base-300 rounded-lg hover:bg-base-100 transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <span className="text-lg font-semibold text-primary">
-                                    #{index + 1}
+                    {players.map((player, index) => {
+                        const isCurrentPlayer = currentPlayerId && player.id === currentPlayerId;
+                        return (
+                            <li 
+                                key={player.id} 
+                                className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                                    isCurrentPlayer 
+                                        ? 'bg-success bg-opacity-20 border-2 border-success' 
+                                        : 'bg-base-300 hover:bg-base-100'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="text-lg font-semibold text-primary">
+                                        #{index + 1}
+                                    </span>
+                                    <span className="font-medium text-lg">
+                                        {player.name}
+                                        {isCurrentPlayer && (
+                                            <span className="ml-2 text-success text-sm font-bold">
+                                                👤 YOU
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                                <span className="badge badge-primary badge-lg">
+                                    {player.points} pts
                                 </span>
-                                <span className="font-medium text-lg">{player.name}</span>
-                            </div>
-                            <span className="badge badge-primary badge-lg">
-                                {player.points} pts
-                            </span>
-                        </li>
-                    ))}
+                            </li>
+                        );
+                    })}
                 </ul>
             )}
 

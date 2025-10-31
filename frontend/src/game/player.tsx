@@ -61,6 +61,7 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                         currentPlayerId = message.payload.playerId;
                         gameContext.setSessionId(sessionId);
                         gameContext.setWsStatus('open');
+                        gameContext.setCurrentPlayerId(message.payload.playerId);
                         resolve(true);
                         break;
 
