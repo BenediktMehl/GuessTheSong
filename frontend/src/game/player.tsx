@@ -59,6 +59,8 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                 switch (message.action) {
                     case 'join-success':
                         currentPlayerId = message.payload.playerId;
+                        gameContext.setSessionId(sessionId);
+                        gameContext.setWsStatus('open');
                         resolve(true);
                         break;
 
