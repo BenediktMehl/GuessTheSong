@@ -8,6 +8,8 @@ const config = {
   }
 };
 
+const BACKEND_TOGGLE_KEY = 'dev-backend-toggle';
+
 // Detect environment based on import.meta.env.MODE or hostname
 const getEnvironment = (): 'development' | 'production' => {
   if (import.meta.env.DEV) {
@@ -16,4 +18,16 @@ const getEnvironment = (): 'development' | 'production' => {
   return 'production';
 };
 
-export const WS_URL = config[getEnvironment()].wsUrl;
+const getWsUrl = (): string => {
+  const env = getEnvironment();
+  
+  // In dev mode, check if user wants to use local or pi backend
+  if (env === 'development') {
+    const useLocal = localStorage.getItem(BACKEND_TOGGLE_KEY) === 'local';
+    return useLocal ? config.development.wsUrl : config.production.wsUrl;
+  }
+  
+  return config[env].wsUrl;
+};
+
+export const WS_URL = getWsUrl();

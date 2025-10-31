@@ -6,6 +6,7 @@ import { GameProvider } from './game/context';
 import Overlay from './pages/Roles/MusicHost/Overlay';
 import { SpotifyAuthProvider } from './pages/Roles/MusicHost/SpotifyAuthContext.tsx'
 import { App } from './Welcome.tsx';
+import { BackendToggle } from './components/BackendToggle.tsx';
 
 
 createRoot(document.getElementById('root')!).render(
@@ -14,6 +15,7 @@ createRoot(document.getElementById('root')!).render(
       <GameProvider>
         <Background />
         <Overlay />
+        {import.meta.env.DEV && <BackendToggle />}
         <div className="relative z-10">
           <App />
         </div>
