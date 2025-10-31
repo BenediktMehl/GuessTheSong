@@ -23,16 +23,16 @@ export default function PlayerLobby() {
     }, [sessionId, navigate]);
 
     return (
-        <main className="h-screen flex flex-col items-center justify-between p-4 py-safe overflow-hidden">
-            <h1 className="text-3xl md:text-4xl font-bold text-primary">Lobby</h1>
+        <main className="h-screen flex flex-col items-center justify-center p-4 gap-4 overflow-hidden">
+            <h1 className="text-2xl md:text-4xl font-bold text-primary">Lobby</h1>
             
             {sessionId && <GameCode sessionId={sessionId} showCopyLink={false} />}
             
             <PlayersLobby players={players} minPlayers={2} currentPlayerId={currentPlayerId} />
 
-            <div className="card bg-base-300 shadow-lg p-4 w-full max-w-md text-center">
-                <div className="text-4xl mb-2 animate-bounce">⏳</div>
-                <p className="text-base font-semibold mb-1">Waiting for host...</p>
+            <div className="card bg-base-300 bg-opacity-70 shadow-2xl p-3 w-full max-w-md text-center">
+                <div className="text-3xl mb-2 animate-bounce">⏳</div>
+                <p className="text-sm font-semibold mb-1">Waiting for host...</p>
                 <p className="text-xs text-gray-500">
                     Share the game code!
                 </p>
