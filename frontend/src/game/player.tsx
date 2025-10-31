@@ -4,11 +4,40 @@ import { WS_URL } from '../config';
 // Reference to store websocket connection between function calls
 let ws: WebSocket | null = null;
 
-// Store the player's ID after joining
+// Store the player's ID and session info for reconnection
 let currentPlayerId: string | null = null;
+let currentSessionId: string | null = null;
+let currentPlayerName: string | null = null;
+let reconnectAttempts = 0;
+let reconnectTimeout: number | null = null;
 
-export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string): Promise<boolean> {
-    console.log(gameContext, "currentPlayerId:", currentPlayerId);
+function attemptReconnect(gameContext: GameContextType) {
+    if (!currentSessionId || !currentPlayerName || !currentPlayerId) {
+        console.log('Cannot reconnect: missing session info');
+        return;
+    }
+    
+    if (reconnectAttempts >= 5) {
+        console.log('Max reconnect attempts reached');
+        alert('Connection lost. Please rejoin the game.');
+        window.location.href = '/join';
+        return;
+    }
+    
+    reconnectAttempts++;
+    console.log(`Reconnection attempt ${reconnectAttempts}/5...`);
+    
+    reconnectTimeout = window.setTimeout(() => {
+        joinGame(gameContext, currentPlayerName!, currentSessionId!, currentPlayerId || undefined);
+    }, 2000 * reconnectAttempts); // Exponential backoff
+}
+
+export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string, playerId?: string): Promise<boolean> {
+    console.log(gameContext, "currentPlayerId:", currentPlayerId, "reconnecting with:", playerId);
+    
+    // Store for reconnection
+    currentPlayerName = playerName;
+    currentSessionId = sessionId;
     
     return new Promise((resolve) => {
         // Close existing connection if any
@@ -28,14 +57,21 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
         ws.onopen = () => {
             clearTimeout(timeout);
             if (ws) {
+                const payload: any = { 
+                    sessionId: sessionId, 
+                    name: playerName
+                };
+                
+                // Include playerId for reconnection
+                if (playerId) {
+                    payload.playerId = playerId;
+                }
+                
                 ws.send(JSON.stringify({ 
                     serverAction: 'join', 
-                    serverPayload: { 
-                        sessionId: sessionId, 
-                        name: playerName 
-                    }
+                    serverPayload: payload
                 }));
-                console.log('Joining game with session ID:', sessionId);
+                console.log('Joining game with session ID:', sessionId, playerId ? '(reconnecting)' : '(new)');
             } else {
                 console.error("WebSocket is not initialized");
                 resolve(false);
@@ -44,6 +80,12 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
 
         ws.onclose = () => {
             console.log('WebSocket connection closed');
+            gameContext.setWsStatus('closed');
+            
+            // Attempt to reconnect if we have session info
+            if (currentSessionId && currentPlayerId) {
+                attemptReconnect(gameContext);
+            }
         };
 
         ws.onerror = (error) => {
@@ -59,6 +101,11 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                 switch (message.action) {
                     case 'join-success':
                         currentPlayerId = message.payload.playerId;
+                        reconnectAttempts = 0; // Reset on successful connection
+                        if (reconnectTimeout) {
+                            clearTimeout(reconnectTimeout);
+                            reconnectTimeout = null;
+                        }
                         gameContext.setSessionId(sessionId);
                         gameContext.setWsStatus('open');
                         gameContext.setCurrentPlayerId(message.payload.playerId);

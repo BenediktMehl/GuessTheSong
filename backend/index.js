@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const ws = new WebSocket.Server({ port: 8080 });
 
 const sessions = {}; // sessionId -> { host: ws, players: Set<ws> }
+const disconnectedPlayers = new Map(); // playerId -> { ws, sessionId, disconnectTime, timeout }
 
 function generateSessionId() {
   // Generates a random 4-letter uppercase session ID
@@ -22,6 +23,50 @@ function sendError(ws, message) {
 }
 
 function handleJoin(ws, serverPayload) {
+  // Accept sessionId in any case (upper/lower)
+  const normalizedSessionId = serverPayload?.sessionId?.toUpperCase();
+  const playerName = serverPayload?.name;
+  const reconnectPlayerId = serverPayload?.playerId; // For reconnection
+  
+  if (!normalizedSessionId || !sessions[normalizedSessionId]) {
+    ws.send(JSON.stringify({
+      action: 'join-failed',
+      payload: { reason: 'Session does not exist.' }
+    }));
+    return;
+  }
+
+  // Check if this is a reconnection attempt
+  if (reconnectPlayerId && disconnectedPlayers.has(reconnectPlayerId)) {
+    const disconnectedPlayer = disconnectedPlayers.get(reconnectPlayerId);
+    
+    // Verify the player was in this session
+    if (disconnectedPlayer.sessionId === normalizedSessionId) {
+      console.log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
+      
+      // Cancel the removal timeout
+      clearTimeout(disconnectedPlayer.timeout);
+      disconnectedPlayers.delete(reconnectPlayerId);
+      
+      // Remove old WebSocket and add new one
+      sessions[normalizedSessionId].players.delete(disconnectedPlayer.ws);
+      sessions[normalizedSessionId].players.add(ws);
+      
+      ws.sessionId = normalizedSessionId;
+      ws.playerName = playerName;
+      ws.playerId = reconnectPlayerId;
+      
+      // Send reconnection success
+      ws.send(JSON.stringify({
+        action: 'join-success',
+        payload: { sessionId: normalizedSessionId, playerId: reconnectPlayerId }
+      }));
+      
+      console.log(`Player ${reconnectPlayerId} successfully reconnected`);
+      return;
+    }
+  }
+
   // Check if this WebSocket is already a player
   if (ws.playerName && ws.playerName !== '') {
     ws.send(JSON.stringify({
@@ -31,18 +76,7 @@ function handleJoin(ws, serverPayload) {
     return;
   }
 
-  // Accept sessionId in any case (upper/lower)
-  const normalizedSessionId = serverPayload?.sessionId?.toUpperCase();
-  if (!normalizedSessionId || !sessions[normalizedSessionId]) {
-    ws.send(JSON.stringify({
-      action: 'join-failed',
-      payload: { reason: 'Session does not exist.' }
-    }));
-    return;
-  }
-
   // Check if a player with the same name already exists in the session
-  const playerName = serverPayload?.name;
   const isDuplicate = Array.from(sessions[normalizedSessionId].players).some(player =>
     player.playerName === playerName
   );
@@ -125,19 +159,35 @@ function handleBroadcast(ws, serverPayload) {
 }
 
 function handlePlayerDisconnect(ws, sessionId) {
-  sessions[sessionId]?.players.delete(ws);
-  if (sessions[sessionId]) {
-    console.log(`Player left session ${sessionId}. Players in session: ${sessions[sessionId].players.size}`);
-    // Notify host that a player left, send the player's id
-    const host = sessions[sessionId].host;
-    if (host && ws.playerId) {
-      host.send(JSON.stringify({
-        action: 'player-left',
-        payload: {
-          playerId: ws.playerId
+  const playerId = ws.playerId;
+  
+  // Don't remove immediately - give 30 seconds grace period for reconnection
+  if (sessions[sessionId] && playerId) {
+    console.log(`Player ${playerId} disconnected from session ${sessionId}. Grace period: 30s`);
+    
+    // Store disconnected player info
+    const timeout = setTimeout(() => {
+      // After 30 seconds, remove player if still disconnected
+      if (disconnectedPlayers.has(playerId)) {
+        disconnectedPlayers.delete(playerId);
+        
+        if (sessions[sessionId]) {
+          sessions[sessionId].players.delete(ws);
+          console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
+          
+          // Notify host that player left
+          const host = sessions[sessionId].host;
+          if (host) {
+            host.send(JSON.stringify({
+              action: 'player-left',
+              payload: { playerId }
+            }));
+          }
         }
-      }));
-    }
+      }
+    }, 180000); // 3 minute grace period
+    
+    disconnectedPlayers.set(playerId, { ws, sessionId, disconnectTime: Date.now(), timeout });
   }
 }
 
