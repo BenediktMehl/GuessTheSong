@@ -23,24 +23,24 @@ export default function PlayerLobby() {
     }, [sessionId, navigate]);
 
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-            <h1 className="text-4xl font-bold text-primary mb-2">Lobby</h1>
+        <main className="h-screen flex flex-col items-center justify-between p-4 py-safe overflow-hidden">
+            <h1 className="text-3xl md:text-4xl font-bold text-primary">Lobby</h1>
             
             {sessionId && <GameCode sessionId={sessionId} showCopyLink={false} />}
             
             <PlayersLobby players={players} minPlayers={2} currentPlayerId={currentPlayerId} />
 
-            <div className="card bg-base-300 shadow-lg p-6 w-full max-w-md text-center">
-                <div className="text-5xl mb-4 animate-bounce">⏳</div>
-                <p className="text-lg font-semibold mb-2">Waiting for host to start the game...</p>
-                <p className="text-sm text-gray-500">
-                    Share the game code with your friends!
+            <div className="card bg-base-300 shadow-lg p-4 w-full max-w-md text-center">
+                <div className="text-4xl mb-2 animate-bounce">⏳</div>
+                <p className="text-base font-semibold mb-1">Waiting for host...</p>
+                <p className="text-xs text-gray-500">
+                    Share the game code!
                 </p>
             </div>
 
             <button 
                 onClick={() => navigate('/join')}
-                className="btn btn-outline btn-error"
+                className="btn btn-sm btn-outline btn-error"
             >
                 Leave Lobby
             </button>
