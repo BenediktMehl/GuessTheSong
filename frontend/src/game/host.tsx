@@ -16,23 +16,17 @@ export function useGameInitializer() {
     const initGame = useCallback(() => {
         // Check if we've already permanently failed
         if (hasFailed) {
-            console.log('Connection has permanently failed. Not attempting to reconnect.');
             gameContext.setWsStatus('failed');
             return;
         }
         
-        // Check if we've exceeded max attempts BEFORE incrementing
+        // Check if we've exceeded max attempts BEFORE trying
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            console.error('Max reconnection attempts reached');
             hasFailed = true;
             gameContext.setWsStatus('failed');
             return;
         }
 
-        // Increment counter
-        reconnectAttempts++;
-        console.log(`Connection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
-        
         // Close existing connection if any
         if (ws) {
             ws.close();
@@ -41,16 +35,21 @@ export function useGameInitializer() {
         gameContext.setWsStatus('connecting');
         ws = new WebSocket(WS_URL);
 
+        // Set a timeout to close the connection if it doesn't open within 5 seconds
+        const connectionTimeout = setTimeout(() => {
+            if (ws && ws.readyState !== WebSocket.OPEN) {
+                ws.close();
+            }
+        }, 5000);
+
         ws.onopen = () => {
-            console.log("WebSocket connection opened");
+            clearTimeout(connectionTimeout);
             gameContext.setWsStatus('open');
             reconnectAttempts = 0; // Reset on successful connection
             hasFailed = false; // Reset failed flag on success
 
             if (ws) {
-                const createMsg = { serverAction: 'create' };
-                console.log("Sending create message:", createMsg);
-                ws.send(JSON.stringify(createMsg));
+                ws.send(JSON.stringify({ serverAction: 'create' }));
             }
         };
 
@@ -107,21 +106,26 @@ export function useGameInitializer() {
         };
 
         ws.onclose = () => {
-            console.log('WebSocket connection closed');
+            gameContext.setWsStatus('closed');
+            
+            // Increment attempt counter after failure
+            reconnectAttempts++;
             
             // Check if we've reached max attempts
             if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                console.error(`Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts - marking as permanently failed`);
                 hasFailed = true;
                 gameContext.setWsStatus('failed');
             } else {
-                gameContext.setWsStatus('closed');
+                const delay = 100 * reconnectAttempts;
+                setTimeout(() => {
+                    if (!hasFailed) {
+                        initGame();
+                    }
+                }, delay);
             }
         };
 
         ws.onerror = () => {
-            console.error('WebSocket error occurred');
-            
             // Don't change status here, onclose will be called next
         };
     }, [gameContext]);

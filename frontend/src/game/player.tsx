@@ -15,34 +15,30 @@ let hasFailed = false; // Track if we've permanently failed
 
 function attemptReconnect(gameContext: GameContextType) {
     if (!currentSessionId || !currentPlayerName || !currentPlayerId) {
-        console.log('Cannot reconnect: missing session info');
         return;
     }
     
     if (hasFailed || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        console.log('Max reconnect attempts reached or already failed');
         hasFailed = true;
         gameContext.setWsStatus('failed');
         return;
     }
     
-    reconnectAttempts++;
-    console.log(`Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}...`);
-    
     reconnectTimeout = window.setTimeout(() => {
+        reconnectAttempts++;
         joinGame(gameContext, currentPlayerName!, currentSessionId!, currentPlayerId || undefined);
-    }, 2000 * reconnectAttempts); // Exponential backoff
+    }, 1000 * (reconnectAttempts + 1)); // 1s, 2s, 3s
 }
 
 export function joinGame(gameContext: GameContextType, playerName: string, sessionId: string, playerId?: string): Promise<boolean> {
-    console.log(gameContext, "currentPlayerId:", currentPlayerId, "reconnecting with:", playerId);
-    
     // Check if we've already permanently failed
     if (hasFailed) {
-        console.log('Connection has permanently failed. Not attempting to join.');
         gameContext.setWsStatus('failed');
         return Promise.resolve(false);
     }
+    
+    // Set status to connecting
+    gameContext.setWsStatus('connecting');
     
     // Store for reconnection
     currentPlayerName = playerName;
@@ -59,6 +55,8 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
         // Set a timeout in case connection fails
         const timeout = setTimeout(() => {
             if (ws?.readyState !== WebSocket.OPEN) {
+                gameContext.setWsStatus('closed');
+                ws?.close(); // This will trigger onclose
                 resolve(false);
             }
         }, 5000);
@@ -80,25 +78,35 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                     serverAction: 'join', 
                     serverPayload: payload
                 }));
-                console.log('Joining game with session ID:', sessionId, playerId ? '(reconnecting)' : '(new)');
             } else {
-                console.error("WebSocket is not initialized");
+                gameContext.setWsStatus('closed');
                 resolve(false);
             }
         };
 
         ws.onclose = () => {
-            console.log('WebSocket connection closed');
             gameContext.setWsStatus('closed');
             
-            // Attempt to reconnect if we have session info
+            // Attempt to reconnect if we have session info (for reconnects)
+            // OR if we haven't exceeded max attempts yet (for initial connection failures)
             if (currentSessionId && currentPlayerId) {
                 attemptReconnect(gameContext);
+            } else if (currentSessionId && currentPlayerName && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                // Initial connection failed, retry
+                const delay = 1000 * (reconnectAttempts + 1); // 1s, 2s, 3s
+                reconnectTimeout = window.setTimeout(() => {
+                    reconnectAttempts++;
+                    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                        hasFailed = true;
+                        gameContext.setWsStatus('failed');
+                    } else {
+                        joinGame(gameContext, currentPlayerName!, currentSessionId!, undefined);
+                    }
+                }, delay);
             }
         };
 
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+        ws.onerror = () => {
             resolve(false);
         };
 
@@ -220,6 +228,13 @@ export function disconnectFromGame() {
         ws.close();
         ws = null;
         currentPlayerId = null;
+    }
+    // Reset reconnection state on manual disconnect
+    reconnectAttempts = 0;
+    hasFailed = false;
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
     }
 }
 

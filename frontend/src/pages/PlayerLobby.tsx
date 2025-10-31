@@ -26,20 +26,37 @@ export default function PlayerLobby() {
         <main className="h-screen flex flex-col items-center justify-center p-4 gap-4 overflow-hidden">
             <h1 className="text-2xl md:text-4xl font-bold text-primary">Lobby</h1>
             
-            {wsStatus === 'failed' ? (
+            {wsStatus === 'connecting' || wsStatus === 'closed' ? (
+                <div className="alert alert-warning max-w-md flex flex-col gap-2">
+                    <div>
+                        <span className="loading loading-spinner loading-sm mr-2"></span>
+                        <span className="font-semibold">Stelle Verbindung her...</span>
+                    </div>
+                    <p className="text-sm">Bitte warten, während die Verbindung zum Server aufgebaut wird.</p>
+                </div>
+            ) : wsStatus === 'failed' ? (
                 <div className="alert alert-error max-w-md flex flex-col gap-3">
                     <div>
                         <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>Verbindung verloren. Bitte versuche es später nochmal.</span>
+                        <span className="font-semibold">Verbindung konnte nicht aufgebaut werden.</span>
                     </div>
-                    <button 
-                        onClick={() => navigate('/join')} 
-                        className="btn btn-outline btn-sm"
-                    >
-                        ← Zurück zum Join
-                    </button>
+                    <p className="text-sm">Bitte lade die Seite neu oder versuche es später nochmal.</p>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full">
+                        <button 
+                            onClick={() => window.location.reload()} 
+                            className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
+                        >
+                            🔄 Neu laden
+                        </button>
+                        <button 
+                            onClick={() => navigate('/join')} 
+                            className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
+                        >
+                            ← Zurück
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <>
