@@ -52,11 +52,11 @@ export default function Join() {
   };
 
   return (
-    <main className="h-screen flex flex-col items-center justify-start p-4 pt-8 gap-3 overflow-y-auto">
+    <main className="h-screen flex flex-col items-center justify-start p-4 pt-4 gap-3 overflow-y-auto">
       <h1 className="text-2xl md:text-3xl font-bold text-success">Join Game</h1>
       <p className="text-sm text-base-content">Enter the game code!</p>
 
-      <div className="card bg-base-200 bg-opacity-70 shadow-2xl p-4 w-full max-w-md">
+      <div className="card bg-base-200 bg-opacity-60 shadow-2xl p-4 w-full max-w-md">
         <form onSubmit={handleJoin} className="flex flex-col gap-4">
           <div className="form-control">
             <label className="label justify-center py-1">
@@ -68,7 +68,7 @@ export default function Join() {
               onChange={handleRoomChange}
               maxLength={4}
               required
-              className="input input-bordered input-md uppercase tracking-[0.5em] text-center font-mono text-3xl font-bold text-primary bg-base-300 bg-opacity-70"
+              className="input input-bordered input-md uppercase tracking-[0.5em] text-center font-mono text-3xl font-bold text-primary bg-base-300 bg-opacity-60 shadow-lg"
               style={{ textTransform: 'uppercase' }}
               placeholder="A1B2"
               autoFocus
@@ -88,7 +88,7 @@ export default function Join() {
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               maxLength={16}
-              className="input input-bordered input-md text-center text-lg bg-base-300 bg-opacity-70"
+              className="input input-bordered input-md text-center text-lg bg-base-300 bg-opacity-60 shadow-lg"
               placeholder="Enter your name"
               inputMode="text"
             />
@@ -96,7 +96,7 @@ export default function Join() {
 
           <button 
             type="submit" 
-            className="btn btn-success btn-md text-base mt-2"
+            className="btn btn-success btn-md text-base mt-2 shadow-xl"
           >
             🎮 Join Game
           </button>
@@ -112,7 +112,7 @@ export default function Join() {
 
       {joinFailed && (
         <div className="toast toast-top toast-center">
-          <div className="alert alert-error">
+          <div className="alert alert-error shadow-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
