@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGameContext } from "../../../game/context";
 import { playerJoined, sendMusicHostChangedAction, useGameInitializer } from "../../../game/host";
+import { randomUUID } from "../../../utils/crypto";
 
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -97,7 +98,7 @@ export default function Settings() {
             return;
         }
         const newPlayer = {
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             name: myName.trim(),
             points: 0,
         };
