@@ -1,5 +1,5 @@
 import { useGameContext, type GameContextType, type Player } from './context';
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { WS_URL } from '../config';
 import { sendPlayerAction } from './player';
 
@@ -90,7 +90,7 @@ export function useGameInitializer() {
             gameContext.setWsStatus('error');
             console.error('WebSocket error occurred');
         };
-    }, []);
+    }, [gameContext]);
 
     const endGame = useCallback(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
