@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const crypto = require('crypto');
-const wss = new WebSocket.Server({ port: 8080 });
+const ws = new WebSocket.Server({ port: 8080 });
 
 const sessions = {}; // sessionId -> { host: ws, players: Set<ws> }
 
@@ -169,7 +169,7 @@ function handleDisconnect(ws) {
   }
 }
 
-wss.on('connection', (ws) => {
+ws.on('connection', (ws) => {
   ws.on('message', (msg) => {
     let data;
     try {

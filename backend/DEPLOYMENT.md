@@ -72,9 +72,9 @@ docker compose up -d --build
 docker compose ps
 ```
 
-## Nginx WebSocket Proxy (Optional für WSS)
+## Nginx WebSocket Proxy (Optional für WS)
 
-Wenn du **wss://** (verschlüsselte WebSocket) nutzen möchtest, füge zu deiner nginx-Config hinzu:
+Wenn du **ws://** (verschlüsselte WebSocket) nutzen möchtest, füge zu deiner nginx-Config hinzu:
 
 ```nginx
 server {
@@ -94,7 +94,7 @@ server {
 }
 ```
 
-Dann kannst du in `frontend/src/config.ts` die Production URL zu `wss://guess-the-song.duckdns.org/ws` ändern.
+Dann kannst du in `frontend/src/config.ts` die Production URL zu `ws://guess-the-song.duckdns.org/ws` ändern.
 
 ## Testen
 
