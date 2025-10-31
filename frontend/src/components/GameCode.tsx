@@ -1,14 +1,17 @@
 interface GameCodeProps {
     sessionId: string;
     showCopyLink?: boolean;
+    onCopy?: () => void;
 }
 
-export default function GameCode({ sessionId, showCopyLink = false }: GameCodeProps) {
+export default function GameCode({ sessionId, showCopyLink = false, onCopy }: GameCodeProps) {
     const inviteLink = `${window.location.origin}/join?id=${sessionId}`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(inviteLink);
-        // Toast wird vom Parent Component gehandled
+        if (onCopy) {
+            onCopy();
+        }
     };
 
     return (
