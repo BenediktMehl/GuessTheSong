@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGameContext } from "../game/context";
 import { joinGame } from "../game/player";
+import { getRandomFunnyName } from "../utils/names";
 
 export default function Join() {
   const [room, setRoom] = useState('');
@@ -17,11 +18,13 @@ export default function Join() {
   }, []);
 
   const handleJoin = (e: React.FormEvent) => {
-    const playerName = nickname.trim();
-    const sessionId = room.trim().toUpperCase();
     e.preventDefault();
+    
+    // Wenn kein Name eingegeben wurde, zufälligen Namen generieren
+    const playerName = nickname.trim() || getRandomFunnyName();
+    const sessionId = room.trim().toUpperCase();
 
-    if (playerName && sessionId) {
+    if (sessionId) {
       joinGame(gameContext, playerName, sessionId).then(success => {
         if (success) {
           window.location.href = '/lobby'  // Zu Lobby statt direkt zu /play
@@ -68,10 +71,14 @@ export default function Join() {
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               maxLength={16}
-              required
               className="input input-bordered input-lg text-center text-2xl bg-base-300"
-              placeholder="Enter your name"
+              placeholder="Random name if empty"
             />
+            <label className="label">
+              <span className="label-text-alt text-center w-full opacity-70">
+                Leave empty for a funny random name! 🎲
+              </span>
+            </label>
           </div>
 
           <button 
