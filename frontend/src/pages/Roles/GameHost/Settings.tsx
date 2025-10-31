@@ -7,6 +7,7 @@ import PlayersLobby from "../../../components/PlayersLobby";
 
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
+    const [showCopyError, setShowCopyError] = useState(false);
     const navigate = useNavigate();
     const gameContext = useGameContext();
     const { 
@@ -36,6 +37,11 @@ export default function Settings() {
         setTimeout(() => setShowCopiedToast(false), 2000);
     };
 
+    const handleCopyError = () => {
+        setShowCopyError(true);
+        setTimeout(() => setShowCopyError(false), 4000);
+    };
+
     return (
         <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
             <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
@@ -46,12 +52,21 @@ export default function Settings() {
                         sessionId={sessionId} 
                         showCopyLink={true} 
                         onCopy={handleCopyLink}
+                        onCopyError={handleCopyError}
                     />
                     
                     {showCopiedToast && (
                         <div className="toast toast-top toast-center">
                             <div className="alert alert-success">
                                 <span>✓ Link copied!</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {showCopyError && (
+                        <div className="toast toast-top toast-center">
+                            <div className="alert alert-error">
+                                <span>❌ Copy not supported. Share the code with your friends!</span>
                             </div>
                         </div>
                     )}

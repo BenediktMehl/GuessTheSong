@@ -2,15 +2,30 @@ interface GameCodeProps {
     sessionId: string;
     showCopyLink?: boolean;
     onCopy?: () => void;
+    onCopyError?: () => void;
 }
 
-export default function GameCode({ sessionId, showCopyLink = false, onCopy }: GameCodeProps) {
+export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCopyError }: GameCodeProps) {
     const inviteLink = `${window.location.origin}/join?id=${sessionId}`;
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(inviteLink);
-        if (onCopy) {
-            onCopy();
+    const handleCopy = async () => {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(inviteLink);
+                if (onCopy) {
+                    onCopy();
+                }
+            } else {
+                // Kein Clipboard API verfügbar
+                if (onCopyError) {
+                    onCopyError();
+                }
+            }
+        } catch (err) {
+            console.error('Copy failed:', err);
+            if (onCopyError) {
+                onCopyError();
+            }
         }
     };
 
