@@ -10,6 +10,7 @@ let currentSessionId: string | null = null;
 let currentPlayerName: string | null = null;
 let reconnectAttempts = 0;
 let reconnectTimeout: number | null = null;
+const MAX_RECONNECT_ATTEMPTS = 3;
 
 function attemptReconnect(gameContext: GameContextType) {
     if (!currentSessionId || !currentPlayerName || !currentPlayerId) {
@@ -17,15 +18,14 @@ function attemptReconnect(gameContext: GameContextType) {
         return;
     }
     
-    if (reconnectAttempts >= 5) {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         console.log('Max reconnect attempts reached');
-        alert('Connection lost. Please rejoin the game.');
-        window.location.href = '/join';
+        gameContext.setWsStatus('failed');
         return;
     }
     
     reconnectAttempts++;
-    console.log(`Reconnection attempt ${reconnectAttempts}/5...`);
+    console.log(`Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}...`);
     
     reconnectTimeout = window.setTimeout(() => {
         joinGame(gameContext, currentPlayerName!, currentSessionId!, currentPlayerId || undefined);

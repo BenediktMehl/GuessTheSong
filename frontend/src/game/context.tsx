@@ -6,7 +6,7 @@ export type Player = {
   points: number;
 };
 
-export type WsStatus = 'connecting' | 'open' | 'closed' | 'error';
+export type WsStatus = 'connecting' | 'open' | 'closed' | 'error' | 'failed';
 
 export type GameStatus = 'notStarted' | 'waiting' | 'listening' | 'guessing' | 'finished';
 

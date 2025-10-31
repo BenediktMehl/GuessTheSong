@@ -15,7 +15,8 @@ export default function Settings() {
         sessionId, 
         status,
         isHost,
-        setIsHost
+        setIsHost,
+        wsStatus
     } = gameContext;
     const isGameRunning = status !== 'notStarted' && status !== 'finished';
     const { initGame } = useGameInitializer();
@@ -46,7 +47,22 @@ export default function Settings() {
         <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
             <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
 
-            {sessionId ? (
+            {wsStatus === 'failed' ? (
+                <div className="alert alert-error max-w-md flex flex-col gap-3">
+                    <div>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Server nicht erreichbar. Bitte versuche es später nochmal.</span>
+                    </div>
+                    <button 
+                        onClick={() => navigate('/')} 
+                        className="btn btn-outline btn-sm"
+                    >
+                        ← Zurück zur Startseite
+                    </button>
+                </div>
+            ) : sessionId ? (
                 <>
                     <GameCode 
                         sessionId={sessionId} 
