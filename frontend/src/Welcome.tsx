@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useGameContext } from './game/context'
 
 import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen'
 import Join from './pages/Join'
@@ -9,12 +10,17 @@ import { Player } from './pages/Types/Player/Player'
 
 
 function Welcome() {
+  const { setIsHost } = useGameContext();
+  
   const hostAGameClickHandler = () => {
-    window.location.href = '/settings'
-  }
+    setIsHost(true);
+    window.location.href = '/settings';
+  };
+  
   const joinAGameClickHandler = () => {
-    window.location.href = '/join'
-  }
+    setIsHost(false);
+    window.location.href = '/join';
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center">

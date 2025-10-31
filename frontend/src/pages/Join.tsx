@@ -34,14 +34,14 @@ export default function Join() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="card w-full max-w-md bg-base-100 shadow-xl">
+    <main className="min-h-screen flex items-center justify-center p-4">
+      <div className="card w-full max-w-md bg-base-200 shadow-xl">
         <div className="card-body">
-          <h2 className="card-title text-2xl mb-4 text-center">Join Game</h2>
-          <form onSubmit={handleJoin} className="flex flex-col gap-4">
+          <h2 className="card-title text-3xl mb-6 text-center justify-center">Join Game</h2>
+          <form onSubmit={handleJoin} className="flex flex-col gap-6">
             <div className="form-control">
               <label className="label">
-                <span className="label-text">Room Code</span>
+                <span className="label-text text-lg font-semibold">Room Code</span>
               </label>
               <input
                 type="text"
@@ -49,14 +49,14 @@ export default function Join() {
                 onChange={e => setRoom(e.target.value.toUpperCase())}
                 maxLength={6}
                 required
-                className="input input-bordered uppercase tracking-widest text-lg text-center"
+                className="input input-bordered input-lg uppercase tracking-widest text-center font-mono text-2xl mt-2"
                 style={{ textTransform: 'uppercase' }}
                 placeholder="A1B2"
               />
             </div>
             <div className="form-control">
               <label className="label">
-                <span className="label-text">Nickname</span>
+                <span className="label-text text-lg font-semibold">Your Name</span>
               </label>
               <input
                 type="text"
@@ -64,16 +64,18 @@ export default function Join() {
                 onChange={e => setNickname(e.target.value)}
                 maxLength={16}
                 required
-                className="input input-bordered text-lg text-center"
-                placeholder="Your name"
+                className="input input-bordered input-lg text-center text-xl mt-2"
+                placeholder="Enter your name"
               />
             </div>
-            <button type="submit" className="btn btn-success">Join</button>
+            <button type="submit" className="btn btn-success btn-lg text-lg mt-2">
+              🎮 Join Game
+            </button>
           </form>
           {joinFailed && (
-            <div className="toast toast-top toast-center mt-4">
+            <div className="toast toast-top toast-center">
               <div className="alert alert-error">
-                <span>Failed to join the game. Please check the room code and try again.</span>
+                <span>❌ Failed to join. Check the room code.</span>
               </div>
             </div>
           )}

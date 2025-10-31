@@ -1,6 +1,7 @@
 import { useGameContext, type GameContextType, type Player } from './context';
 import { useCallback } from 'react';
 import { WS_URL } from '../config';
+import { sendPlayerAction } from './player';
 
 // Reference to store websocket connection between function calls
 let ws: WebSocket | null = null;
@@ -61,11 +62,11 @@ export function useGameInitializer() {
                         break;
 
                     case 'loggedInToSpotify':
-                        handleLoggedInToSpotify(gameContext, msg);
+                        handleLoggedInToSpotify(gameContext);
                         break;
 
                     case 'loggedOutOfSpotify':
-                        handleLoggedOutOfSpotify(gameContext, msg);
+                        handleLoggedOutOfSpotify(gameContext);
                         break;
 
                     case 'error':
@@ -102,17 +103,20 @@ export function useGameInitializer() {
     return { initGame, endGame };
 }
 
+export function loggedInToSpotify(): boolean {
+    return sendPlayerAction('loggedInToSpotify');
+}
+
+export function loggedOutOfSpotify(): boolean {
+    return sendPlayerAction('loggedOutOfSpotify');
+}
+
 function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
-    const { players, waitingPlayers, guessedPlayers, referee, musicHost, iAm } = gameContext;
-    const { setPlayers, setWaitingPlayers, setGuessedPlayers, setReferee, setMusicHost, setIAm } = gameContext;
+    const { players, waitingPlayers, guessedPlayers } = gameContext;
+    const { setPlayers, setWaitingPlayers, setGuessedPlayers } = gameContext;
     setPlayers(players.filter(player => player.id !== playerId));
     setWaitingPlayers(waitingPlayers.filter(player => player.id !== playerId));
     setGuessedPlayers(guessedPlayers.filter(player => player.id !== playerId));
-    setReferee(referee?.id === playerId ? null : referee);
-    setMusicHost(musicHost?.id === playerId ? null : musicHost);
-    if (iAm?.id === playerId) {
-        setIAm(null);
-    }
 };
 
 export function playerJoined(gameContext: GameContextType, newPlayer: Player) {
@@ -168,19 +172,19 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
     sendPlayersChangedAction(players)
 };
 
-function handleLoggedInToSpotify(gameContext: GameContextType, msg: any) {
-    if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && !gameContext.musicHostLoggedIn) {
+function handleLoggedInToSpotify(gameContext: GameContextType) {
+    // Host ist immer der Music Host
+    if (gameContext.isHost && !gameContext.musicHostLoggedIn) {
         gameContext.setMusicHostLoggedIn(true);
-        console.log(`Music host ${msg.payload.playerName} logged in to Spotify`);
-        sendMusicHostChangedAction(gameContext.musicHost.id, true);
+        console.log(`Host logged in to Spotify`);
     }
 }
 
-function handleLoggedOutOfSpotify(gameContext: GameContextType, msg: any) {
-    if (gameContext.musicHost && gameContext.musicHost.id === msg.payload.playerId && gameContext.musicHostLoggedIn) {
+function handleLoggedOutOfSpotify(gameContext: GameContextType) {
+    // Host ist immer der Music Host
+    if (gameContext.isHost && gameContext.musicHostLoggedIn) {
         gameContext.setMusicHostLoggedIn(false);
-        console.log(`Music host ${msg.payload.playerName} logged out of Spotify`);
-        sendMusicHostChangedAction(gameContext.musicHost.id, false);
+        console.log(`Host logged out of Spotify`);
     }
 }
 
