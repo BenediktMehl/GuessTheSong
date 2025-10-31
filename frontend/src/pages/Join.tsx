@@ -24,7 +24,7 @@ export default function Join() {
     if (playerName && sessionId) {
       joinGame(gameContext, playerName, sessionId).then(success => {
         if (success) {
-          window.location.href = '/play'
+          window.location.href = '/lobby'  // Zu Lobby statt direkt zu /play
         } else {
           setJoinFailed(true);
           setTimeout(() => setJoinFailed(false), 2000);

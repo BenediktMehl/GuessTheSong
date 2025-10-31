@@ -7,6 +7,7 @@ import SpotifyLoginCallback from './pages/Roles/MusicHost/LoginCallback'
 import Settings from './pages/Roles/GameHost/Settings'
 import HostGame from './pages/Roles/GameHost/HostGame'
 import { Player } from './pages/Types/Player/Player'
+import PlayerLobby from './pages/PlayerLobby'
 
 
 function Welcome() {
@@ -56,12 +57,13 @@ export function App() {
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/join" element={<Join />} />
+        <Route path="/lobby" element={<PlayerLobby />} />
         <Route path="/spotifylogin" element={<SpotifyLoginScreen />} />
         <Route path="/spotifycallback" element={<SpotifyLoginCallback />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/hostgame" element={<HostGame />} />
-        <Route path="*" element={<Navigate to="/" />} />
         <Route path="/play" element={<Player />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   )
