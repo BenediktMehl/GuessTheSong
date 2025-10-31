@@ -120,10 +120,12 @@ function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
 };
 
 export function playerJoined(gameContext: GameContextType, newPlayer: Player) {
-    const { players, setPlayers } = gameContext;
-    const newPlayers = [...players, newPlayer];
+    console.log('playerJoined called with:', newPlayer);
+    console.log('Current players before update:', gameContext.players);
+    
+    const newPlayers = [...gameContext.players, newPlayer];
     console.log('Setting new players list:', newPlayers);
-    setPlayers(newPlayers);
+    gameContext.setPlayers(newPlayers);
     sendPlayersChangedAction(newPlayers);
 }
 
@@ -134,8 +136,16 @@ function handlePlayerJoined(gameContext: GameContextType, msg: any) {
         points: 0,
     };
     console.log('Adding new player:', newPlayer);
-    console.log('Current players:', gameContext.players);
-    playerJoined(gameContext, newPlayer);
+    console.log('Current players from context:', gameContext.players);
+    console.log('Current players length:', gameContext.players.length);
+    
+    // WICHTIG: Verwende die aktuellen Spieler aus dem Context
+    const updatedPlayers = [...gameContext.players, newPlayer];
+    console.log('Updated players list:', updatedPlayers);
+    console.log('Updated players length:', updatedPlayers.length);
+    
+    gameContext.setPlayers(updatedPlayers);
+    sendPlayersChangedAction(updatedPlayers);
 };
 
 function handlePlayerBuzzed(gameContext: GameContextType, msg: any) {
