@@ -72,13 +72,8 @@ export default function Join() {
               onChange={e => setNickname(e.target.value)}
               maxLength={16}
               className="input input-bordered input-lg text-center text-2xl bg-base-300"
-              placeholder="Random name if empty"
+              placeholder="Enter your name"
             />
-            <label className="label">
-              <span className="label-text-alt text-center w-full opacity-70">
-                Leave empty for a funny random name! 🎲
-              </span>
-            </label>
           </div>
 
           <button 
