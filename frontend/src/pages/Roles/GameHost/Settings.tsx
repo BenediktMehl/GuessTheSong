@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../../../game/context";
 import { useGameInitializer } from "../../../game/host";
@@ -8,6 +8,7 @@ import PlayersLobby from "../../../components/PlayersLobby";
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
     const [showCopyError, setShowCopyError] = useState(false);
+    const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
     const navigate = useNavigate();
     const gameContext = useGameContext();
     const { 
@@ -29,10 +30,22 @@ export default function Settings() {
     }, [isHost, setIsHost]);
 
     useEffect(() => {
-        // Don't try to init if we already have a session or if connection has failed
-        if(sessionId || wsStatus === 'failed') return;
+        // Don't try to init if we already have a session
+        if(sessionId) return;
+        
+        // Only init once - let the initGame function handle retries internally
+        if(hasTriedToInit.current) return;
+        
+        hasTriedToInit.current = true;
         initGame();
-    }, [sessionId, initGame, wsStatus]);
+    }, [sessionId, initGame]);
+
+    // Reset the flag when we successfully get a session or when component unmounts
+    useEffect(() => {
+        if (sessionId) {
+            hasTriedToInit.current = false;
+        }
+    }, [sessionId]);
 
     const handleCopyLink = () => {
         setShowCopiedToast(true);

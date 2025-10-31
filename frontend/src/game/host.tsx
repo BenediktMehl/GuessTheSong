@@ -21,7 +21,7 @@ export function useGameInitializer() {
             return;
         }
         
-        // Check if we've exceeded max attempts
+        // Check if we've exceeded max attempts BEFORE incrementing
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             console.error('Max reconnection attempts reached');
             hasFailed = true;
@@ -29,6 +29,7 @@ export function useGameInitializer() {
             return;
         }
 
+        // Increment counter
         reconnectAttempts++;
         console.log(`Connection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
         
@@ -106,26 +107,22 @@ export function useGameInitializer() {
         };
 
         ws.onclose = () => {
-            gameContext.setWsStatus('closed');
             console.log('WebSocket connection closed');
             
-            // Mark as permanently failed if we've reached max attempts
+            // Check if we've reached max attempts
             if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                console.error(`Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts - marking as permanently failed`);
                 hasFailed = true;
                 gameContext.setWsStatus('failed');
+            } else {
+                gameContext.setWsStatus('closed');
             }
         };
 
         ws.onerror = () => {
             console.error('WebSocket error occurred');
             
-            // Mark as permanently failed if we've reached max attempts
-            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                hasFailed = true;
-                gameContext.setWsStatus('failed');
-            } else {
-                gameContext.setWsStatus('error');
-            }
+            // Don't change status here, onclose will be called next
         };
     }, [gameContext]);
 
