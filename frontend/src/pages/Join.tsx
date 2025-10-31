@@ -34,53 +34,69 @@ export default function Join() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4">
-      <div className="card w-full max-w-md bg-base-200 shadow-xl">
-        <div className="card-body">
-          <h2 className="card-title text-3xl mb-6 text-center justify-center">Join Game</h2>
-          <form onSubmit={handleJoin} className="flex flex-col gap-6">
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-lg font-semibold">Room Code</span>
-              </label>
-              <input
-                type="text"
-                value={room}
-                onChange={e => setRoom(e.target.value.toUpperCase())}
-                maxLength={6}
-                required
-                className="input input-bordered input-lg uppercase tracking-widest text-center font-mono text-2xl mt-2"
-                style={{ textTransform: 'uppercase' }}
-                placeholder="A1B2"
-              />
-            </div>
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-lg font-semibold">Your Name</span>
-              </label>
-              <input
-                type="text"
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-                maxLength={16}
-                required
-                className="input input-bordered input-lg text-center text-xl mt-2"
-                placeholder="Enter your name"
-              />
-            </div>
-            <button type="submit" className="btn btn-success btn-lg text-lg mt-2">
-              🎮 Join Game
-            </button>
-          </form>
-          {joinFailed && (
-            <div className="toast toast-top toast-center">
-              <div className="alert alert-error">
-                <span>❌ Failed to join. Check the room code.</span>
-              </div>
-            </div>
-          )}
-        </div>
+    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+      <h1 className="text-4xl font-bold text-success mb-2">Join Game</h1>
+      <p className="text-lg text-base-content mb-4">Enter the game code to join your friends!</p>
+
+      <div className="card bg-base-200 shadow-xl p-6 w-full max-w-md">
+        <form onSubmit={handleJoin} className="flex flex-col gap-6">
+          <div className="form-control">
+            <label className="label justify-center">
+              <span className="label-text text-xl font-semibold">Game Code</span>
+            </label>
+            <input
+              type="text"
+              value={room}
+              onChange={e => setRoom(e.target.value.toUpperCase())}
+              maxLength={6}
+              required
+              className="input input-bordered input-lg uppercase tracking-[0.5em] text-center font-mono text-4xl font-bold text-primary bg-base-300"
+              style={{ textTransform: 'uppercase' }}
+              placeholder="A1B2"
+              autoFocus
+            />
+          </div>
+
+          <div className="divider">AND</div>
+
+          <div className="form-control">
+            <label className="label justify-center">
+              <span className="label-text text-xl font-semibold">Your Name</span>
+            </label>
+            <input
+              type="text"
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              maxLength={16}
+              required
+              className="input input-bordered input-lg text-center text-2xl bg-base-300"
+              placeholder="Enter your name"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="btn btn-success btn-lg text-xl mt-4"
+          >
+            🎮 Join Game
+          </button>
+        </form>
       </div>
+
+      <a href="/" className="btn btn-outline btn-ghost">
+        ← Back to Home
+      </a>
+
+      {joinFailed && (
+        <div className="toast toast-top toast-center">
+          <div className="alert alert-error">
+            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Failed to join. Check the game code and try again.</span>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

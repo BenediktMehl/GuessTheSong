@@ -29,13 +29,6 @@ export default function Settings() {
         initGame();
     }, [sessionId, initGame]);
 
-    const handleCopyLink = () => {
-        const inviteLink = `${window.location.origin}/join?id=${sessionId}`;
-        navigator.clipboard.writeText(inviteLink);
-        setShowCopiedToast(true);
-        setTimeout(() => setShowCopiedToast(false), 2000);
-    };
-
     return (
         <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
             <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
