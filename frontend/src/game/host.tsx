@@ -1,5 +1,5 @@
 import { useGameContext, type GameContextType, type Player } from './context';
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback } from 'react';
 import { WS_URL } from '../config';
 import { sendPlayerAction } from './player';
 
