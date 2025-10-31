@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../game/context";
 import { joinGame } from "../game/player";
@@ -10,6 +10,7 @@ export default function Join() {
   const [joinFailed, setJoinFailed] = useState(false);
   const gameContext = useGameContext();
   const navigate = useNavigate();
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -18,6 +19,18 @@ export default function Join() {
       setRoom(roomId.toUpperCase());
     }
   }, []);
+
+  const handleRoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase();
+    setRoom(value);
+    
+    // Auto-focus auf Name wenn 4 Zeichen eingegeben sind
+    if (value.length === 4) {
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 100);
+    }
+  };
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,48 +52,51 @@ export default function Join() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-      <h1 className="text-4xl font-bold text-success mb-2">Join Game</h1>
-      <p className="text-lg text-base-content mb-4">Enter the game code to join your friends!</p>
+    <main className="h-screen flex flex-col items-center justify-start p-4 pt-8 gap-3 overflow-y-auto">
+      <h1 className="text-2xl md:text-3xl font-bold text-success">Join Game</h1>
+      <p className="text-sm text-base-content">Enter the game code!</p>
 
-      <div className="card bg-base-200 shadow-xl p-6 w-full max-w-md">
-        <form onSubmit={handleJoin} className="flex flex-col gap-6">
+      <div className="card bg-base-200 bg-opacity-70 shadow-2xl p-4 w-full max-w-md">
+        <form onSubmit={handleJoin} className="flex flex-col gap-4">
           <div className="form-control">
-            <label className="label justify-center">
-              <span className="label-text text-xl font-semibold">Game Code</span>
+            <label className="label justify-center py-1">
+              <span className="label-text text-sm font-semibold">Game Code</span>
             </label>
             <input
               type="text"
               value={room}
-              onChange={e => setRoom(e.target.value.toUpperCase())}
-              maxLength={6}
+              onChange={handleRoomChange}
+              maxLength={4}
               required
-              className="input input-bordered input-lg uppercase tracking-[0.5em] text-center font-mono text-4xl font-bold text-primary bg-base-300"
+              className="input input-bordered input-md uppercase tracking-[0.5em] text-center font-mono text-3xl font-bold text-primary bg-base-300 bg-opacity-70"
               style={{ textTransform: 'uppercase' }}
               placeholder="A1B2"
               autoFocus
+              inputMode="text"
             />
           </div>
 
-          <div className="divider">AND</div>
+          <div className="divider my-1 text-xs">AND</div>
 
           <div className="form-control">
-            <label className="label justify-center">
-              <span className="label-text text-xl font-semibold">Your Name</span>
+            <label className="label justify-center py-1">
+              <span className="label-text text-sm font-semibold">Your Name</span>
             </label>
             <input
+              ref={nameInputRef}
               type="text"
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               maxLength={16}
-              className="input input-bordered input-lg text-center text-2xl bg-base-300"
+              className="input input-bordered input-md text-center text-lg bg-base-300 bg-opacity-70"
               placeholder="Enter your name"
+              inputMode="text"
             />
           </div>
 
           <button 
             type="submit" 
-            className="btn btn-success btn-lg text-xl mt-4"
+            className="btn btn-success btn-md text-base mt-2"
           >
             🎮 Join Game
           </button>
@@ -89,7 +105,7 @@ export default function Join() {
 
       <button 
         onClick={() => navigate('/')} 
-        className="btn btn-outline btn-ghost"
+        className="btn btn-sm btn-outline btn-ghost mt-2"
       >
         ← Back to Home
       </button>
