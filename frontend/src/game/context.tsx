@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode, type Dispatch, type SetStateAction } from 'react';
 
 export type Player = {
   id: string;
@@ -20,15 +20,15 @@ export interface GameContextType {
   wsStatus: WsStatus;
   sessionId: string;
   currentPlayerId: string;
-  setIsHost: (isHost: boolean) => void;
-  setPlayers: (players: Player[]) => void;
-  setWaitingPlayers: (waitingPlayers: Player[]) => void;
-  setGuessedPlayers: (guessedPlayers: Player[]) => void;
-  setMusicHostLoggedIn: (isLoggedIn: boolean) => void;
-  setStatus: (status: GameStatus) => void;
-  setWsStatus: (wsStatus: WsStatus) => void;
-  setSessionId: (sessionId: string) => void;
-  setCurrentPlayerId: (playerId: string) => void;
+  setIsHost: Dispatch<SetStateAction<boolean>>;
+  setPlayers: Dispatch<SetStateAction<Player[]>>;
+  setWaitingPlayers: Dispatch<SetStateAction<Player[]>>;
+  setGuessedPlayers: Dispatch<SetStateAction<Player[]>>;
+  setMusicHostLoggedIn: Dispatch<SetStateAction<boolean>>;
+  setStatus: Dispatch<SetStateAction<GameStatus>>;
+  setWsStatus: Dispatch<SetStateAction<WsStatus>>;
+  setSessionId: Dispatch<SetStateAction<string>>;
+  setCurrentPlayerId: Dispatch<SetStateAction<string>>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

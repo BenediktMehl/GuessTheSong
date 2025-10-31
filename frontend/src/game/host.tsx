@@ -137,11 +137,15 @@ export function loggedOutOfSpotify(): boolean {
 }
 
 function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
-    const { players, waitingPlayers, guessedPlayers } = gameContext;
-    const { setPlayers, setWaitingPlayers, setGuessedPlayers } = gameContext;
-    setPlayers(players.filter(player => player.id !== playerId));
-    setWaitingPlayers(waitingPlayers.filter(player => player.id !== playerId));
-    setGuessedPlayers(guessedPlayers.filter(player => player.id !== playerId));
+    gameContext.setPlayers((currentPlayers) => 
+        currentPlayers.filter(player => player.id !== playerId)
+    );
+    gameContext.setWaitingPlayers((currentWaitingPlayers) => 
+        currentWaitingPlayers.filter(player => player.id !== playerId)
+    );
+    gameContext.setGuessedPlayers((currentGuessedPlayers) => 
+        currentGuessedPlayers.filter(player => player.id !== playerId)
+    );
 };
 
 export function playerJoined(gameContext: GameContextType, newPlayer: Player) {
@@ -161,16 +165,21 @@ function handlePlayerJoined(gameContext: GameContextType, msg: any) {
         points: 0,
     };
     console.log('Adding new player:', newPlayer);
-    console.log('Current players from context:', gameContext.players);
-    console.log('Current players length:', gameContext.players.length);
     
-    // WICHTIG: Verwende die aktuellen Spieler aus dem Context
-    const updatedPlayers = [...gameContext.players, newPlayer];
-    console.log('Updated players list:', updatedPlayers);
-    console.log('Updated players length:', updatedPlayers.length);
-    
-    gameContext.setPlayers(updatedPlayers);
-    sendPlayersChangedAction(updatedPlayers);
+    // Use functional update to ensure we're working with the latest state
+    gameContext.setPlayers((currentPlayers) => {
+        console.log('Current players in setState:', currentPlayers);
+        console.log('Current players length:', currentPlayers.length);
+        
+        const updatedPlayers = [...currentPlayers, newPlayer];
+        console.log('Updated players list:', updatedPlayers);
+        console.log('Updated players length:', updatedPlayers.length);
+        
+        // Send the update to other clients
+        sendPlayersChangedAction(updatedPlayers);
+        
+        return updatedPlayers;
+    });
 };
 
 function handlePlayerBuzzed(gameContext: GameContextType, msg: any) {
@@ -180,34 +189,53 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: any) {
         console.error(`Player with ID ${waitingPlayerId} not found`);
         return;
     }
-    const { waitingPlayers, setWaitingPlayers } = gameContext;
-    const newWaitingPlayers = [...waitingPlayers, waitingPlayer];
-    setWaitingPlayers(newWaitingPlayers);
-    sendWaitingPlayersChangedAction(newWaitingPlayers);
+    
+    gameContext.setWaitingPlayers((currentWaitingPlayers) => {
+        const newWaitingPlayers = [...currentWaitingPlayers, waitingPlayer];
+        sendWaitingPlayersChangedAction(newWaitingPlayers);
+        return newWaitingPlayers;
+    });
 };
 
 
 function handlePlayerGuessedWrong(gameContext: GameContextType) {
-    const { waitingPlayers, guessedPlayers, setWaitingPlayers, setGuessedPlayers } = gameContext;
-    const firstWaitingPlayer = waitingPlayers[0];
-    const newGuessedPlayers = [...guessedPlayers, firstWaitingPlayer];
-    setGuessedPlayers(newGuessedPlayers);
-    const newWaitingPlayers = waitingPlayers.slice(1);
-    setWaitingPlayers(newWaitingPlayers);
-    sendWaitingPlayersChangedAction(newWaitingPlayers);
-    sendGuessedPlayersChangedAction(newGuessedPlayers);
+    gameContext.setWaitingPlayers((currentWaitingPlayers) => {
+        const firstWaitingPlayer = currentWaitingPlayers[0];
+        
+        gameContext.setGuessedPlayers((currentGuessedPlayers) => {
+            const newGuessedPlayers = [...currentGuessedPlayers, firstWaitingPlayer];
+            sendGuessedPlayersChangedAction(newGuessedPlayers);
+            return newGuessedPlayers;
+        });
+        
+        const newWaitingPlayers = currentWaitingPlayers.slice(1);
+        sendWaitingPlayersChangedAction(newWaitingPlayers);
+        return newWaitingPlayers;
+    });
 };
 
 function handlePlayerGuessedRight(gameContext: GameContextType) {
-    const { players, waitingPlayers, setWaitingPlayers, setGuessedPlayers } = gameContext;
-    const firstWaitingPlayer = waitingPlayers[0];
-    setGuessedPlayers([]);
-    setWaitingPlayers([]);
-    sendWaitingPlayersChangedAction([]);
-    sendGuessedPlayersChangedAction([]);
-
-    firstWaitingPlayer.points += 1;
-    sendPlayersChangedAction(players)
+    gameContext.setWaitingPlayers((currentWaitingPlayers) => {
+        const firstWaitingPlayer = currentWaitingPlayers[0];
+        
+        // Update the player's points
+        gameContext.setPlayers((currentPlayers) => {
+            const updatedPlayers = currentPlayers.map(player => 
+                player.id === firstWaitingPlayer.id 
+                    ? { ...player, points: player.points + 1 }
+                    : player
+            );
+            sendPlayersChangedAction(updatedPlayers);
+            return updatedPlayers;
+        });
+        
+        sendWaitingPlayersChangedAction([]);
+        sendGuessedPlayersChangedAction([]);
+        
+        return [];
+    });
+    
+    gameContext.setGuessedPlayers([]);
 };
 
 function handleLoggedInToSpotify(gameContext: GameContextType) {

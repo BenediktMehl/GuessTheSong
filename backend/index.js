@@ -89,10 +89,13 @@ function handleJoin(ws, serverPayload) {
     return;
   }
 
-  sessions[normalizedSessionId].players.add(ws);
+  // Set player properties BEFORE adding to session to prevent race conditions
   ws.sessionId = normalizedSessionId;
   ws.playerName = playerName;
   ws.playerId = generatePlayerId();
+  
+  // Now add to session
+  sessions[normalizedSessionId].players.add(ws);
 
   // Send join-success with playerId to player
   ws.send(JSON.stringify({
@@ -161,13 +164,15 @@ function handleBroadcast(ws, serverPayload) {
 function handlePlayerDisconnect(ws, sessionId) {
   const playerId = ws.playerId;
   
-  // Don't remove immediately - give 30 seconds grace period for reconnection
+  // Don't remove immediately - give grace period for reconnection
+  const RECONNECT_GRACE_PERIOD_MS = 180000; // 3 minutes
+  
   if (sessions[sessionId] && playerId) {
-    console.log(`Player ${playerId} disconnected from session ${sessionId}. Grace period: 30s`);
+    console.log(`Player ${playerId} disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`);
     
     // Store disconnected player info
     const timeout = setTimeout(() => {
-      // After 30 seconds, remove player if still disconnected
+      // After grace period, remove player if still disconnected
       if (disconnectedPlayers.has(playerId)) {
         disconnectedPlayers.delete(playerId);
         
@@ -185,7 +190,7 @@ function handlePlayerDisconnect(ws, sessionId) {
           }
         }
       }
-    }, 180000); // 3 minute grace period
+    }, RECONNECT_GRACE_PERIOD_MS);
     
     disconnectedPlayers.set(playerId, { ws, sessionId, disconnectTime: Date.now(), timeout });
   }

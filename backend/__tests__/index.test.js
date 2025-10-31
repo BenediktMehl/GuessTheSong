@@ -20,7 +20,7 @@ describe('GuessTheSong WebSocket backend', () => {
   test('Host can create a session', async () => {
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ action: 'create' }));
+    host.send(JSON.stringify({ serverAction: 'create' }));
     const msg = await waitForMessage(host);
     expect(msg.action).toBe('created');
     expect(msg.payload.sessionId).toMatch(/^[A-F0-9]{4}$/);
@@ -30,15 +30,15 @@ describe('GuessTheSong WebSocket backend', () => {
     // Host creates session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ action: 'create' }));
+    host.send(JSON.stringify({ serverAction: 'create' }));
     const created = await waitForMessage(host);
 
     // Player joins
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: created.payload.sessionId, 
         name: 'Alice' 
       } 
@@ -63,15 +63,15 @@ describe('GuessTheSong WebSocket backend', () => {
     // Host creates session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ action: 'create' }));
+    host.send(JSON.stringify({ serverAction: 'create' }));
     const created = await waitForMessage(host);
 
     // Player joins
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: created.payload.sessionId, 
         name: 'Bob' 
       } 
@@ -82,15 +82,22 @@ describe('GuessTheSong WebSocket backend', () => {
 
     // Player sends action
     player1.send(JSON.stringify({ 
-      action: 'guessed', 
-      payload: { guess: 'Song A' } 
+      serverAction: 'player-action',
+      serverPayload: {
+        action: 'guessed', 
+        payload: { 
+          guess: 'Song A',
+          playerId: joinMsg.payload.playerId,
+          playerName: 'Bob'
+        }
+      }
     }));
     
     const hostMsg = await waitForMessage(host);
     expect(hostMsg.action).toBe('guessed');
     expect(hostMsg.payload.guess).toEqual('Song A');
     expect(hostMsg.payload.playerName).toBe('Bob');
-    expect(typeof hostMsg.payload.serverTimestamp).toBe('number');
+    expect(typeof hostMsg.serverTimestamp).toBe('number');
     expect(hostMsg.payload).toHaveProperty('playerId');
     expect(typeof hostMsg.payload.playerId).toBe('string');
     expect(hostMsg.payload.playerId).toBe(joinMsg.payload.playerId);
@@ -100,15 +107,15 @@ describe('GuessTheSong WebSocket backend', () => {
     // Host creates session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ action: 'create' }));
+    host.send(JSON.stringify({ serverAction: 'create' }));
     const created = await waitForMessage(host);
 
     // First player joins successfully
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: created.payload.sessionId, 
         name: 'DuplicateName' 
       } 
@@ -122,8 +129,8 @@ describe('GuessTheSong WebSocket backend', () => {
     player2 = new WebSocket(WS_URL);
     await new Promise(res => player2.once('open', res));
     player2.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: created.payload.sessionId, 
         name: 'DuplicateName' 
       } 
@@ -140,15 +147,15 @@ describe('GuessTheSong WebSocket backend', () => {
     // Create first session
     host = new WebSocket(WS_URL);
     await new Promise(res => host.once('open', res));
-    host.send(JSON.stringify({ action: 'create' }));
+    host.send(JSON.stringify({ serverAction: 'create' }));
     const created = await waitForMessage(host);
     
     // Player joins first session
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: created.payload.sessionId, 
         name: 'Player1' 
       } 
@@ -160,8 +167,8 @@ describe('GuessTheSong WebSocket backend', () => {
     
     // Player tries to join another session with same connection
     player1.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: created.payload.sessionId, 
         name: 'AnotherName' 
       } 
@@ -178,8 +185,8 @@ describe('GuessTheSong WebSocket backend', () => {
     player1 = new WebSocket(WS_URL);
     await new Promise(res => player1.once('open', res));
     player1.send(JSON.stringify({ 
-      action: 'join', 
-      payload: { 
+      serverAction: 'join', 
+      serverPayload: { 
         sessionId: 'ZZZZ', 
         name: 'Ghost' 
       } 
@@ -197,5 +204,126 @@ describe('GuessTheSong WebSocket backend', () => {
     const msg = await waitForMessage(player1);
     expect(msg.action).toBe('error');
     expect(msg.payload.message).toMatch(/invalid JSON/i);
+  });
+
+  test('Multiple players join, one leaves, another joins, one leaves again', async () => {
+    // Host creates session
+    host = new WebSocket(WS_URL);
+    await new Promise(res => host.once('open', res));
+    host.send(JSON.stringify({ serverAction: 'create' }));
+    const created = await waitForMessage(host);
+    const sessionId = created.payload.sessionId;
+
+    // Player 1 joins
+    player1 = new WebSocket(WS_URL);
+    await new Promise(res => player1.once('open', res));
+    player1.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player1' } 
+    }));
+    await waitForMessage(player1); // join-success
+    await waitForMessage(host); // player-joined
+
+    // Player 2 joins
+    player2 = new WebSocket(WS_URL);
+    await new Promise(res => player2.once('open', res));
+    player2.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player2' } 
+    }));
+    await waitForMessage(player2); // join-success
+    await waitForMessage(host); // player-joined
+
+    // Player 3 joins
+    const player3 = new WebSocket(WS_URL);
+    await new Promise(res => player3.once('open', res));
+    player3.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player3' } 
+    }));
+    await waitForMessage(player3); // join-success
+    await waitForMessage(host); // player-joined
+
+    // Player 4 joins
+    const player4 = new WebSocket(WS_URL);
+    await new Promise(res => player4.once('open', res));
+    player4.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player4' } 
+    }));
+    await waitForMessage(player4); // join-success
+    const player4JoinedMsg = await waitForMessage(host); // player-joined
+    expect(player4JoinedMsg.action).toBe('player-joined');
+
+    // Player 2 leaves (closes connection)
+    player2.close();
+    // Note: Host is NOT immediately notified due to 3-minute grace period
+    // Wait a bit to ensure disconnect is processed
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Player 5 joins (total should be 5 in session now, though Player2 might reconnect)
+    const player5 = new WebSocket(WS_URL);
+    await new Promise(res => player5.once('open', res));
+    player5.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player5' } 
+    }));
+    await waitForMessage(player5); // join-success
+    const player5JoinedMsg = await waitForMessage(host); // player-joined
+    expect(player5JoinedMsg.action).toBe('player-joined');
+    expect(player5JoinedMsg.payload.name).toBe('Player5');
+
+    // Player 4 leaves
+    player4.close();
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Now we should have active connections: Player1, Player3, Player5
+    // (Player2 and Player4 are in grace period but disconnected)
+    // We verify by checking that new players with different names can join
+    const player6 = new WebSocket(WS_URL);
+    await new Promise(res => player6.once('open', res));
+    player6.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player6' } 
+    }));
+    const player6JoinMsg = await waitForMessage(player6);
+    expect(player6JoinMsg.action).toBe('join-success');
+    await waitForMessage(host); // player-joined
+
+    // Verify Player1, Player3, Player5 are still active by checking duplicates
+    const duplicateTest1 = new WebSocket(WS_URL);
+    await new Promise(res => duplicateTest1.once('open', res));
+    duplicateTest1.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player1' } 
+    }));
+    const dup1Msg = await waitForMessage(duplicateTest1);
+    expect(dup1Msg.action).toBe('join-failed');
+
+    const duplicateTest3 = new WebSocket(WS_URL);
+    await new Promise(res => duplicateTest3.once('open', res));
+    duplicateTest3.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player3' } 
+    }));
+    const dup3Msg = await waitForMessage(duplicateTest3);
+    expect(dup3Msg.action).toBe('join-failed');
+
+    const duplicateTest5 = new WebSocket(WS_URL);
+    await new Promise(res => duplicateTest5.once('open', res));
+    duplicateTest5.send(JSON.stringify({ 
+      serverAction: 'join', 
+      serverPayload: { sessionId, name: 'Player5' } 
+    }));
+    const dup5Msg = await waitForMessage(duplicateTest5);
+    expect(dup5Msg.action).toBe('join-failed');
+
+    // Clean up
+    player3.close();
+    player5.close();
+    player6.close();
+    duplicateTest1.close();
+    duplicateTest3.close();
+    duplicateTest5.close();
   });
 });
