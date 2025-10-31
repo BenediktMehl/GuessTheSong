@@ -121,7 +121,8 @@ function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
 
 export function playerJoined(gameContext: GameContextType, newPlayer: Player) {
     const { players, setPlayers } = gameContext;
-    const newPlayers = [...players, newPlayer]
+    const newPlayers = [...players, newPlayer];
+    console.log('Setting new players list:', newPlayers);
     setPlayers(newPlayers);
     sendPlayersChangedAction(newPlayers);
 }
@@ -132,6 +133,8 @@ function handlePlayerJoined(gameContext: GameContextType, msg: any) {
         name: msg.payload.name,
         points: 0,
     };
+    console.log('Adding new player:', newPlayer);
+    console.log('Current players:', gameContext.players);
     playerJoined(gameContext, newPlayer);
 };
 

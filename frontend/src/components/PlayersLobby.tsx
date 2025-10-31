@@ -8,7 +8,7 @@ interface PlayersLobbyProps {
 
 export default function PlayersLobby({ players, minPlayers = 2, currentPlayerId }: PlayersLobbyProps) {
     return (
-        <div className="card bg-base-200 bg-opacity-70 shadow-2xl p-3 w-full max-w-md flex-1 overflow-hidden flex flex-col">
+        <div className="card bg-base-200 bg-opacity-70 shadow-2xl p-3 w-full max-w-md max-h-[60vh] overflow-hidden flex flex-col">
             <h3 className="text-base font-semibold mb-2 text-center">
                 Players ({players.length}/{minPlayers}+)
             </h3>
@@ -19,7 +19,7 @@ export default function PlayersLobby({ players, minPlayers = 2, currentPlayerId 
                     <p className="text-xs text-gray-500">Waiting for players...</p>
                 </div>
             ) : (
-                <ul className="space-y-1.5 overflow-y-auto flex-1">
+                <ul className="space-y-1.5 overflow-y-auto flex-shrink min-h-0">
                     {players.map((player, index) => {
                         const isCurrentPlayer = currentPlayerId && player.id === currentPlayerId;
                         return (
