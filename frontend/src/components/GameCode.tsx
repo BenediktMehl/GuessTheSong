@@ -7,7 +7,7 @@ interface GameCodeProps {
 
 export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCopyError }: GameCodeProps) {
     const inviteLink = `${window.location.origin}/join?id=${sessionId}`;
-    const canShare = typeof navigator !== 'undefined' && navigator.share;
+    const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
     const handleCopy = async () => {
         try {
