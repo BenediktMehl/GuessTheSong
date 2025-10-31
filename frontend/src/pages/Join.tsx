@@ -52,7 +52,7 @@ export default function Join() {
   };
 
   return (
-    <main className="h-screen flex flex-col items-center justify-start p-4 pt-4 gap-3 overflow-y-auto">
+    <main className="h-screen flex flex-col items-center justify-start p-4 pt-16 gap-3 overflow-y-auto">
       <h1 className="text-2xl md:text-3xl font-bold text-success">Join Game</h1>
       <p className="text-sm text-base-content">Enter the game code!</p>
 
@@ -105,7 +105,7 @@ export default function Join() {
 
       <button 
         onClick={() => navigate('/')} 
-        className="btn btn-sm btn-outline btn-ghost mt-2"
+        className="btn btn-sm btn-outline btn-ghost mt-8"
       >
         ← Back to Home
       </button>
