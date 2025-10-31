@@ -9,3 +9,5 @@
 *.sln
 *.sw?
 .env
+
+SETUP.md
