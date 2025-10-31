@@ -52,7 +52,7 @@ export default function Join() {
   };
 
   return (
-    <main className="h-screen flex flex-col items-center justify-start p-4 gap-3 overflow-y-auto">
+    <main className="h-screen flex flex-col items-center justify-start p-2 gap-2 overflow-y-auto">
       <h1 className="text-2xl md:text-3xl font-bold text-success">Join Game</h1>
       <p className="text-sm text-base-content">Enter the game code!</p>
 
