@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../game/context";
 import { joinGame } from "../game/player";
 import { getRandomFunnyName } from "../utils/names";
@@ -8,6 +9,7 @@ export default function Join() {
   const [nickname, setNickname] = useState('');
   const [joinFailed, setJoinFailed] = useState(false);
   const gameContext = useGameContext();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -27,7 +29,7 @@ export default function Join() {
     if (sessionId) {
       joinGame(gameContext, playerName, sessionId).then(success => {
         if (success) {
-          window.location.href = '/lobby'  // Zu Lobby statt direkt zu /play
+          navigate('/lobby');  // React Router Navigation statt window.location.href
         } else {
           setJoinFailed(true);
           setTimeout(() => setJoinFailed(false), 2000);
@@ -85,9 +87,12 @@ export default function Join() {
         </form>
       </div>
 
-      <a href="/" className="btn btn-outline btn-ghost">
+      <button 
+        onClick={() => navigate('/')} 
+        className="btn btn-outline btn-ghost"
+      >
         ← Back to Home
-      </a>
+      </button>
 
       {joinFailed && (
         <div className="toast toast-top toast-center">

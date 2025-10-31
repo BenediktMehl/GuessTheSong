@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { handleSpotifyLogin, handleSpotifyLoginCallback } from './spotifyAuth'
 
 
 export default function SpotifyLoginCallback() {
     const location = useLocation()
+    const navigate = useNavigate()
     const [isLoggedInSpotify, setIsLoggedInSpotify] = useState<boolean | null>(null)
     const hasHandled = useRef(false);
 
@@ -17,10 +18,10 @@ export default function SpotifyLoginCallback() {
             console.log("Spotify login callback handled, isLoggedIn:", isLoggedIn)
             setIsLoggedInSpotify(isLoggedIn)
             if(isLoggedIn) {
-                window.location.href = '/menu'
+                navigate('/menu')
             }
         })
-    }, [location.search])
+    }, [location.search, navigate])
 
     return (
         <main className="min-h-screen flex items-center justify-center">

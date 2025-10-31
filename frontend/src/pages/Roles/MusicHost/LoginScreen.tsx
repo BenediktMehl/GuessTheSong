@@ -1,16 +1,18 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { handleSpotifyLogin, spotifyIsLoggedIn } from './spotifyAuth'
 
 export default function SpotifyLoginScreen() {
+  const navigate = useNavigate();
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
       if (await spotifyIsLoggedIn()) {
-        window.location.href = '/menu'
+        navigate('/menu')
       }
     }
     redirectIfLoggedIn()
-  }, [])
+  }, [navigate])
 
   return (
     <main>
@@ -27,7 +29,7 @@ export default function SpotifyLoginScreen() {
         </button>
         <button
           className="btn btn-lg btn-error"
-          onClick={() => window.location.href = '/'}
+          onClick={() => navigate('/')}
         >
           Reject and go back
         </button>

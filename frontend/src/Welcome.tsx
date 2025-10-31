@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useGameContext } from './game/context'
 
 import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen'
@@ -12,15 +12,16 @@ import PlayerLobby from './pages/PlayerLobby'
 
 function Welcome() {
   const { setIsHost } = useGameContext();
+  const navigate = useNavigate();
   
   const hostAGameClickHandler = () => {
     setIsHost(true);
-    window.location.href = '/settings';
+    navigate('/settings');
   };
   
   const joinAGameClickHandler = () => {
     setIsHost(false);
-    window.location.href = '/join';
+    navigate('/join');
   };
 
   return (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../../../game/context";
 import { useGameInitializer } from "../../../game/host";
 import GameCode from "../../../components/GameCode";
@@ -6,6 +7,7 @@ import PlayersLobby from "../../../components/PlayersLobby";
 
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
+    const navigate = useNavigate();
     const gameContext = useGameContext();
     const { 
         players, 
@@ -57,23 +59,26 @@ export default function Settings() {
                     <PlayersLobby players={players} minPlayers={2} />
 
                     <div className="w-full max-w-md flex flex-col gap-3">
-                        <a
-                            href={players.length >= 2 ? "/hostgame" : "#"}
+                        <button
+                            onClick={() => {
+                                if (players.length >= 2) {
+                                    navigate('/hostgame');
+                                }
+                            }}
                             className={`btn btn-lg w-full ${
                                 isGameRunning ? 'btn-primary' : 'btn-success'
                             } ${players.length < 2 ? 'btn-disabled' : ''}`}
-                            onClick={(e) => {
-                                if (players.length < 2) {
-                                    e.preventDefault();
-                                }
-                            }}
+                            disabled={players.length < 2}
                         >
                             {isGameRunning ? '💾 Save & Return' : '🎮 Start Game'}
-                        </a>
+                        </button>
                         
-                        <a href="/" className="btn btn-outline btn-error">
+                        <button 
+                            onClick={() => navigate('/')} 
+                            className="btn btn-outline btn-error"
+                        >
                             Cancel & Leave
-                        </a>
+                        </button>
                     </div>
                 </>
             ) : (
