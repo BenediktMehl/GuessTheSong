@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+*.md
+__tests__
+jest.config.js
+.DS_Store

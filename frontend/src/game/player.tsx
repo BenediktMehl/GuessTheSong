@@ -1,6 +1,5 @@
 import type { GameContextType } from './context';
-
-const WS_URL = 'ws://localhost:8080';
+import { WS_URL } from '../config';
 
 // Reference to store websocket connection between function calls
 let ws: WebSocket | null = null;

@@ -1,0 +1,45 @@
+name: deploy-backend
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+jobs:
+  deploy:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - uses: actions/checkout@v5
+          
+      - name: "Push to server"
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ vars.URL }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.PRIVATE_SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.PI_FINGERPRINT }}
+          passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
+          source: "backend/*"
+          strip_components: 1
+          target: "/home/${{ secrets.SSH_USERNAME }}/guessthesong-backend"
+          rm: true
+          
+      - name: "Deploy with Docker Compose"
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ vars.URL }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.PRIVATE_SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.PI_FINGERPRINT }}
+          passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
+          script: |
+            cd /home/${{ secrets.SSH_USERNAME }}/guessthesong-backend
+            docker compose down
+            docker compose up -d --build
+            docker compose ps
+            docker compose logs --tail=50
