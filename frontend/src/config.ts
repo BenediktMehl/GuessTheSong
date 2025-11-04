@@ -18,16 +18,34 @@ const getEnvironment = (): 'development' | 'production' => {
   return 'production';
 };
 
+const normaliseToSecure = (url: string): string => {
+  if (typeof window === 'undefined') {
+    return url;
+  }
+
+  // When the frontend runs over HTTPS the websocket must be secure as well.
+  if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+    return url.replace('ws://', 'wss://');
+  }
+
+  return url;
+};
+
 const getWsUrl = (): string => {
+  const envUrl = import.meta.env.VITE_WS_URL as string | undefined;
+  if (envUrl) {
+    return normaliseToSecure(envUrl);
+  }
+
   const env = getEnvironment();
-  
+
   // In dev mode, check if user wants to use local or pi backend
   if (env === 'development') {
     const useLocal = localStorage.getItem(BACKEND_TOGGLE_KEY) === 'local';
-    return useLocal ? config.development.wsUrl : config.production.wsUrl;
+    return normaliseToSecure(useLocal ? config.development.wsUrl : config.production.wsUrl);
   }
-  
-  return config[env].wsUrl;
+
+  return normaliseToSecure(config[env].wsUrl);
 };
 
 export const WS_URL = getWsUrl();

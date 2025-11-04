@@ -1,8 +1,15 @@
 import { loggedInToSpotify, loggedOutOfSpotify } from "../../../game/musicHost";
 import { ws } from "../../../game/host";
 
-const localDevBaseUrl = 'http://127.0.0.1:5173'
-const redirectUri = '/spotifycallback'
+const FALLBACK_REDIRECT_BASE = 'http://127.0.0.1:5173';
+const redirectPath = '/spotifycallback';
+const DEFAULT_REDIRECT_BASE = typeof window !== 'undefined' ? window.location.origin : FALLBACK_REDIRECT_BASE;
+const shouldUseFallbackBase = DEFAULT_REDIRECT_BASE.includes('localhost');
+
+const redirectBaseUrl = (import.meta.env.VITE_SPOTIFY_REDIRECT_BASE as string | undefined)
+    ?? (shouldUseFallbackBase ? FALLBACK_REDIRECT_BASE : DEFAULT_REDIRECT_BASE);
+const redirectUri = `${redirectBaseUrl.replace(/\/$/, '')}${redirectPath}`;
+
 let clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 
 const generateRandomString = (length: number) => {
@@ -50,7 +57,7 @@ const getToken = async (code: string) => {
             client_id: clientId,
             grant_type: 'authorization_code',
             code,
-            redirect_uri: localDevBaseUrl + redirectUri,
+            redirect_uri: redirectUri,
             code_verifier: codeVerifier,
         }),
     }
@@ -148,7 +155,7 @@ async function refreshToken() {
 export async function handleSpotifyLogin() {
     if (await spotifyIsLoggedIn()) {
         console.log("Already logged in with Spotify, redirecting to host page...");
-        window.location.href = redirectUri
+    window.location.href = redirectPath
         return
     }
 
@@ -175,7 +182,7 @@ export async function handleSpotifyLogin() {
         scope,
         code_challenge_method: 'S256',
         code_challenge: codeChallenge,
-        redirect_uri: localDevBaseUrl + redirectUri,
+    redirect_uri: redirectUri,
     }
 
     authUrl.search = new URLSearchParams(params).toString();
