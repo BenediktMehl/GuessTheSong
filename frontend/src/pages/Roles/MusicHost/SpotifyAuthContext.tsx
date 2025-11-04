@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { getSpotifyProfile, handleSpotifyLogout, spotifyIsLoggedIn } from './spotifyAuth';
 
 type SpotifyProfile = {
@@ -19,7 +19,7 @@ export const SpotifyAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
     const [profile, setProfile] = useState<SpotifyProfile | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    const refreshProfile = async () => {
+    const refreshProfile = useCallback(async () => {
         if (await spotifyIsLoggedIn()) {
             const data = await getSpotifyProfile();
             setProfile(data);
@@ -28,13 +28,13 @@ export const SpotifyAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
             setProfile(null);
             setIsLoggedIn(false);
         }
-    };
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         await handleSpotifyLogout();
         setProfile(null);
         setIsLoggedIn(false);
-    };
+    }, []);
 
     return (
         <SpotifyAuthContext.Provider value={{ profile, isLoggedIn, logout, refreshProfile }}>
