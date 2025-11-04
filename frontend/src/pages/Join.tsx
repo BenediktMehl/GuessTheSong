@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../game/context";
 import { joinGame } from "../game/player";
 import { getRandomFunnyName } from "../utils/names";
+import { Card } from "../components/Card";
 
 export default function Join() {
   const [room, setRoom] = useState('');
@@ -56,7 +57,7 @@ export default function Join() {
       <h1 className="text-2xl md:text-3xl font-bold text-success">Join Game</h1>
       <p className="text-sm text-base-content">Enter the game code!</p>
 
-      <div className="card bg-base-200 bg-opacity-60 shadow-2xl p-4 w-full max-w-md">
+      <Card className="w-full max-w-md" bodyClassName="gap-4">
         <form onSubmit={handleJoin} className="flex flex-col gap-4">
           <div className="form-control">
             <label className="label justify-center py-1">
@@ -101,7 +102,7 @@ export default function Join() {
             🎮 Join Game
           </button>
         </form>
-      </div>
+      </Card>
 
       <button 
         onClick={() => navigate('/')} 

@@ -3,6 +3,7 @@ import { useGameContext } from "../game/context";
 import { useNavigate } from "react-router-dom";
 import GameCode from "../components/GameCode";
 import PlayersLobby from "../components/PlayersLobby";
+import { Card } from "../components/Card";
 
 export default function PlayerLobby() {
     const { sessionId, players, status, currentPlayerId, wsStatus } = useGameContext();
@@ -64,13 +65,13 @@ export default function PlayerLobby() {
                     
                     <PlayersLobby players={players} minPlayers={2} currentPlayerId={currentPlayerId} />
 
-                    <div className="card bg-base-300 bg-opacity-70 shadow-2xl p-3 w-full max-w-md text-center">
-                        <div className="text-3xl mb-2 animate-bounce">⏳</div>
-                        <p className="text-sm font-semibold mb-1">Waiting for host...</p>
-                        <p className="text-xs text-gray-500">
+                    <Card className="w-full max-w-md text-center" bodyClassName="items-center gap-2">
+                        <div className="text-3xl animate-bounce">⏳</div>
+                        <p className="text-sm font-semibold">Waiting for host...</p>
+                        <p className="text-xs text-base-content/60">
                             Share the game code!
                         </p>
-                    </div>
+                    </Card>
 
                     <button 
                         onClick={() => navigate('/join')}
