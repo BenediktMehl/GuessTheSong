@@ -1,8 +1,47 @@
+const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 
 const appConfig = require('../app-config');
-const ws = new WebSocket.Server({ port: 8080 });
+
+const PORT = Number.parseInt(process.env.PORT ?? '8080', 10);
+const HOST = process.env.HOST ?? '0.0.0.0';
+const USE_TLS = process.env.WS_USE_TLS === 'true';
+const TLS_CERT_PATH = process.env.WS_TLS_CERT_PATH;
+const TLS_KEY_PATH = process.env.WS_TLS_KEY_PATH;
+
+function handleHttpRequest(_, res) {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('GuessTheSong backend is running.');
+}
+
+function createHttpServer() {
+  if (!USE_TLS) {
+    return http.createServer(handleHttpRequest);
+  }
+
+  if (!TLS_CERT_PATH || !TLS_KEY_PATH) {
+    console.error('WS_USE_TLS=true requires WS_TLS_CERT_PATH and WS_TLS_KEY_PATH to be set.');
+    process.exit(1);
+  }
+
+  try {
+    const credentials = {
+      cert: fs.readFileSync(TLS_CERT_PATH),
+      key: fs.readFileSync(TLS_KEY_PATH)
+    };
+
+  return https.createServer(credentials, handleHttpRequest);
+  } catch (error) {
+    console.error('Failed to load TLS credentials:', error);
+    process.exit(1);
+  }
+}
+
+const httpServer = createHttpServer();
+const ws = new WebSocket.Server({ server: httpServer });
 
 const log = (...args) => {
   console.log(`[${appConfig.shortName}]`, ...args);
@@ -295,4 +334,9 @@ ws.on('connection', (ws) => {
   ws.on('close', () => {
     handleDisconnect(ws);
   });
+});
+
+httpServer.listen(PORT, HOST, () => {
+  const protocol = USE_TLS ? 'wss' : 'ws';
+  console.log(`GuessTheSong backend listening on ${protocol}://${HOST}:${PORT}`);
 });

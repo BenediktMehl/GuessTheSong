@@ -1,8 +1,8 @@
 ---
 name: Use WSS for Deployed Backend
 type: fix
-state: todo
-version: 0.1.0
+state: complete
+version: 1.0.0
 ---
 
 ## Goal
@@ -37,10 +37,10 @@ Keep using the current ws setup on local development. Validate both local and pr
 
 ## Steps
 
-- [ ] Complete Task 1: Audit current WebSocket usage
-- [ ] Complete Task 2: Enable TLS termination for backend WebSocket server
-- [ ] Complete Task 3: Update frontend connection logic
-- [ ] Complete Task 4: Verify and document
+- [x] Complete Task 1: Audit current WebSocket usage
+- [x] Complete Task 2: Enable TLS termination for backend WebSocket server
+- [x] Complete Task 3: Update frontend connection logic
+- [x] Complete Task 4: Verify and document
 
 ## Review Feedback Addressed
 

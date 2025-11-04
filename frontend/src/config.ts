@@ -4,7 +4,7 @@ const config = {
     wsUrl: 'ws://localhost:8080'
   },
   production: {
-    wsUrl: 'ws://guess-the-song.duckdns.org:8080'
+    wsUrl: 'wss://guess-the-song.duckdns.org:8080'
   }
 };
 
