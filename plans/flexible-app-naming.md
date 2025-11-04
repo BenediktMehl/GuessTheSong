@@ -40,11 +40,11 @@ Define a cohesive approach to centralise app naming, update all code paths to us
 
 ## Steps
 
-- [ ] Complete Task 1: Audit existing references
-- [ ] Complete Task 2: Design the naming config
-- [ ] Complete Task 3: Wire up backend usage
-- [ ] Complete Task 4: Wire up frontend usage
-- [ ] Complete Task 5: Update documentation & tooling
+- [x] Complete Task 1: Audit existing references
+- [x] Complete Task 2: Design the naming config
+- [x] Complete Task 3: Wire up backend usage
+- [x] Complete Task 4: Wire up frontend usage
+- [x] Complete Task 5: Update documentation & tooling
 
 ## Review Feedback Addressed
 

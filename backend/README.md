@@ -1,6 +1,6 @@
-# GuessTheSong Backend
+# Backend
 
-This is the Node.js WebSocket server for GuessTheSong.
+This Node.js WebSocket server powers the multiplayer music quiz experience. The user-facing name defaults to the `displayName` defined in `../app-config/base.json` (currently "Guess The Song").
 
 ## Features
 
@@ -130,4 +130,4 @@ Session error:
 {"action": "error", "payload": {"message": "Session does not exist."}}
 ```
 
-See the root `README.md` and `docs/ARD/GuessTheSong-ARD.md` for architecture and requirements.
+See the root `README.md` and `docs/ARD/GuessTheSong-ARD.md` for architecture and requirements (the document title keeps the historical name).

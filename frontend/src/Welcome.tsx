@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import appConfig from '@app-config'
 import { useGameContext } from './game/context'
 
 import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen'
@@ -28,9 +29,9 @@ function Welcome() {
     <main className="min-h-screen flex items-center justify-center">
       <div className="hero">
         <div className="hero-content flex-col">
-          <h1 className="text-5xl font-bold text-primary mb-4">GuessTheSong</h1>
+          <h1 className="text-5xl font-bold text-primary mb-4">{appConfig.displayName}</h1>
           <p className="mb-6 text-lg text-base-content">
-            Play a fun music guessing game with friends!
+            {appConfig.description}
           </p>
           <div className="flex gap-4">
             <button

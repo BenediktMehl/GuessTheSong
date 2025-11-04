@@ -1,3 +1,4 @@
+import appConfig from "@app-config";
 import { Card } from "./Card";
 interface GameCodeProps {
     sessionId: string;
@@ -34,7 +35,7 @@ export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCo
     const handleShare = async () => {
         try {
             await navigator.share({
-                title: 'Join my GuessTheSong game!',
+                title: `Join my ${appConfig.displayName} game!`,
                 text: `Join my game with code: ${sessionId}`,
                 url: inviteLink
             });

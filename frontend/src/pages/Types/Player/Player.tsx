@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import appConfig from "@app-config";
 
 export const Player = () => {
     const [position, setPosition] = useState<number>(-1);
@@ -30,7 +31,7 @@ export const Player = () => {
                         It is now your turn to
                     </h2>
                     <h1 className="text-white text-4xl font-bold drop-shadow-lg">
-                        Guess The Song
+                        {appConfig.displayName}
                     </h1>
                 </>
             );
@@ -44,7 +45,7 @@ export const Player = () => {
                             It is {guesser}s turn to
                         </h2>
                         <h1 className="text-white text-4xl font-bold drop-shadow-lg">
-                            Guess The Song
+                            {appConfig.displayName}
                         </h1>
                         <h2 className="text-white text-l font-bold drop-shadow-md mt-4">
                             It is your turn after {position > 1 ? `${position} players` : "him/her"}!
@@ -58,7 +59,7 @@ export const Player = () => {
                         It is {guesser}s turn to
                     </h2>
                     <h1 className="text-white text-4xl font-bold drop-shadow-lg">
-                        Guess The Song
+                        {appConfig.displayName}
                     </h1>
                     <h2 className="text-white text-l font-bold drop-shadow-md mt-4">
                         Press the screen to guess next!
@@ -73,7 +74,7 @@ export const Player = () => {
                     Press the screen to
                 </h2>
                 <h1 className="text-white text-4xl font-bold drop-shadow-lg">
-                    Guess The Song
+                    {appConfig.displayName}
                 </h1>
             </>
         );

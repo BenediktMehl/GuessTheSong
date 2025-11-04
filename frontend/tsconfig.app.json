@@ -9,6 +9,11 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "baseUrl": "./",
+    "paths": {
+  "@app-config": ["../app-config/index.d.ts", "../app-config/index.mjs"],
+      "@app-config/*": ["../app-config/*"]
+    },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
@@ -23,5 +28,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src", "../app-config/index.d.ts"]
 }

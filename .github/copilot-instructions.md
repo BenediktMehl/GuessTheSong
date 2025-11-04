@@ -1,7 +1,8 @@
-# Copilot Instructions for GuessTheSong
+# Copilot Instructions for Guess The Song
 
 ## Project Overview
-- **GuessTheSong** is a real-time, multiplayer music quiz game powered by Spotify.
+- **Guess The Song** (default branding) is a real-time, multiplayer music quiz game powered by Spotify.
+- Branding strings live in `app-config/base.json`; update that file to change the product name across the stack.
 - Monorepo structure:
   - `frontend/`: React PWA (TypeScript)
   - `backend/`: Node.js WebSocket server (TypeScript)

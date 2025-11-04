@@ -1,6 +1,12 @@
 const WebSocket = require('ws');
 const crypto = require('crypto');
+
+const appConfig = require('../app-config');
 const ws = new WebSocket.Server({ port: 8080 });
+
+const log = (...args) => {
+  console.log(`[${appConfig.shortName}]`, ...args);
+};
 
 const sessions = {}; // sessionId -> { host: ws, players: Set<ws> }
 const disconnectedPlayers = new Map(); // playerId -> { ws, sessionId, disconnectTime, timeout }
@@ -42,7 +48,7 @@ function handleJoin(ws, serverPayload) {
     
     // Verify the player was in this session
     if (disconnectedPlayer.sessionId === normalizedSessionId) {
-      console.log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
+  log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
       
       // Cancel the removal timeout
       clearTimeout(disconnectedPlayer.timeout);
@@ -62,7 +68,7 @@ function handleJoin(ws, serverPayload) {
         payload: { sessionId: normalizedSessionId, playerId: reconnectPlayerId }
       }));
       
-      console.log(`Player ${reconnectPlayerId} successfully reconnected`);
+  log(`Player ${reconnectPlayerId} successfully reconnected`);
       return;
     }
   }
@@ -114,7 +120,7 @@ function handleJoin(ws, serverPayload) {
     }
   }));
 
-  console.log(`Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`);
+  log(`Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`);
 
   // Notify host that a new player joined
   const host = sessions[normalizedSessionId].host;
@@ -161,7 +167,7 @@ function handleCreate(ws) {
     action: 'created',
     payload: { sessionId: newSessionId }
   }));
-  console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
+  log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
 }
 
 function handlePlayerAction(ws, serverPayload) {
@@ -192,7 +198,7 @@ function handlePlayerDisconnect(ws, sessionId) {
   const RECONNECT_GRACE_PERIOD_MS = 180000; // 3 minutes
   
   if (sessions[sessionId] && playerId) {
-    console.log(`Player ${playerId} disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`);
+  log(`Player ${playerId} disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`);
     
     // Store disconnected player info
     const timeout = setTimeout(() => {
@@ -202,7 +208,7 @@ function handlePlayerDisconnect(ws, sessionId) {
         
         if (sessions[sessionId]) {
           sessions[sessionId].players.delete(ws);
-          console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
+          log(`Player ${playerId} removed from session ${sessionId} after timeout`);
           
           // Notify host that player left
           const host = sessions[sessionId].host;
@@ -239,7 +245,7 @@ function handleGameHostDisconnect(ws, sessionId) {
       playerWs.close();
     });
     delete sessions[sessionId];
-    console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
+  log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
   }
 }
 

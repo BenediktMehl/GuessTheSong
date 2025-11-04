@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "This is the Node.js WebSocket server for GuessTheSong.",
+  "description": "Node.js WebSocket server for the configurable music quiz game.",
   "main": "index.js",
   "scripts": {
     "dev": "NODE_ENV=development nodemon index.js",

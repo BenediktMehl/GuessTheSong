@@ -1,5 +1,7 @@
 const WebSocket = require('ws');
 
+const appConfig = require('../../app-config');
+
 const WS_URL = 'ws://localhost:8080';
 
 function waitForMessage(ws) {
@@ -8,7 +10,7 @@ function waitForMessage(ws) {
   });
 }
 
-describe('GuessTheSong WebSocket backend', () => {
+describe(`${appConfig.displayName} WebSocket backend`, () => {
   let host, player1, player2;
 
   afterEach(() => {
