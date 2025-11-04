@@ -1,3 +1,4 @@
+import { Card } from "./Card";
 interface GameCodeProps {
     sessionId: string;
     showCopyLink?: boolean;
@@ -44,21 +45,20 @@ export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCo
     };
 
     return (
-        <div className="card bg-base-200 bg-opacity-70 shadow-2xl p-3 w-full max-w-md">
-            <h3 className="text-sm font-semibold mb-2 text-center">Game Code</h3>
-            <div className="text-center mb-2">
+        <Card title="Game Code" className="w-full max-w-md" bodyClassName="gap-3">
+            <div className="text-center">
                 <span className="text-3xl md:text-4xl font-mono font-bold tracking-widest text-primary">
                     {sessionId}
                 </span>
             </div>
-            
+
             {showCopyLink && (
                 <>
                     <div className="divider my-1 text-xs">OR</div>
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            className="input input-bordered input-sm flex-1 text-xs bg-opacity-70"
+                            className="input input-bordered input-sm flex-1 text-xs bg-white/70"
                             value={inviteLink}
                             readOnly
                             onFocus={e => e.target.select()}
@@ -82,6 +82,6 @@ export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCo
                     </div>
                 </>
             )}
-        </div>
+        </Card>
     );
 }

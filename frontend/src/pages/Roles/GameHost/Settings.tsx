@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { handleSpotifyLogin } from "../MusicHost/spotifyAuth";
 import { useSpotifyAuth } from "../MusicHost/SpotifyAuthContext";
+import { Card } from "../../../components/Card";
 import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../../../game/context";
 import { useGameInitializer } from "../../../game/host";
@@ -18,9 +19,12 @@ export default function Settings() {
     }, [refreshProfile]);
     const handleSpotifyLoginClick = async () => {
         setSpotifyLoginLoading(true);
-        await handleSpotifyLogin();
-        setSpotifyLoginLoading(false);
-        refreshProfile();
+        try {
+            await handleSpotifyLogin();
+            await refreshProfile();
+        } finally {
+            setSpotifyLoginLoading(false);
+        }
     };
     const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
     const navigate = useNavigate();
@@ -137,13 +141,16 @@ export default function Settings() {
 
                     {/* Spotify login section */}
                     <div className="w-full max-w-md flex flex-col gap-3 mt-4">
-                        <div className="card bg-white bg-opacity-80 shadow-md rounded-lg p-4 flex flex-col gap-2 items-center">
-                            <h3 className="text-lg font-semibold mb-2">Spotify Integration</h3>
+                        <Card
+                            title="Spotify Integration"
+                            className="w-full"
+                            bodyClassName="items-center gap-3"
+                        >
                             {isLoggedIn && profile ? (
-                                <div className="flex items-center gap-2">
-                                    <img src={profile.images?.[0]?.url} alt="Spotify profile" className="w-8 h-8 rounded-full border" />
+                                <div className="flex items-center gap-3">
+                                    <img src={profile.images?.[0]?.url} alt="Spotify profile" className="w-10 h-10 rounded-full border border-white/40" />
                                     <span className="font-medium">{profile.display_name}</span>
-                                    <button className="btn btn-outline btn-error btn-sm ml-2" onClick={logout}>
+                                    <button className="btn btn-outline btn-error btn-sm" onClick={logout}>
                                         Logout
                                     </button>
                                 </div>
@@ -156,7 +163,7 @@ export default function Settings() {
                                     {spotifyLoginLoading ? 'Logging in...' : 'Log in to Spotify'}
                                 </button>
                             )}
-                        </div>
+                        </Card>
 
                         {/* ...existing game control buttons... */}
                         <button

@@ -1,69 +1,44 @@
-# React + TypeScript + Vite
+# GuessTheSong Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend is a React + TypeScript Progressive Web App that handles every player-facing screen as well as the host controls. It talks to the backend WebSocket server for real-time updates and uses Spotify OAuth for music playback.
 
-Currently, two official plugins are available:
+## Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Host Settings Spotify login** – Hosts can authenticate with Spotify without leaving the settings screen. Successful logins redirect back to `/settings` automatically.
+- **Shared card system** – All card-like UI elements (game code, player lists, status panels, etc.) are rendered through `src/components/Card.tsx` to keep styling consistent across the app.
+- **Forced light theme** – The app fixes the theme to light mode to guarantee readable contrast on every device regardless of OS preference.
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The dev server listens on `http://127.0.0.1:5173` so that the Spotify redirect URI works without additional configuration.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment Variables
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Create `.env.local` in this folder and add:
+
+```ini
+VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
 ```
+
+Register `http://127.0.0.1:5173/spotifycallback` in the Spotify Developer Dashboard. The login flow stores tokens in `localStorage` and broadcasts login state over the WebSocket connection.
+
+## Testing
+
+Run the Vitest suite:
+
+```bash
+npm test
+```
+
+## Notable Directories
+
+- `src/components/` – Reusable UI elements (GameCode, PlayersLobby, Card, etc.)
+- `src/pages/` – Routed screens for hosts, music hosts, and players
+- `src/game/` – Client-side WebSocket integration and game state management
+
+Follow the repository-wide guidelines in `plans/` when adding new UI or flows.

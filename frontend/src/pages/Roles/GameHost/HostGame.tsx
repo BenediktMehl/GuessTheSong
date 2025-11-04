@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState } from '../MusicHost/spotifyMusic'
+import { Card } from '../../../components/Card'
 
 export default function HostGame() {
     const [spotifyStatus, setSpotifyStatus] = useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);
     const [showToast, setShowToast] = useState(true);
     const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
     const [currentTrack, setCurrentTrack] = useState<any>(null);
+    const nowPlayingBodyClass = currentTrack
+        ? 'flex items-center gap-4'
+        : 'items-center text-center gap-2';
 
     // Fetch current track info
     const fetchCurrentTrack = async () => {
@@ -58,25 +62,27 @@ export default function HostGame() {
 
     return (
         <main className="min-h-screen flex items-center justify-center bg-base-200">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2">
-                {currentTrack ? (
-                    <div className="card bg-base-100 shadow-md p-4 flex flex-row items-center gap-4">
-                        <img
-                            src={currentTrack.album?.images?.[0]?.url}
-                            alt={currentTrack.name}
-                            className="w-16 h-16 rounded"
-                        />
-                        <div className="text-left">
-                            <div className="font-bold">{currentTrack.name}</div>
-                            <div className="text-sm text-gray-500">
-                                {currentTrack.artists?.map((a: any) => a.name).join(', ')}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4">
+                <Card title="Now Playing" className="w-full" bodyClassName={nowPlayingBodyClass}>
+                    {currentTrack ? (
+                        <>
+                            <img
+                                src={currentTrack.album?.images?.[0]?.url}
+                                alt={currentTrack.name}
+                                className="w-16 h-16 rounded-xl shadow-lg"
+                            />
+                            <div className="text-left">
+                                <div className="font-bold text-lg">{currentTrack.name}</div>
+                                <div className="text-sm text-base-content/70">
+                                    {currentTrack.artists?.map((a: any) => a.name).join(', ')}
+                                </div>
+                                <div className="text-xs text-base-content/60">{currentTrack.album?.name}</div>
                             </div>
-                            <div className="text-xs text-gray-400">{currentTrack.album?.name}</div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-center text-gray-500">No track playing</div>
-                )}
+                        </>
+                    ) : (
+                        <div className="w-full text-sm text-base-content/60">No track playing</div>
+                    )}
+                </Card>
             </div>
             {spotifyStatus === SpotifyResponseStatus.NO_ACTIVE_DEVICE && (
                 <div className="toast toast-top toast-center">

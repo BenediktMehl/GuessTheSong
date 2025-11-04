@@ -84,6 +84,9 @@ export async function handleSpotifyLoginCallback(): Promise<boolean> {
 
     if (await spotifyIsLoggedIn()) {
         console.log("Already logged in with Spotify...");
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            loggedInToSpotify();
+        }
         return true;
     } else {
         const urlParams = new URLSearchParams(window.location.search);
@@ -105,6 +108,9 @@ export async function handleSpotifyLoginCallback(): Promise<boolean> {
 
     console.log("Spotify login successful, redirecting to host page...");
     const isLoggedIn = await spotifyIsLoggedIn();
+    if (isLoggedIn && ws && ws.readyState === WebSocket.OPEN) {
+        loggedInToSpotify();
+    }
     return isLoggedIn
 }
 
@@ -212,10 +218,6 @@ export async function spotifyIsLoggedIn(secondTry = false) {
         return spotifyIsLoggedIn(true);
     }
 
-    // Only call loggedInToSpotify if WebSocket is connected
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        loggedInToSpotify();
-    }
     console.log("Logged in with Spotify");
     return true;
 }

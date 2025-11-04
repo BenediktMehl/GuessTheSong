@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { handleSpotifyLogin, handleSpotifyLoginCallback } from './spotifyAuth'
+import { Card } from '../../../components/Card'
 
 
 export default function SpotifyLoginCallback() {
@@ -18,31 +19,29 @@ export default function SpotifyLoginCallback() {
             console.log("Spotify login callback handled, isLoggedIn:", isLoggedIn)
             setIsLoggedInSpotify(isLoggedIn)
             if(isLoggedIn) {
-                navigate('/menu')
+                navigate('/settings', { replace: true })
             }
         })
     }, [location.search, navigate])
 
     return (
-        <main className="min-h-screen flex items-center justify-center">
-            <div className="card w-full max-w-md bg-base-100 shadow-xl">
-                <div className="card-body items-center text-center">
-                    {isLoggedInSpotify ? (
-                       <p>Now redirecting to game</p>
-                    ) : (
-                        <>
-                            <h2 className="card-title text-2xl mb-2">Spotify Login not Successful</h2>
-                            <p className="text-error">Something went wrong. Please try logging in again.</p>
-                            <button
-                                className="btn btn-outline btn-success mb-4"
-                                onClick={handleSpotifyLogin}
-                            >
-                                Log in with Spotify
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
+        <main className="min-h-screen flex items-center justify-center p-4">
+            <Card className="w-full max-w-md" bodyClassName="items-center text-center gap-4">
+                {isLoggedInSpotify ? (
+                    <p>Now redirecting to game</p>
+                ) : (
+                    <>
+                        <h2 className="text-2xl font-semibold text-primary">Spotify Login not Successful</h2>
+                        <p className="text-error">Something went wrong. Please try logging in again.</p>
+                        <button
+                            className="btn btn-outline btn-success"
+                            onClick={handleSpotifyLogin}
+                        >
+                            Log in with Spotify
+                        </button>
+                    </>
+                )}
+            </Card>
         </main>
     )
 }
