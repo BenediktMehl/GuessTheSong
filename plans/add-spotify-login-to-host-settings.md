@@ -8,12 +8,12 @@ Currently, only the Music Host role has Spotify login. Hosts need a seamless way
 
 ## Tasks & Steps
 
-- [ ] Analyze current Host Settings UI and Spotify OAuth integration
-- [ ] Design and add a Spotify login button to Host Settings (frontend/src/pages/Roles/GameHost/Settings.tsx)
-- [ ] Connect the button to the existing Spotify OAuth flow (frontend/src/pages/Roles/MusicHost/spotifyAuth.ts)
-- [ ] Ensure login state is reflected in the UI (show logged-in status, error handling)
-- [ ] Test the login flow end-to-end
-- [ ] Update documentation (README, UI help text)
+- [x] Analyze current Host Settings UI and Spotify OAuth integration
+- [x] Design and add a Spotify login button to Host Settings (frontend/src/pages/Roles/GameHost/Settings.tsx)
+- [x] Connect the button to the existing Spotify OAuth flow (frontend/src/pages/Roles/MusicHost/spotifyAuth.ts)
+- [x] Ensure login state is reflected in the UI (show logged-in status, error handling)
+- [x] Test the login flow end-to-end
+- [x] Update documentation (README, UI help text)
 
 ## Acceptance Criteria
 - Host Settings page displays a Spotify login button
