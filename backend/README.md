@@ -36,7 +36,7 @@ All messages follow this simplified format:
 
 ## Commands for Manual Testing
 
-Use `wscat -c ws://localhost:8080` to connect and test commands manually.
+Use `wscat -c ws://localhost:8080` to connect locally and test commands manually. In production, the server listens on `wss://guess-the-song.duckdns.org:8080` once TLS is enabled.
 
 ### Host Commands
 
@@ -75,6 +75,22 @@ Change music host:
 Change referee:
 ```json
 {"action": "refereeChanged", "payload": {"refereeId": "player-456"}}
+```
+
+## TLS Configuration
+
+Set the following environment variables when you want the backend to accept secure WebSocket connections directly:
+
+- `WS_USE_TLS=true`
+- `WS_TLS_CERT_PATH=/path/to/fullchain.pem`
+- `WS_TLS_KEY_PATH=/path/to/privkey.pem`
+
+Certificates must be readable by the Node.js process inside the container (mount them read-only via Docker volumes). When these variables are not provided, the server falls back to plain `ws://` which is suitable for local development.
+
+Use the `docker-compose.tls.yml` overlay to mount LetsEncrypt certificates on the Raspberry Pi:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
 ```
 
 ## Server Responses

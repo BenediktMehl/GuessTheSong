@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  backend:
+    user: "0:0"
+    environment:
+      WS_USE_TLS: "true"
+      WS_TLS_CERT_PATH: "/certs/fullchain.pem"
+      WS_TLS_KEY_PATH: "/certs/privkey.pem"
+    volumes:
+      - /etc/letsencrypt/live/guess-the-song.duckdns.org/fullchain.pem:/certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/guess-the-song.duckdns.org/privkey.pem:/certs/privkey.pem:ro

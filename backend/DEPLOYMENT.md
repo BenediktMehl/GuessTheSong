@@ -49,7 +49,7 @@ Der Backend-Workflow (`.github/workflows/backend.yml`) wird automatisch ausgelö
 2. GitHub Action wird getriggert
 3. Dateien werden per SCP auf Pi kopiert nach `/home/benedikt.mehl/guessthesong-backend`
 4. Docker Container wird neu gebaut und gestartet via `docker compose up -d --build`
-5. Backend läuft auf Port 8080
+5. Backend läuft auf Port 8080 (per `wss://` wenn TLS aktiviert ist)
 
 ## Manuelle Container-Verwaltung
 
@@ -72,82 +72,37 @@ docker compose up -d --build
 docker compose ps
 ```
 
-## Nginx + Certbot (WSS Reverse Proxy)
+## TLS-Konfiguration direkt im Container
 
-Um das Backend sicher über `wss://` zugänglich zu machen, setze ein Nginx-Reverse-Proxy mit Let's Encrypt TLS-Zertifikat ein. Die folgenden Schritte laufen alle auf dem Raspberry Pi.
+Der Node.js-Server kann die TLS-Zertifikate direkt laden. Nginx ist nicht mehr zwingend notwendig (kann aber weiterhin als Reverse Proxy genutzt werden, wenn gewünscht).
 
-### 1. Nginx & Certbot installieren
+1. Zertifikate liegen standardmäßig unter `/etc/letsencrypt/live/guess-the-song.duckdns.org/`.
+2. Mount die Dateien read-only in den Container, z. B. nach `/certs/fullchain.pem` und `/certs/privkey.pem`.
+3. Setze folgende Environment-Variablen (per `.env` oder direkt im Compose-File):
+   - `WS_USE_TLS=true`
+   - `WS_TLS_CERT_PATH=/certs/fullchain.pem`
+   - `WS_TLS_KEY_PATH=/certs/privkey.pem`
+4. Prüfe die Dateiberechtigungen: Der Container-Nutzer muss Lesezugriff auf die Dateien haben (`chmod 640` + passende Gruppe oder Kopie mit reduziertem Rechteumfang).
 
-```bash
-sudo apt update
-sudo apt install nginx certbot python3-certbot-nginx -y
-```
+Nach einem `docker compose up -d --build` lauscht das Backend auf `wss://<host>:8080`.
 
-### 2. DNS & Port-Freigabe prüfen
+> Hinweis: Nutze das Zusatz-Compose-File `docker-compose.tls.yml`, um TLS inklusive Zertifikat-Mount zu aktivieren:
+>
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+> ```
+>
+> Dieses Overlay wechselt auf den Root-Nutzer im Container, damit die eingebundenen Zertifikats-Dateien (standardmäßig 600) gelesen werden können.
 
-- DNS-Eintrag (z. B. `guess-the-song.duckdns.org`) muss auf die öffentliche IP des Pi zeigen.
-- Router: leite **Port 80 (TCP)** und **Port 443 (TCP)** zum Pi durch.
+### Frontend konfigurieren
 
-### 3. Zertifikat mit Certbot holen
+- Setze in der Produktionsumgebung `VITE_WS_URL=wss://guess-the-song.duckdns.org:8080` (oder den passenden Hostnamen/Port).
+- Lokale Entwicklung bleibt unverändert; `ws://localhost:8080` bleibt der Standard.
 
-```bash
-sudo certbot --nginx -d guess-the-song.duckdns.org
-```
-
-Folge dem Assistenten und aktiviere den automatischen HTTPS-Redirect, wenn gefragt. Certbot erneuert das Zertifikat später automatisch per Cronjob.
-
-### 4. Nginx für WebSocket-Proxy konfigurieren
-
-Erstelle oder bearbeite `/etc/nginx/sites-available/guessthesong` und hinterlege:
-
-```nginx
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name guess-the-song.duckdns.org;
-
-    ssl_certificate /etc/letsencrypt/live/guess-the-song.duckdns.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/guess-the-song.duckdns.org/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # WebSocket Proxy
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 300s;
-    }
-}
-
-server {
-    listen 80;
-    listen [::]:80;
-    server_name guess-the-song.duckdns.org;
-
-    return 301 https://$host$request_uri;
-}
-```
-
-Aktiviere die Site und teste Nginx:
+### Verbindung testen
 
 ```bash
-sudo ln -sf /etc/nginx/sites-available/guessthesong /etc/nginx/sites-enabled/guessthesong
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 5. Frontend konfigurieren
-
-- Setze in der Vercel-Umgebung `VITE_WS_URL=wss://guess-the-song.duckdns.org` (oder den passenden Hostnamen).
-- Lokale Entwicklung bleibt unverändert, solange `VITE_SPOTIFY_REDIRECT_BASE` bzw. der Fallback genutzt wird.
-
-### 6. Verbindung testen
-
-```bash
-wscat -c wss://guess-the-song.duckdns.org
+wscat -c wss://guess-the-song.duckdns.org:8080
 
 # Test-Nachricht senden:
 {"serverAction":"create"}
@@ -156,8 +111,8 @@ wscat -c wss://guess-the-song.duckdns.org
 ## Testen
 
 ```bash
-# Von deinem lokalen Rechner:
-wscat -c ws://guess-the-song.duckdns.org:8080
+# Von deinem lokalen Rechner (Produktions-Endpoint):
+wscat -c wss://guess-the-song.duckdns.org:8080
 
 # Test-Nachricht senden:
 {"serverAction":"create"}
