@@ -72,29 +72,86 @@ docker compose up -d --build
 docker compose ps
 ```
 
-## Nginx WebSocket Proxy (Optional für WS)
+## Nginx + Certbot (WSS Reverse Proxy)
 
-Wenn du **ws://** (verschlüsselte WebSocket) nutzen möchtest, füge zu deiner nginx-Config hinzu:
+Um das Backend sicher über `wss://` zugänglich zu machen, setze ein Nginx-Reverse-Proxy mit Let's Encrypt TLS-Zertifikat ein. Die folgenden Schritte laufen alle auf dem Raspberry Pi.
+
+### 1. Nginx & Certbot installieren
+
+```bash
+sudo apt update
+sudo apt install nginx certbot python3-certbot-nginx -y
+```
+
+### 2. DNS & Port-Freigabe prüfen
+
+- DNS-Eintrag (z. B. `guess-the-song.duckdns.org`) muss auf die öffentliche IP des Pi zeigen.
+- Router: leite **Port 80 (TCP)** und **Port 443 (TCP)** zum Pi durch.
+
+### 3. Zertifikat mit Certbot holen
+
+```bash
+sudo certbot --nginx -d guess-the-song.duckdns.org
+```
+
+Folge dem Assistenten und aktiviere den automatischen HTTPS-Redirect, wenn gefragt. Certbot erneuert das Zertifikat später automatisch per Cronjob.
+
+### 4. Nginx für WebSocket-Proxy konfigurieren
+
+Erstelle oder bearbeite `/etc/nginx/sites-available/guessthesong` und hinterlege:
 
 ```nginx
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    
-    # ... existing frontend config ...
-    
-    # WebSocket Proxy für Backend
-    location /ws {
-        proxy_pass http://localhost:8080;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name guess-the-song.duckdns.org;
+
+    ssl_certificate /etc/letsencrypt/live/guess-the-song.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/guess-the-song.duckdns.org/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # WebSocket Proxy
+    location / {
+        proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name guess-the-song.duckdns.org;
+
+    return 301 https://$host$request_uri;
 }
 ```
 
-Dann kannst du in `frontend/src/config.ts` die Production URL zu `ws://guess-the-song.duckdns.org/ws` ändern.
+Aktiviere die Site und teste Nginx:
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/guessthesong /etc/nginx/sites-enabled/guessthesong
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 5. Frontend konfigurieren
+
+- Setze in der Vercel-Umgebung `VITE_WS_URL=wss://guess-the-song.duckdns.org` (oder den passenden Hostnamen).
+- Lokale Entwicklung bleibt unverändert, solange `VITE_SPOTIFY_REDIRECT_BASE` bzw. der Fallback genutzt wird.
+
+### 6. Verbindung testen
+
+```bash
+wscat -c wss://guess-the-song.duckdns.org
+
+# Test-Nachricht senden:
+{"serverAction":"create"}
+```
 
 ## Testen
 
