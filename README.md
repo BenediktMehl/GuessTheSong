@@ -32,6 +32,8 @@ cd frontend && npm run dev
 
 The frontend dev server is served from `http://127.0.0.1:5173` so the Spotify redirect works out of the box.
 
+During local development the backend listens on `ws://localhost:8080`. Production builds automatically switch to `wss://` to stay compatible with HTTPS hosting.
+
 ## Spotify OAuth Configuration
 
 The frontend expects a Spotify client ID via Vite. Create `frontend/.env.local` and add:
@@ -54,3 +56,20 @@ Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify
 - Branding guard: `node scripts/check-brand.js`
 
 Please follow the workflow in `plans/` when starting new features or fixes.
+
+## Production Deployment (Raspberry Pi)
+
+- Certificates from Let's Encrypt live at `/etc/letsencrypt/live/guess-the-song.duckdns.org/` on the Pi.
+- Use Docker Compose with the TLS overlay to mount certs and enable secure WebSockets:
+
+	```bash
+	cd backend
+	docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+	```
+
+- Required environment variables:
+	- `WS_USE_TLS=true`
+	- `WS_TLS_CERT_PATH=/certs/fullchain.pem`
+	- `WS_TLS_KEY_PATH=/certs/privkey.pem`
+
+After the stack is up the backend is reachable at `wss://guess-the-song.duckdns.org:8080` and pairs cleanly with the HTTPS frontend.

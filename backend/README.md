@@ -87,6 +87,12 @@ Set the following environment variables when you want the backend to accept secu
 
 Certificates must be readable by the Node.js process inside the container (mount them read-only via Docker volumes). When these variables are not provided, the server falls back to plain `ws://` which is suitable for local development.
 
+Use the `docker-compose.tls.yml` overlay to mount LetsEncrypt certificates on the Raspberry Pi:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+```
+
 ## Server Responses
 
 ### Host Responses

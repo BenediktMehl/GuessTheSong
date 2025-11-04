@@ -23,9 +23,12 @@ Create `.env.local` in this folder and add:
 
 ```ini
 VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
+VITE_WS_URL=ws://localhost:8080        # optional override
 ```
 
 Register `http://127.0.0.1:5173/spotifycallback` in the Spotify Developer Dashboard. The login flow stores tokens in `localStorage` and broadcasts login state over the WebSocket connection.
+
+Production builds default to `wss://guess-the-song.duckdns.org:8080`. Override `VITE_WS_URL` if you deploy the backend under a different host or port.
 
 ## Testing
 
