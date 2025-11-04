@@ -4,7 +4,7 @@ import { WS_URL } from '../config';
 import { sendPlayerAction } from './player';
 
 // Reference to store websocket connection between function calls
-let ws: WebSocket | null = null;
+export let ws: WebSocket | null = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 3;
 let hasFailed = false; // Track if we've permanently failed

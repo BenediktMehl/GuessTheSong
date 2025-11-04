@@ -1,4 +1,5 @@
 import { loggedInToSpotify, loggedOutOfSpotify } from "../../../game/musicHost";
+import { ws } from "../../../game/host";
 
 const localDevBaseUrl = 'http://127.0.0.1:5173'
 const redirectUri = '/spotifycallback'
@@ -192,7 +193,7 @@ export async function spotifyIsLoggedIn(secondTry = false) {
         return false;
     }
 
-    const expiresAt = Number(localStorage.getItem('expires_at'))
+    const expiresAt = Number(localStorage.getItem('expires_at'));
     if (!expiresAt) {
         console.log("Expires at not found in localStorage");
         loggedOutOfSpotify();
@@ -206,12 +207,15 @@ export async function spotifyIsLoggedIn(secondTry = false) {
             return false;
         }
         console.log("Spotify access token is expired or about to expire: refreshing token...");
-        await refreshToken()
+        await refreshToken();
         console.log("Token refreshed, checking if logged in again...");
         return spotifyIsLoggedIn(true);
     }
 
+    // Only call loggedInToSpotify if WebSocket is connected
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        loggedInToSpotify();
+    }
     console.log("Logged in with Spotify");
-    loggedInToSpotify();
     return true;
 }

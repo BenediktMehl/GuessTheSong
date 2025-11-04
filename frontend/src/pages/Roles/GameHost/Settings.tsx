@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { handleSpotifyLogin } from "../MusicHost/spotifyAuth";
+import { useSpotifyAuth } from "../MusicHost/SpotifyAuthContext";
 import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../../../game/context";
 import { useGameInitializer } from "../../../game/host";
@@ -8,6 +10,18 @@ import PlayersLobby from "../../../components/PlayersLobby";
 export default function Settings() {
     const [showCopiedToast, setShowCopiedToast] = useState(false);
     const [showCopyError, setShowCopyError] = useState(false);
+    const [spotifyLoginLoading, setSpotifyLoginLoading] = useState(false);
+    const { profile, isLoggedIn, refreshProfile, logout } = useSpotifyAuth();
+    // On mount, check Spotify login status
+    useEffect(() => {
+        refreshProfile();
+    }, [refreshProfile]);
+    const handleSpotifyLoginClick = async () => {
+        setSpotifyLoginLoading(true);
+        await handleSpotifyLogin();
+        setSpotifyLoginLoading(false);
+        refreshProfile();
+    };
     const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
     const navigate = useNavigate();
     const gameContext = useGameContext();
@@ -61,6 +75,7 @@ export default function Settings() {
         <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
             <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
 
+            {/* ...existing connection status UI... */}
             {wsStatus === 'connecting' || wsStatus === 'closed' ? (
                 <div className="alert alert-warning max-w-md flex flex-col gap-2">
                     <div>
@@ -101,7 +116,7 @@ export default function Settings() {
                         onCopy={handleCopyLink}
                         onCopyError={handleCopyError}
                     />
-                    
+
                     {showCopiedToast && (
                         <div className="toast toast-top toast-center">
                             <div className="alert alert-success">
@@ -120,7 +135,30 @@ export default function Settings() {
 
                     <PlayersLobby players={players} minPlayers={2} />
 
-                    <div className="w-full max-w-md flex flex-col gap-3">
+                    {/* Spotify login section */}
+                    <div className="w-full max-w-md flex flex-col gap-3 mt-4">
+                        <div className="card bg-white bg-opacity-80 shadow-md rounded-lg p-4 flex flex-col gap-2 items-center">
+                            <h3 className="text-lg font-semibold mb-2">Spotify Integration</h3>
+                            {isLoggedIn && profile ? (
+                                <div className="flex items-center gap-2">
+                                    <img src={profile.images?.[0]?.url} alt="Spotify profile" className="w-8 h-8 rounded-full border" />
+                                    <span className="font-medium">{profile.display_name}</span>
+                                    <button className="btn btn-outline btn-error btn-sm ml-2" onClick={logout}>
+                                        Logout
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    className={`btn btn-success w-full ${spotifyLoginLoading ? 'loading' : ''}`}
+                                    onClick={handleSpotifyLoginClick}
+                                    disabled={spotifyLoginLoading}
+                                >
+                                    {spotifyLoginLoading ? 'Logging in...' : 'Log in to Spotify'}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* ...existing game control buttons... */}
                         <button
                             onClick={() => {
                                 if (players.length >= 2) {
@@ -134,7 +172,7 @@ export default function Settings() {
                         >
                             {isGameRunning ? '💾 Save & Return' : '🎮 Start Game'}
                         </button>
-                        
+
                         <button 
                             onClick={() => navigate('/')} 
                             className="btn btn-outline btn-error"
