@@ -19,7 +19,7 @@ export default function SpotifyLoginCallback() {
             console.log("Spotify login callback handled, isLoggedIn:", isLoggedIn)
             setIsLoggedInSpotify(isLoggedIn)
             if(isLoggedIn) {
-                navigate('/menu')
+                navigate('/settings', { replace: true })
             }
         })
     }, [location.search, navigate])
