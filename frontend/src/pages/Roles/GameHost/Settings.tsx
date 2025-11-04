@@ -19,9 +19,12 @@ export default function Settings() {
     }, [refreshProfile]);
     const handleSpotifyLoginClick = async () => {
         setSpotifyLoginLoading(true);
-        await handleSpotifyLogin();
-        setSpotifyLoginLoading(false);
-        refreshProfile();
+         try {
++        await handleSpotifyLogin();
++        await refreshProfile();
++    } finally {
++        setSpotifyLoginLoading(false);
++    }
     };
     const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
     const navigate = useNavigate();
