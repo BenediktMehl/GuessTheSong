@@ -1,6 +1,6 @@
-# GuessTheSong Frontend
+# Frontend (PWA)
 
-The frontend is a React + TypeScript Progressive Web App that handles every player-facing screen as well as the host controls. It talks to the backend WebSocket server for real-time updates and uses Spotify OAuth for music playback.
+The frontend is a React + TypeScript Progressive Web App that handles every player-facing screen as well as the host controls. Branding strings such as the app title and manifest metadata read from `../app-config/base.json`, which currently ships with the "Guess The Song" default. It talks to the backend WebSocket server for real-time updates and uses Spotify OAuth for music playback.
 
 ## Key Features
 

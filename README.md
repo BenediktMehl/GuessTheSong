@@ -1,6 +1,6 @@
-# GuessTheSong
+# Guess The Song (configurable)
 
-GuessTheSong is a real-time, multiplayer music quiz powered by Spotify. The web app runs across desktop and mobile browsers and uses WebSockets to keep every player in sync.
+This repository hosts a real-time, multiplayer music quiz powered by Spotify. All branding strings (app title, manifest metadata, share text, etc.) originate from `app-config/base.json`, which defaults to "Guess The Song". Update that file to rebrand the app without hunting for scattered string literals. The web app runs across desktop and mobile browsers and uses WebSockets to keep every player in sync.
 
 ## Repository Layout
 
@@ -51,5 +51,6 @@ Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify
 
 - Backend (Jest): `cd backend && npm test`
 - Frontend (Vitest): `cd frontend && npm test`
+- Branding guard: `node scripts/check-brand.js`
 
 Please follow the workflow in `plans/` when starting new features or fixes.
