@@ -12,6 +12,15 @@
 - **Game Flow**: Players join via code, guess songs, scores tracked server-side, music streamed via Spotify API.
 - **Plans**: All new features/fixes start with a plan in `plans/` (see `template.md`).
 
+## Frontend UI 
+- The App is a Progressive Web App (PWA) built with React and TypeScript.
+- The UI is optimized for mobile devices, with responsive design principles.
+- There is no need to scroll horizontally; all content fits within the viewport width.
+- The Theme is colorful and engaging, using a palette that complements the music quiz theme.
+- The components are a rounded, have shadows, and use smooth animations for transitions and interactions.
+- Components have a white, slightly elevated card-like appearance against a the colorful, moving gradient background.
+- Components are slightly transparent, allowing the dynamic background to subtly show through, but the shadow ensures readability.
+
 ## Developer Workflow
 - **Install dependencies**: `npm install` (root, then each package)
 - **Run frontend**: `cd frontend && npm run dev`
