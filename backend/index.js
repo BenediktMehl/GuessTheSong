@@ -4,8 +4,6 @@ const https = require('https');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 
-const appConfig = require('../app-config');
-
 const PORT = Number.parseInt(process.env.PORT ?? '8080', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
 const USE_TLS = process.env.WS_USE_TLS === 'true';
@@ -43,9 +41,6 @@ function createHttpServer() {
 const httpServer = createHttpServer();
 const ws = new WebSocket.Server({ server: httpServer });
 
-const log = (...args) => {
-  console.log(`[${appConfig.shortName}]`, ...args);
-};
 
 const sessions = {}; // sessionId -> { host: ws, players: Set<ws> }
 const disconnectedPlayers = new Map(); // playerId -> { ws, sessionId, disconnectTime, timeout }
