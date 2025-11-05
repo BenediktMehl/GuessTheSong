@@ -209,3 +209,56 @@ export async function getPlaylistTracks(playlistId: string, limit = 100, offset 
 
     return await response.json();
 }
+
+export async function getPlaylistById(playlistId: string): Promise<SpotifyPlaylist | null> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+        console.error("No access token found in localStorage");
+        return null;
+    }
+
+    const url = `https://api.spotify.com/v1/playlists/${playlistId}`;
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+        },
+    });
+
+    if (!response.ok) {
+        console.error("Failed to fetch playlist:", response.statusText);
+        return null;
+    }
+
+    return await response.json();
+}
+
+export interface SpotifySearchResponse {
+    playlists: {
+        items: SpotifyPlaylist[];
+        total: number;
+        next: string | null;
+    };
+}
+
+export async function searchPlaylists(query: string, limit = 20): Promise<SpotifySearchResponse | null> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+        console.error("No access token found in localStorage");
+        return null;
+    }
+
+    const encodedQuery = encodeURIComponent(query);
+    const url = `https://api.spotify.com/v1/search?q=${encodedQuery}&type=playlist&limit=${limit}`;
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+        },
+    });
+
+    if (!response.ok) {
+        console.error("Failed to search playlists:", response.statusText);
+        return null;
+    }
+
+    return await response.json();
+}
