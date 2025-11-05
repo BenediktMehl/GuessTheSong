@@ -4,7 +4,6 @@ const { sendError } = require('../utils');
 function handlePlayerAction(ws, serverPayload) {
   const playerSessionId = ws.sessionId;
   if (playerSessionId && sessions[playerSessionId]) {
-<<<<<<< HEAD
     try {
       sessions[playerSessionId].host.send(
         JSON.stringify({
@@ -16,14 +15,6 @@ function handlePlayerAction(ws, serverPayload) {
       console.error('Failed to send to host:', error);
       sendError(ws, 'Failed to forward action to host.');
     }
-=======
-    sessions[playerSessionId].host.send(
-      JSON.stringify({
-        ...serverPayload,
-        serverTimestamp: Date.now(),
-      })
-    );
->>>>>>> origin/main
   } else {
     sendError(ws, 'Session does not exist.');
   }
