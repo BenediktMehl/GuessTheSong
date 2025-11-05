@@ -20,21 +20,26 @@ ws.on('connection', (ws) => {
 
     const { serverAction, serverPayload } = data;
 
-    switch (serverAction) {
-      case 'join':
-        handleJoin(ws, serverPayload);
-        break;
-      case 'create':
-        handleCreate(ws);
-        break;
-      case 'player-action':
-        handlePlayerAction(ws, serverPayload);
-        break;
-      case 'broadcast':
-        handleBroadcast(ws, serverPayload);
-        break;
-      default:
-        sendError(ws, `Unknown serverAction: ${serverAction}`);
+    try {
+      switch (serverAction) {
+        case 'join':
+          handleJoin(ws, serverPayload);
+          break;
+        case 'create':
+          handleCreate(ws);
+          break;
+        case 'player-action':
+          handlePlayerAction(ws, serverPayload);
+          break;
+        case 'broadcast':
+          handleBroadcast(ws, serverPayload);
+          break;
+        default:
+          sendError(ws, `Unknown serverAction: ${serverAction}`);
+      }
+    } catch (error) {
+      console.error('Handler error:', error);
+      sendError(ws, 'Internal server error.');
     }
   });
 
