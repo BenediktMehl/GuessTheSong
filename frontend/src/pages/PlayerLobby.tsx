@@ -67,7 +67,7 @@ export default function PlayerLobby() {
 
                     <Card className="w-full max-w-md text-center" bodyClassName="items-center gap-2">
                         <div className="text-3xl animate-bounce">⏳</div>
-                        <p className="text-sm font-semibold">Waiting for host...</p>
+                        <p className="text-sm font-semibold">Waiting for host to start the game...</p>
                         <p className="text-xs text-base-content/60">
                             Share the game code!
                         </p>
