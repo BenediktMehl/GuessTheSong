@@ -173,7 +173,7 @@ export default function HostGame() {
                     ) : (
                         <>
                             <select
-                                className="select select-bordered w-full"
+                                className="select select-bordered w-full bg-white"
                                 value={selectedPlaylistId}
                                 onChange={(e) => setSelectedPlaylistId(e.target.value)}
                             >
@@ -195,7 +195,7 @@ export default function HostGame() {
                                             {playlistTracks.slice(0, 20).map((item, index) => (
                                                 <button
                                                     key={item.track.id || index}
-                                                    className="btn btn-sm btn-outline w-full justify-start text-left"
+                                                    className="btn btn-sm btn-outline w-full justify-start text-left bg-white"
                                                     onClick={() => handlePlayTrackFromPlaylist(item.track.uri)}
                                                 >
                                                     <span className="truncate">{item.track.name} - {item.track.artists.map(a => a.name).join(', ')}</span>

@@ -17,7 +17,7 @@ type CardProps = {
 };
 
 const baseClassName =
-    "card bg-white/75 backdrop-blur-lg border border-white/20 shadow-2xl rounded-3xl p-6 text-base-content transition-transform duration-200";
+    "card bg-white/60 backdrop-blur-lg border border-white/20 shadow-2xl rounded-3xl p-6 text-base-content transition-transform duration-200";
 const baseBodyClassName = "flex flex-col gap-4";
 
 export function Card({
