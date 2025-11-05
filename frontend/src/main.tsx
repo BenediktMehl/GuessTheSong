@@ -3,7 +3,7 @@ import appConfig from '@app-config';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Background } from './Background.tsx';
-import { BackendToggle } from './components/BackendToggle.tsx';
+import { DevFloating } from './components/DevFloating.tsx';
 import SpotifyOverlay from './components/SpotifyOverlay';
 import { GameProvider } from './game/context';
 import { App } from './pages/Welcome';
@@ -22,7 +22,7 @@ createRoot(rootElement).render(
       <GameProvider>
         <Background />
         <SpotifyOverlay />
-        {import.meta.env.DEV && <BackendToggle />}
+        {import.meta.env.DEV && <DevFloating />}
         <div className="relative z-10">
           <App />
         </div>
