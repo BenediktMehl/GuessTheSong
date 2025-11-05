@@ -1,0 +1,141 @@
+const { sessions, disconnectedPlayers } = require('../sessions');
+const { generatePlayerId } = require('../utils');
+
+function handleJoin(ws, serverPayload) {
+  // Accept sessionId in any case (upper/lower)
+  const normalizedSessionId = serverPayload?.sessionId?.toUpperCase();
+  const playerName = serverPayload?.name;
+  const reconnectPlayerId = serverPayload?.playerId; // For reconnection
+
+  if (!normalizedSessionId || !sessions[normalizedSessionId]) {
+    ws.send(
+      JSON.stringify({
+        action: 'join-failed',
+        payload: { reason: 'Session does not exist.' },
+      })
+    );
+    return;
+  }
+
+  // Check if this is a reconnection attempt
+  if (reconnectPlayerId && disconnectedPlayers.has(reconnectPlayerId)) {
+    const disconnectedPlayer = disconnectedPlayers.get(reconnectPlayerId);
+
+    // Verify the player was in this session
+    if (disconnectedPlayer.sessionId === normalizedSessionId) {
+      console.log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
+
+      // Cancel the removal timeout
+      clearTimeout(disconnectedPlayer.timeout);
+      disconnectedPlayers.delete(reconnectPlayerId);
+
+      // Remove old WebSocket and add new one
+      sessions[normalizedSessionId].players.delete(disconnectedPlayer.ws);
+      sessions[normalizedSessionId].players.add(ws);
+
+      ws.sessionId = normalizedSessionId;
+      ws.playerName = playerName;
+      ws.playerId = reconnectPlayerId;
+
+      // Send reconnection success
+      ws.send(
+        JSON.stringify({
+          action: 'join-success',
+          payload: { sessionId: normalizedSessionId, playerId: reconnectPlayerId },
+        })
+      );
+
+      console.log(`Player ${reconnectPlayerId} successfully reconnected`);
+      return;
+    }
+  }
+
+  // Check if this WebSocket is already a player
+  if (ws.playerName && ws.playerName !== '') {
+    ws.send(
+      JSON.stringify({
+        action: 'join-failed',
+        payload: { reason: 'You are already connected to a session as a player.' },
+      })
+    );
+    return;
+  }
+
+  // Check if a player with the same name already exists in the session
+  const isDuplicate = Array.from(sessions[normalizedSessionId].players).some(
+    (player) => player.playerName === playerName
+  );
+
+  if (isDuplicate) {
+    ws.send(
+      JSON.stringify({
+        action: 'join-failed',
+        payload: { reason: 'A player with this name already exists in the session.' },
+      })
+    );
+    return;
+  }
+
+  // Set player properties BEFORE adding to session to prevent race conditions
+  ws.sessionId = normalizedSessionId;
+  ws.playerName = playerName;
+  ws.playerId = generatePlayerId();
+
+  // Now add to session
+  sessions[normalizedSessionId].players.add(ws);
+
+  // Get list of all players for the new player
+  const allPlayers = Array.from(sessions[normalizedSessionId].players).map((p) => ({
+    id: p.playerId,
+    name: p.playerName,
+    points: 0, // Initial points
+  }));
+
+  // Send join-success with playerId and all players to the new player
+  ws.send(
+    JSON.stringify({
+      action: 'join-success',
+      payload: {
+        sessionId: normalizedSessionId,
+        playerId: ws.playerId,
+        players: allPlayers, // Send list of all players
+      },
+    })
+  );
+
+  console.log(
+    `Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`
+  );
+
+  // Notify host that a new player joined
+  const host = sessions[normalizedSessionId].host;
+  if (host) {
+    host.send(
+      JSON.stringify({
+        action: 'player-joined',
+        payload: {
+          name: ws.playerName,
+          playerId: ws.playerId,
+        },
+      })
+    );
+  }
+
+  // Notify all OTHER players in the session about the new player
+  sessions[normalizedSessionId].players.forEach((playerWs) => {
+    if (playerWs !== ws) {
+      // Don't send to the player who just joined
+      playerWs.send(
+        JSON.stringify({
+          action: 'player-joined',
+          payload: {
+            name: ws.playerName,
+            playerId: ws.playerId,
+          },
+        })
+      );
+    }
+  });
+}
+
+module.exports = { handleJoin };
