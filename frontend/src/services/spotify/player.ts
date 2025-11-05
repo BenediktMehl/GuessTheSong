@@ -1,4 +1,4 @@
-import { spotifyIsLoggedIn } from './spotifyAuth';
+import { spotifyIsLoggedIn } from './auth';
 
 let player: Spotify.Player | null = null;
 let deviceId: string | null = null;

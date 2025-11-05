@@ -1,5 +1,5 @@
-import { WS_URL } from '../config';
-import type { GameContextType, Player } from './context';
+import { WS_URL } from '../../config';
+import type { GameContextType, Player } from '../context';
 
 // WebSocket message types
 type WebSocketMessage = {

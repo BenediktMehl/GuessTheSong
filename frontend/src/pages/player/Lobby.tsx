@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../components/Card';
-import GameCode from '../components/GameCode';
-import PlayersLobby from '../components/PlayersLobby';
-import { useGameContext } from '../game/context';
+import { Card } from '../../components/Card';
+import GameCode from '../../components/GameCode';
+import PlayersLobby from '../../components/PlayersLobby';
+import { useGameContext } from '../../game/context';
 
 export default function PlayerLobby() {
   const { sessionId, players, status, currentPlayerId, wsStatus } = useGameContext();

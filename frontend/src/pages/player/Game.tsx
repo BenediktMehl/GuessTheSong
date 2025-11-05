@@ -1,10 +1,10 @@
 import appConfig from '@app-config';
 import { useEffect, useState } from 'react';
-import { Card } from '../../../components/Card';
-import PlayersLobby from '../../../components/PlayersLobby';
-import { useGameContext } from '../../../game/context';
+import { Card } from '../../components/Card';
+import PlayersLobby from '../../components/PlayersLobby';
+import { useGameContext } from '../../game/context';
 
-export const Player = () => {
+export default function Game() {
   const { players, currentPlayerId } = useGameContext();
   const [position, setPosition] = useState<number>(-1);
   const [guesser, setGuesser] = useState<string | null>(null);
@@ -112,4 +112,4 @@ export const Player = () => {
       </div>
     </main>
   );
-};
+}

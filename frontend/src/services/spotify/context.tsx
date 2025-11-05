@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, useCallback, useContext, useState } from 'react';
-import { getSpotifyProfile, handleSpotifyLogout, spotifyIsLoggedIn } from './spotifyAuth';
+import { getSpotifyProfile, handleSpotifyLogout, spotifyIsLoggedIn } from './auth';
 
 type SpotifyProfile = {
   display_name: string;
