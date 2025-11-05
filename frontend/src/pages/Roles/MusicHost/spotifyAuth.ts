@@ -33,6 +33,49 @@ const base64encode = (input: ArrayBuffer | ArrayLike<number>) => {
         .replace(/\//g, '_');
 }
 
+/**
+ * Validates that the access token has the required scopes by making a test API call
+ * Returns true if scopes are valid, false otherwise
+ */
+async function validateTokenScopes(accessToken: string): Promise<boolean> {
+    try {
+        // Make a test API call that requires user-modify-playback-state scope
+        // We'll check if we can get the player devices (requires user-read-playback-state)
+        // and if we can get user info (requires user-read-private)
+        const response = await fetch('https://api.spotify.com/v1/me', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                console.warn('Token validation failed: authentication or scope issue');
+                return false;
+            }
+        }
+
+        // Try a more specific test - check if we can access player endpoints
+        // This will fail if we don't have user-read-playback-state or user-modify-playback-state
+        const playerResponse = await fetch('https://api.spotify.com/v1/me/player/devices', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+            },
+        });
+
+        // 403 means forbidden (likely missing scopes), 401 means unauthorized
+        if (playerResponse.status === 403) {
+            console.warn('Token validation failed: missing required playback scopes');
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error validating token scopes:', error);
+        return false;
+    }
+}
+
 const getToken = async (code: string) => {
     const codeVerifier = localStorage.getItem('code_verifier');
     if (!codeVerifier) {
@@ -66,11 +109,27 @@ const getToken = async (code: string) => {
     const body = await fetch(url, payload);
     const response = await body.json();
 
+    if (response.error) {
+        console.error("Error getting token:", response.error);
+        return;
+    }
+
     const expires_in_s = Number(response.expires_in)
     const expires_at = Number(Date.now()) + expires_in_s * 1000
     localStorage.setItem('expires_at', expires_at.toString());
     localStorage.setItem('access_token', response.access_token);
     localStorage.setItem('refresh_token', response.refresh_token);
+
+    // Validate token scopes after token exchange
+    const scopesValid = await validateTokenScopes(response.access_token);
+    if (!scopesValid) {
+        console.error("Token does not have required scopes. Clearing tokens and requiring re-authentication.");
+        // Clear tokens - user will need to re-authenticate
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('expires_at');
+        throw new Error("Token scopes are invalid. Please re-authenticate with correct scopes.");
+    }
 }
 
 
@@ -111,7 +170,13 @@ export async function handleSpotifyLoginCallback(): Promise<boolean> {
             return false;
         }
         console.log("Received code:", code);
-        await getToken(code);
+        try {
+            await getToken(code);
+        } catch (error) {
+            console.error("Error during token exchange:", error);
+            // Error is already logged in getToken, tokens are cleared
+            return false;
+        }
     }
 
     console.log("Spotify login successful, redirecting to host page...");
@@ -148,12 +213,33 @@ async function refreshToken() {
     const body = await fetch(url, payload);
     const response = await body.json();
 
+    if (response.error) {
+        console.error("Error refreshing token:", response.error);
+        // If refresh fails, clear tokens
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('expires_at');
+        return;
+    }
+
     const expires_in_s = Number(response.expires_in)
     const expires_at = Number(Date.now()) + expires_in_s * 1000
     localStorage.setItem('expires_at', expires_at.toString());
     localStorage.setItem('access_token', response.access_token);
     if (response.refresh_token) {
         localStorage.setItem('refresh_token', response.refresh_token);
+    }
+
+    // Note: Token refresh does NOT grant new scopes. If the original token had insufficient scopes,
+    // the refreshed token will also have insufficient scopes. We validate this after refresh.
+    const scopesValid = await validateTokenScopes(response.access_token);
+    if (!scopesValid) {
+        console.error("Refreshed token does not have required scopes. User must re-authenticate.");
+        // Clear tokens - user will need to re-authenticate with correct scopes
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('expires_at');
+        throw new Error("Refreshed token has insufficient scopes. Please re-authenticate.");
     }
 }
 
@@ -228,9 +314,16 @@ export async function spotifyIsLoggedIn(secondTry = false) {
             return false;
         }
         console.log("Spotify access token is expired or about to expire: refreshing token...");
-        await refreshToken();
-        console.log("Token refreshed, checking if logged in again...");
-        return spotifyIsLoggedIn(true);
+        try {
+            await refreshToken();
+            console.log("Token refreshed, checking if logged in again...");
+            return spotifyIsLoggedIn(true);
+        } catch (error) {
+            console.error("Error refreshing token:", error);
+            // Token refresh failed or scopes are invalid - user needs to re-authenticate
+            loggedOutOfSpotify();
+            return false;
+        }
     }
 
     console.log("Logged in with Spotify");

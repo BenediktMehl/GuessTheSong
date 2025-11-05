@@ -1,4 +1,4 @@
-import { getPlayer, isReady } from './spotifyPlayer';
+import { getPlayer, isReady, getDeviceId } from './spotifyPlayer';
 
 export const SpotifyResponseStatus = {
     NOT_TRIED: 'not_tried',
@@ -76,13 +76,64 @@ export async function playSpotifyTrack(trackUri: string) {
         return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
     }
 
+    const deviceId = getDeviceId();
+    if (!deviceId) {
+        console.error("Spotify device ID not available");
+        return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
+    }
+
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+        console.error("No access token available");
+        return SpotifyResponseStatus.ERROR;
+    }
+
     try {
-        await player.play({
-            uris: [trackUri],
+        // Activate the player element before playing (required by Spotify SDK for autoplay policies)
+        await player.activateElement();
+        
+        // Use Spotify Web API to start playback
+        const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                uris: [trackUri],
+            }),
         });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Error playing track via Web API:", {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText,
+                trackUri,
+                deviceId,
+            });
+            
+            if (response.status === 401) {
+                // Authentication error - token might be invalid or expired
+                return SpotifyResponseStatus.ERROR;
+            } else if (response.status === 403) {
+                // Forbidden - likely missing scopes
+                return SpotifyResponseStatus.ERROR;
+            }
+            
+            return SpotifyResponseStatus.ERROR;
+        }
+
         return SpotifyResponseStatus.PLAYING;
     } catch (error) {
-        console.error("Error playing track:", error);
+        console.error("Error playing track:", error, {
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            trackUri,
+            playerReady: isReady(),
+            deviceId: getDeviceId(),
+        });
         return SpotifyResponseStatus.ERROR;
     }
 }

@@ -205,7 +205,7 @@ function handlePlayerLeftForPlayer(gameContext: GameContextType, playerId: strin
 
 export function sendPlayerAction(action: string, payload?: any) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket is not connected');
+        console.error('WebSocket is not connected. Player could not send action:', action, payload);
         return false;
     }
 

@@ -295,7 +295,7 @@ function handleLoggedOutOfSpotify(gameContext: GameContextType) {
 
 function sendHostAction(serverPayload: any) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket is not connected');
+        console.warn('WebSocket is not connected. Host could not send action with payload:', serverPayload);
         return false;
     }
     try {

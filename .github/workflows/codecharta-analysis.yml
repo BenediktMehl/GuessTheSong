@@ -1,0 +1,76 @@
+name: CodeCharta Analysis
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Run CodeCharta Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run CodeCharta Analysis
+        run: |
+          COMMIT_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          if [ -z "$COMMIT_SHA" ]; then
+            COMMIT_SHA="${{ github.sha }}"
+          fi
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          BASE_NAME="codecharta-${SHORT_SHA}"
+          COMPRESSED_FILE="${BASE_NAME}.cc.json.gz"
+          FINAL_FILE="${BASE_NAME}.cc.json"
+          CONTAINER_NAME="codecharta-$$"
+          docker run --name $CONTAINER_NAME \
+            -v ${{ github.workspace }}:/mnt/src \
+            codecharta/codecharta-analysis \
+            bash -c 'git config --global --add safe.directory /mnt/src && cd /mnt/src && ccsh unifiedparser -o=/tmp/cc.json .'
+          docker cp $CONTAINER_NAME:/tmp/cc.cc.json.gz ./$COMPRESSED_FILE
+          docker rm $CONTAINER_NAME
+          echo "COMPRESSED_FILE=$COMPRESSED_FILE" >> $GITHUB_ENV
+          echo "FINAL_FILE=$FINAL_FILE" >> $GITHUB_ENV
+
+      - name: Create docs directory
+        run: mkdir -p docs
+
+      - name: Decompress and move to docs
+        run: |
+          gunzip -c $COMPRESSED_FILE > docs/$FINAL_FILE
+          rm $COMPRESSED_FILE
+
+      - name: Commit and push analysis file
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs/$FINAL_FILE
+          git diff --staged --quiet || git commit -m "chore: update CodeCharta analysis [skip ci]"
+          git push
+
+      - name: Upload analysis file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codecharta-analysis
+          path: docs/$FINAL_FILE
+          retention-days: 30
+
+      - name: Generate visualization link
+        run: |
+          echo "CodeCharta analysis completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Visualization Links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Analysis file**: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/$FINAL_FILE" >> $GITHUB_STEP_SUMMARY
+          echo "- **CodeCharta Web Studio**: https://codecharta.com/web/?file=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/$FINAL_FILE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Note: Make sure GitHub Pages is enabled in repository settings with source set to `/docs` directory." >> $GITHUB_STEP_SUMMARY
+

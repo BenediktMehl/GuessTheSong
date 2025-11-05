@@ -1,4 +1,4 @@
-import { spotifyIsLoggedIn } from './spotifyAuth';
+import { spotifyIsLoggedIn, handleSpotifyLogout } from './spotifyAuth';
 
 let player: Spotify.Player | null = null;
 let deviceId: string | null = null;
@@ -6,6 +6,7 @@ let isPlayerReady = false;
 let playerState: Spotify.PlaybackState | null = null;
 let stateChangeCallbacks: Array<(state: Spotify.PlaybackState | null) => void> = [];
 let readyCallbacks: Array<(ready: boolean) => void> = [];
+let authenticationErrorCallbacks: Array<(message: string) => void> = [];
 
 // Reference to the global Spotify object
 declare global {
@@ -124,6 +125,16 @@ export async function initializePlayer(): Promise<boolean> {
         player.addListener('authentication_error', ({ message }) => {
             console.error('Spotify player authentication error:', message);
             isPlayerReady = false;
+            readyCallbacks.forEach((callback) => callback(false));
+            
+            // Check if error is related to invalid token scopes
+            if (message.includes('Invalid token scopes') || message.includes('scope')) {
+                console.warn('Token scopes are invalid. Clearing tokens and requiring re-authentication.');
+                // Clear tokens and trigger re-authentication
+                handleSpotifyLogout();
+                // Notify all registered callbacks about the authentication error
+                authenticationErrorCallbacks.forEach((callback) => callback(message));
+            }
         });
 
         player.addListener('account_error', ({ message }) => {
@@ -160,7 +171,10 @@ export function getDeviceId(): string | null {
 }
 
 export function isReady(): boolean {
-    return isPlayerReady;
+    // Player is only ready if:
+    // 1. The ready event has fired (isPlayerReady is true)
+    // 2. Device ID is available (player has connected successfully)
+    return isPlayerReady && deviceId !== null;
 }
 
 export function getCurrentState(): Spotify.PlaybackState | null {
@@ -185,6 +199,14 @@ export function subscribeToReadyState(callback: (ready: boolean) => void): () =>
     };
 }
 
+export function subscribeToAuthenticationErrors(callback: (message: string) => void): () => void {
+    authenticationErrorCallbacks.push(callback);
+    // Return unsubscribe function
+    return () => {
+        authenticationErrorCallbacks = authenticationErrorCallbacks.filter((cb) => cb !== callback);
+    };
+}
+
 export async function disconnectPlayer(): Promise<void> {
     if (player) {
         try {
@@ -198,6 +220,7 @@ export async function disconnectPlayer(): Promise<void> {
         playerState = null;
         stateChangeCallbacks = [];
         readyCallbacks = [];
+        authenticationErrorCallbacks = [];
     }
 }
 

@@ -13,6 +13,16 @@
 - **Game Flow**: Players join via code, guess songs, scores tracked server-side, music streamed via Spotify API.
 - **Plans**: All new features/fixes start with a plan in `plans/` (see `template.md`).
 
+## Before committing
+- Run `npm run check` to run the linting and formatting checks.
+- Run `npm run test` to run the tests.
+- Run `npm run build` to build the project.
+- Run `npm run start` to start the backend.
+- Run `npm run dev` to start the frontend.
+- Run `npm run test` to run the tests.
+- Run `npm run build` to build the project.
+- Run `npm run start` to start the backend.
+
 ## Frontend UI 
 - The App is a Progressive Web App (PWA) built with React and TypeScript.
 - The UI is optimized for mobile devices, with responsive design principles.
@@ -29,7 +39,7 @@
 - **Tests**:
   - Frontend: `cd frontend && npm test` (Vitest)
   - Backend: `cd backend && npm test` (Jest)
-- **Formatting**: BiomeJS auto-formats TypeScript; Husky/lint-staged enforce style on commit.
+- **Linting & Formatting**: Biome is used for linting and formatting across frontend and backend. Configuration is in `biome.json` at the root. Husky pre-commit and pre-push hooks run lint-staged to automatically format and check code. GitHub Actions workflows also run Biome checks on every push.
 - **Branching**: Use `<type>/<name>` (e.g., `feature/add-dark-mode`), always rebase on `main`.
 - **Commits**: Conventional format (see `agents.md` for details).
 
@@ -51,7 +61,10 @@
 - `agents.md`: Coding agent guidelines
 
 ## CI/CD
-- GitHub Actions workflows in `.github/workflows/` (not detailed here)
+- GitHub Actions workflows in `.github/workflows/`:
+  - `frontend.yml`: Runs Biome checks and tests on frontend changes
+  - `backend-tests.yml`: Runs Biome checks and tests on backend changes
+  - `backend.yml`: Deploys backend to production on main branch
 
 ## Example Workflow
 1. Create a plan in `plans/`.

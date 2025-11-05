@@ -1,21 +1,21 @@
-name: frontend-tests
+name: backend-tests
 on:
   push:
     branches:
       - '**'
     paths:
-      - 'frontend/**'
+      - 'backend/**'
       - 'biome.json'
-      - '.github/workflows/frontend.yml'
+      - '.github/workflows/backend-tests.yml'
   pull_request:
     paths:
-      - 'frontend/**'
+      - 'backend/**'
       - 'biome.json'
-      - '.github/workflows/frontend.yml'
+      - '.github/workflows/backend-tests.yml'
 
 jobs:
   test:
-    name: Run frontend tests
+    name: Run backend tests and linting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -23,19 +23,20 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         run: |
-          cd frontend
+          cd backend
           npm ci
 
       - name: Run Biome linting and formatting checks
         run: |
-          cd frontend
+          cd backend
           npm run check
 
       - name: Run tests
         run: |
-          cd frontend
-          npm test -- --run
+          cd backend
+          npm test
+
