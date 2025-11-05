@@ -20,14 +20,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate date variable
+        run: echo "DATE=$(date +%m_%d_%y)" >> $GITHUB_ENV
+
       - name: Run CodeCharta Analysis
         run: |
           CONTAINER_NAME="codecharta-$$"
           docker run --name $CONTAINER_NAME \
             -v ${{ github.workspace }}:/mnt/src \
             codecharta/codecharta-analysis \
-            bash -c 'git config --global --add safe.directory /mnt/src && cd /mnt/src && ccsh unifiedparser -o=/tmp/codechartaVisual3D .'
-          docker cp $CONTAINER_NAME:/tmp/codechartaVisual3D.cc.json.gz ./codechartaVisual3D.cc.json.gz
+            bash -c "git config --global --add safe.directory /mnt/src && cd /mnt/src && ccsh unifiedparser -o=/tmp/cc_metrics_${{ env.DATE }} ."
+          docker cp $CONTAINER_NAME:/tmp/cc_metrics_${{ env.DATE }}.cc.json.gz ./cc_metrics_${{ env.DATE }}.cc.json.gz
           docker rm $CONTAINER_NAME
 
       - name: Create docs directory
@@ -35,14 +38,14 @@ jobs:
 
       - name: Decompress and move to docs
         run: |
-          gunzip -c codechartaVisual3D.cc.json.gz > docs/codechartaVisual3D.cc.json
-          rm codechartaVisual3D.cc.json.gz
+          gunzip -c cc_metrics_${{ env.DATE }}.cc.json.gz > docs/cc_metrics_${{ env.DATE }}.cc.json
+          rm cc_metrics_${{ env.DATE }}.cc.json.gz
 
       - name: Commit and push analysis file
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add docs/codechartaVisual3D.cc.json
+          git add docs/cc_metrics_${{ env.DATE }}.cc.json
           git diff --staged --quiet || git commit -m "chore: update CodeCharta analysis [skip ci]"
           git push
 
@@ -50,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: codecharta-analysis
-          path: docs/codechartaVisual3D.cc.json
+          path: docs/cc_metrics_${{ env.DATE }}.cc.json
           retention-days: 30
 
       - name: Generate visualization link
@@ -60,8 +63,8 @@ jobs:
             echo ""
             echo "### Visualization Links"
             echo ""
-            echo "- **Analysis file**: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/codechartaVisual3D.cc.json"
-            echo "- **CodeCharta Web Studio**: https://codecharta.com/web/?file=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/codechartaVisual3D.cc.json"
+            echo "- **Analysis file**: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/cc_metrics_${{ env.DATE }}.cc.json"
+            echo "- **CodeCharta Web Studio**: https://codecharta.com/web/?file=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/cc_metrics_${{ env.DATE }}.cc.json"
             echo ""
             echo "> Note: Make sure GitHub Pages is enabled in repository settings with source set to \`/docs\` directory."
           } >> $GITHUB_STEP_SUMMARY
