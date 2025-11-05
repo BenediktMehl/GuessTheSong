@@ -59,7 +59,7 @@ export default function GameCode({ sessionId, showCopyLink = false, onCopy, onCo
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            className="input input-bordered input-sm flex-1 text-xs bg-white/70"
+                            className="input input-bordered input-sm flex-1 text-xs bg-white"
                             value={inviteLink}
                             readOnly
                             onFocus={e => e.target.select()}

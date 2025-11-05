@@ -112,6 +112,25 @@ export default function HostGame() {
     }, [defaultPlaylist, selectedPlaylistId]);
 
     useEffect(() => {
+        const loadDefaultPlaylist = async () => {
+            setLoadingDefaultPlaylist(true);
+            const playlist = await getPlaylistById(DEFAULT_PLAYLIST_ID);
+            if (playlist) {
+                setDefaultPlaylist(playlist);
+            }
+            setLoadingDefaultPlaylist(false);
+        };
+        loadDefaultPlaylist();
+    }, []);
+
+    // Auto-select default playlist when it's loaded and no playlist is selected
+    useEffect(() => {
+        if (defaultPlaylist && !selectedPlaylistId) {
+            setSelectedPlaylistId(DEFAULT_PLAYLIST_ID);
+        }
+    }, [defaultPlaylist, selectedPlaylistId]);
+
+    useEffect(() => {
         const loadPlaylists = async () => {
             setLoadingPlaylists(true);
             const response = await getUserPlaylists();
@@ -237,7 +256,7 @@ export default function HostGame() {
                                 <input
                                     type="text"
                                     placeholder="Search playlists..."
-                                    className="input input-bordered w-full"
+                                    className="input input-bordered w-full bg-white"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -249,7 +268,7 @@ export default function HostGame() {
                                 )}
                             </div>
                             <select
-                                className="select select-bordered w-full"
+                                className="select select-bordered w-full bg-white"
                                 value={selectedPlaylistId}
                                 onChange={(e) => setSelectedPlaylistId(e.target.value)}
                             >
@@ -291,7 +310,7 @@ export default function HostGame() {
                                             {playlistTracks.slice(0, 20).map((item, index) => (
                                                 <button
                                                     key={item.track.id || index}
-                                                    className="btn btn-sm btn-outline w-full justify-start text-left"
+                                                    className="btn btn-sm btn-outline w-full justify-start text-left bg-white"
                                                     onClick={() => handlePlayTrackFromPlaylist(item.track.uri)}
                                                 >
                                                     <span className="truncate">{item.track.name} - {item.track.artists.map(a => a.name).join(', ')}</span>

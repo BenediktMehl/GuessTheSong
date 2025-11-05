@@ -69,7 +69,7 @@ export default function Join() {
               onChange={handleRoomChange}
               maxLength={4}
               required
-              className="input input-bordered input-md uppercase tracking-[0.5em] text-center font-mono text-3xl font-bold text-primary bg-base-300 bg-opacity-60 shadow-lg"
+              className="input input-bordered input-md uppercase tracking-[0.5em] text-center font-mono text-3xl font-bold text-primary bg-white shadow-lg"
               style={{ textTransform: 'uppercase' }}
               placeholder="A1B2"
               autoFocus
@@ -89,7 +89,7 @@ export default function Join() {
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               maxLength={16}
-              className="input input-bordered input-md text-center text-lg bg-base-300 bg-opacity-60 shadow-lg"
+              className="input input-bordered input-md text-center text-lg bg-white shadow-lg"
               placeholder="Enter your name"
               inputMode="text"
             />

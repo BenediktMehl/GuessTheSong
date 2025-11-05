@@ -150,7 +150,7 @@ export default function Settings() {
                                 <div className="flex items-center gap-3">
                                     <img src={profile.images?.[0]?.url} alt="Spotify profile" className="w-10 h-10 rounded-full border border-white/40" />
                                     <span className="font-medium">{profile.display_name}</span>
-                                    <button className="btn btn-outline btn-error btn-sm" onClick={logout}>
+                                    <button className="btn btn-outline btn-error btn-sm bg-white" onClick={logout}>
                                         Logout
                                     </button>
                                 </div>
