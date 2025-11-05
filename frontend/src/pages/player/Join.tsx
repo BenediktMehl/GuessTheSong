@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../components/Card';
-import { useGameContext } from '../game/context';
-import { joinGame } from '../game/player';
-import { getRandomFunnyName } from '../utils/names';
+import { Card } from '../../components/Card';
+import { useGameContext } from '../../game/context';
+import { joinGame } from '../../game/player';
+import { getRandomFunnyName } from '../../game/names';
 
 export default function Join() {
   const [room, setRoom] = useState('');

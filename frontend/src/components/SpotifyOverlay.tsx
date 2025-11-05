@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useSpotifyAuth } from './SpotifyAuthContext';
+import { useSpotifyAuth } from '../services/spotify/context';
 
-export default function Overlay() {
+export default function SpotifyOverlay() {
   const { profile, isLoggedIn, logout } = useSpotifyAuth();
   const [isHovered, setIsHovered] = useState(false);
 

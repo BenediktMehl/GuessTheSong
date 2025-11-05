@@ -4,11 +4,11 @@ import { Card } from '../../../components/Card';
 import GameCode from '../../../components/GameCode';
 import PlayersLobby from '../../../components/PlayersLobby';
 import { useGameContext } from '../../../game/context';
-import { startGame, useGameInitializer } from '../../../game/host';
-import { useSpotifyAuth } from '../MusicHost/SpotifyAuthContext';
-import { handleSpotifyLogin } from '../MusicHost/spotifyAuth';
+import { startGame, useGameInitializer } from '../../game/host';
+import { useSpotifyAuth } from '../../services/spotify/context';
+import { handleSpotifyLogin } from '../../services/spotify/auth';
 
-export default function Settings() {
+export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showCopyError, setShowCopyError] = useState(false);
   const [spotifyLoginLoading, setSpotifyLoginLoading] = useState(false);

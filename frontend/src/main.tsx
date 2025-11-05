@@ -5,9 +5,9 @@ import { createRoot } from 'react-dom/client';
 import { Background } from './Background.tsx';
 import { BackendToggle } from './components/BackendToggle.tsx';
 import { GameProvider } from './game/context';
-import Overlay from './pages/Roles/MusicHost/Overlay';
-import { SpotifyAuthProvider } from './pages/Roles/MusicHost/SpotifyAuthContext.tsx';
-import { App } from './Welcome.tsx';
+import SpotifyOverlay from './components/SpotifyOverlay';
+import { SpotifyAuthProvider } from './services/spotify/context';
+import { App } from './pages/Welcome';
 
 document.title = appConfig.displayName;
 
@@ -21,7 +21,7 @@ createRoot(rootElement).render(
     <SpotifyAuthProvider>
       <GameProvider>
         <Background />
-        <Overlay />
+        <SpotifyOverlay />
         {import.meta.env.DEV && <BackendToggle />}
         <div className="relative z-10">
           <App />

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Card } from '../../../components/Card';
 import PlayersLobby from '../../../components/PlayersLobby';
 import { useGameContext } from '../../../game/context';
-import { spotifyIsLoggedIn } from '../MusicHost/spotifyAuth';
+import { spotifyIsLoggedIn } from '../../services/spotify/auth';
 import {
   getPlaybackState,
   getPlaylistById,
@@ -15,12 +15,12 @@ import {
   type SpotifyTrack,
   searchPlaylists,
   skipTrack,
-} from '../MusicHost/spotifyMusic';
+} from '../../services/spotify/music';
 import {
   initializePlayer,
   subscribeToReadyState,
   subscribeToStateChanges,
-} from '../MusicHost/spotifyPlayer';
+} from '../../services/spotify/player';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const DEFAULT_PLAYLIST_ID = '1jHJldEedIdF8D49kPEiPR';
@@ -37,7 +37,7 @@ type CurrentTrack = {
   duration_ms: number;
 } | null;
 
-export default function HostGame() {
+export default function Game() {
   const { players, waitingPlayers } = useGameContext();
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyResponseStatus>(
     SpotifyResponseStatus.NOT_TRIED

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { WS_URL } from '../config';
-import { type GameContextType, type Player, useGameContext } from './context';
-import { sendPlayerAction } from './player';
+import { WS_URL } from '../../config';
+import { type GameContextType, type Player, useGameContext } from '../context';
+import { sendPlayerAction } from '../player';
 
 // WebSocket message types
 type WebSocketMessage = {
