@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState, getUserPlaylists, getPlaylistTracks, type SpotifyPlaylist, type SpotifyTrack } from '../MusicHost/spotifyMusic'
+import { useState, useEffect, useRef } from 'react';
+import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState, getUserPlaylists, getPlaylistTracks, getPlaylistById, searchPlaylists, type SpotifyPlaylist, type SpotifyTrack } from '../MusicHost/spotifyMusic'
 import { initializePlayer, subscribeToStateChanges, subscribeToReadyState } from '../MusicHost/spotifyPlayer'
 import { spotifyIsLoggedIn } from '../MusicHost/spotifyAuth'
 import { Card } from '../../../components/Card'
 import PlayersLobby from '../../../components/PlayersLobby'
 import { useGameContext } from '../../../game/context'
+
+const DEFAULT_PLAYLIST_ID = '1jHJldEedIdF8D49kPEiPR';
 
 export default function HostGame() {
     const { players } = useGameContext();
@@ -13,10 +15,16 @@ export default function HostGame() {
     const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
     const [currentTrack, setCurrentTrack] = useState<any>(null);
     const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+    const [defaultPlaylist, setDefaultPlaylist] = useState<SpotifyPlaylist | null>(null);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<SpotifyPlaylist[]>([]);
     const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>('');
     const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [loadingTracks, setLoadingTracks] = useState(false);
+    const [loadingDefaultPlaylist, setLoadingDefaultPlaylist] = useState(false);
+    const [loadingSearch, setLoadingSearch] = useState(false);
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [playerReady, setPlayerReady] = useState(false);
     const nowPlayingBodyClass = currentTrack
         ? 'flex items-center gap-4'
@@ -85,6 +93,25 @@ export default function HostGame() {
     }, []);
 
     useEffect(() => {
+        const loadDefaultPlaylist = async () => {
+            setLoadingDefaultPlaylist(true);
+            const playlist = await getPlaylistById(DEFAULT_PLAYLIST_ID);
+            if (playlist) {
+                setDefaultPlaylist(playlist);
+            }
+            setLoadingDefaultPlaylist(false);
+        };
+        loadDefaultPlaylist();
+    }, []);
+
+    // Auto-select default playlist when it's loaded and no playlist is selected
+    useEffect(() => {
+        if (defaultPlaylist && !selectedPlaylistId) {
+            setSelectedPlaylistId(DEFAULT_PLAYLIST_ID);
+        }
+    }, [defaultPlaylist, selectedPlaylistId]);
+
+    useEffect(() => {
         const loadPlaylists = async () => {
             setLoadingPlaylists(true);
             const response = await getUserPlaylists();
@@ -139,6 +166,37 @@ export default function HostGame() {
         setTimeout(() => setShowToast(false), 2000);
     }
 
+    useEffect(() => {
+        // Clear existing timeout
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        // If search query is empty, clear search results
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            return;
+        }
+
+        // Debounce search
+        searchTimeoutRef.current = setTimeout(async () => {
+            setLoadingSearch(true);
+            const response = await searchPlaylists(searchQuery.trim());
+            if (response) {
+                setSearchResults(response.playlists.items);
+            } else {
+                setSearchResults([]);
+            }
+            setLoadingSearch(false);
+        }, 500);
+
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [searchQuery]);
+
     return (
         <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
             <h2 className="text-4xl font-bold text-primary mb-2">Host Game</h2>
@@ -166,23 +224,61 @@ export default function HostGame() {
                 </Card>
 
                 <Card title="Playlist Selection" className="w-full" bodyClassName="flex flex-col gap-3">
-                    {loadingPlaylists ? (
+                    {loadingPlaylists || loadingDefaultPlaylist ? (
                         <div className="flex items-center justify-center py-4">
                             <span className="loading loading-spinner loading-md"></span>
                         </div>
                     ) : (
                         <>
+                            <div className="form-control w-full">
+                                <label className="label">
+                                    <span className="label-text">Search for playlists</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Search playlists..."
+                                    className="input input-bordered w-full"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                {loadingSearch && (
+                                    <div className="flex items-center justify-start mt-2">
+                                        <span className="loading loading-spinner loading-sm"></span>
+                                        <span className="text-xs text-base-content/60 ml-2">Searching...</span>
+                                    </div>
+                                )}
+                            </div>
                             <select
                                 className="select select-bordered w-full"
                                 value={selectedPlaylistId}
                                 onChange={(e) => setSelectedPlaylistId(e.target.value)}
                             >
                                 <option value="">Select a playlist...</option>
-                                {playlists.map((playlist) => (
-                                    <option key={playlist.id} value={playlist.id}>
-                                        {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                {defaultPlaylist && (
+                                    <option key={defaultPlaylist.id} value={defaultPlaylist.id}>
+                                        ⭐ {defaultPlaylist.name} {defaultPlaylist.tracks?.total ? `(${defaultPlaylist.tracks.total} tracks)` : ''}
                                     </option>
-                                ))}
+                                )}
+                                {playlists
+                                    .filter(p => p.id !== DEFAULT_PLAYLIST_ID)
+                                    .map((playlist) => (
+                                        <option key={playlist.id} value={playlist.id}>
+                                            {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                        </option>
+                                    ))}
+                                {searchQuery.trim() && searchResults.length > 0 && (
+                                    <>
+                                        <optgroup label="Search Results">
+                                            {searchResults
+                                                .filter(p => p.id !== DEFAULT_PLAYLIST_ID && !playlists.some(up => up.id === p.id))
+                                                .map((playlist) => (
+                                                    <option key={playlist.id} value={playlist.id}>
+                                                        {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                                    </option>
+                                                ))}
+                                        </optgroup>
+                                    </>
+                                )}
                             </select>
                             {selectedPlaylistId && (
                                 <div className="mt-2">
