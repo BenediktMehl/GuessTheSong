@@ -4,7 +4,7 @@ import { useSpotifyAuth } from "../MusicHost/SpotifyAuthContext";
 import { Card } from "../../../components/Card";
 import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../../../game/context";
-import { useGameInitializer } from "../../../game/host";
+import { useGameInitializer, startGame } from "../../../game/host";
 import GameCode from "../../../components/GameCode";
 import PlayersLobby from "../../../components/PlayersLobby";
 
@@ -150,7 +150,7 @@ export default function Settings() {
                                 <div className="flex items-center gap-3">
                                     <img src={profile.images?.[0]?.url} alt="Spotify profile" className="w-10 h-10 rounded-full border border-white/40" />
                                     <span className="font-medium">{profile.display_name}</span>
-                                    <button className="btn btn-outline btn-error btn-sm" onClick={logout}>
+                                    <button className="btn btn-outline btn-error btn-sm bg-white" onClick={logout}>
                                         Logout
                                     </button>
                                 </div>
@@ -169,6 +169,10 @@ export default function Settings() {
                         <button
                             onClick={() => {
                                 if (players.length >= 2) {
+                                    if (!isGameRunning) {
+                                        // Start the game and broadcast to all players
+                                        startGame(gameContext);
+                                    }
                                     navigate('/hostgame');
                                 }
                             }}

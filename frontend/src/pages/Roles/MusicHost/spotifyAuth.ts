@@ -1,5 +1,6 @@
 import { loggedInToSpotify, loggedOutOfSpotify } from "../../../game/musicHost";
 import { ws } from "../../../game/host";
+import { initializePlayer, disconnectPlayer } from "./spotifyPlayer";
 
 const FALLBACK_REDIRECT_BASE = 'http://127.0.0.1:5173';
 const redirectPath = '/spotifycallback';
@@ -117,6 +118,10 @@ export async function handleSpotifyLoginCallback(): Promise<boolean> {
     const isLoggedIn = await spotifyIsLoggedIn();
     if (isLoggedIn && ws && ws.readyState === WebSocket.OPEN) {
         loggedInToSpotify();
+        // Initialize the player after successful login
+        initializePlayer().catch((error) => {
+            console.error("Failed to initialize Spotify player:", error);
+        });
     }
     return isLoggedIn
 }
@@ -170,7 +175,7 @@ export async function handleSpotifyLogin() {
     // Log all available env keys for debugging
     console.log("Available import.meta.env keys:", Object.keys(import.meta.env));
     console.log("Using Spotify Client ID:", clientId);
-    const scope = 'user-read-private user-read-email user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative';
+    const scope = 'user-read-private user-read-email user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative streaming';
     const authUrl = new URL("https://accounts.spotify.com/authorize")
 
     // generated in the previous step
@@ -195,6 +200,9 @@ export function handleSpotifyLogout() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('expires_at');
     localStorage.removeItem('code_verifier');
+    disconnectPlayer().catch((error) => {
+        console.error("Error disconnecting player:", error);
+    });
     loggedOutOfSpotify();
 }
 
