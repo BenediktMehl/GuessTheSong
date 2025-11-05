@@ -93,6 +93,11 @@ export function useGameInitializer() {
                         handleLoggedOutOfSpotify(gameContext);
                         break;
 
+                    case 'game-started':
+                        // Update host's game status when game starts
+                        gameContext.setStatus('waiting');
+                        break;
+
                     case 'error':
                         console.error('Server error:', msg.payload.message);
                         break;
@@ -149,6 +154,17 @@ export function loggedInToSpotify(): boolean {
 
 export function loggedOutOfSpotify(): boolean {
     return sendPlayerAction('loggedOutOfSpotify');
+}
+
+export function startGame(gameContext: GameContextType): boolean {
+    // Update host's game status to 'waiting'
+    gameContext.setStatus('waiting');
+    
+    // Broadcast game-started action to all players
+    return sendHostAction({
+        action: 'game-started',
+        payload: {}
+    });
 }
 
 function handlePlayerLeft(gameContext: GameContextType, playerId: string) {

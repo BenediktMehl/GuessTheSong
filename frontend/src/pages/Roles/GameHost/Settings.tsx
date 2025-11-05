@@ -4,7 +4,7 @@ import { useSpotifyAuth } from "../MusicHost/SpotifyAuthContext";
 import { Card } from "../../../components/Card";
 import { useNavigate } from "react-router-dom";
 import { useGameContext } from "../../../game/context";
-import { useGameInitializer } from "../../../game/host";
+import { useGameInitializer, startGame } from "../../../game/host";
 import GameCode from "../../../components/GameCode";
 import PlayersLobby from "../../../components/PlayersLobby";
 
@@ -169,6 +169,10 @@ export default function Settings() {
                         <button
                             onClick={() => {
                                 if (players.length >= 2) {
+                                    if (!isGameRunning) {
+                                        // Start the game and broadcast to all players
+                                        startGame(gameContext);
+                                    }
                                     navigate('/hostgame');
                                 }
                             }}
