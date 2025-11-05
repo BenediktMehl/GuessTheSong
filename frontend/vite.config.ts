@@ -1,16 +1,15 @@
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa';
+import appConfig from '../app-config/index.js';
 
-import { VitePWA } from 'vite-plugin-pwa'
-import appConfig from '../app-config/index.js'
-
-const frontendDir = dirname(fileURLToPath(import.meta.url))
-const repoRoot = resolve(frontendDir, '..')
-const appConfigAlias = resolve(repoRoot, 'app-config/index.mjs')
+const frontendDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(frontendDir, '..');
+const appConfigAlias = resolve(repoRoot, 'app-config/index.mjs');
 
 export default defineConfig({
   server: {
@@ -34,7 +33,7 @@ export default defineConfig({
         return html
           .replace(/%APP_DISPLAY_NAME%/g, appConfig.displayName)
           .replace(/%APP_SHORT_NAME%/g, appConfig.shortName)
-          .replace(/%APP_DESCRIPTION%/g, appConfig.description)
+          .replace(/%APP_DESCRIPTION%/g, appConfig.description);
       },
     },
     VitePWA({
@@ -51,18 +50,18 @@ export default defineConfig({
           {
             src: '/icon-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: '/icon-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
+            type: 'image/png',
+          },
+        ],
       },
       workbox: {
-        navigationPreload: false
-      }
-    })
+        navigationPreload: false,
+      },
+    }),
   ],
-})
+});

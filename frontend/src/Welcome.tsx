@@ -1,25 +1,23 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
-import appConfig from '@app-config'
-import { useGameContext } from './game/context'
-
-import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen'
-import Join from './pages/Join'
-import SpotifyLoginCallback from './pages/Roles/MusicHost/LoginCallback'
-import Settings from './pages/Roles/GameHost/Settings'
-import HostGame from './pages/Roles/GameHost/HostGame'
-import { Player } from './pages/Types/Player/Player'
-import PlayerLobby from './pages/PlayerLobby'
-
+import appConfig from '@app-config';
+import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
+import { useGameContext } from './game/context';
+import Join from './pages/Join';
+import PlayerLobby from './pages/PlayerLobby';
+import HostGame from './pages/Roles/GameHost/HostGame';
+import Settings from './pages/Roles/GameHost/Settings';
+import SpotifyLoginCallback from './pages/Roles/MusicHost/LoginCallback';
+import SpotifyLoginScreen from './pages/Roles/MusicHost/LoginScreen';
+import { Player } from './pages/Types/Player/Player';
 
 function Welcome() {
   const { setIsHost } = useGameContext();
   const navigate = useNavigate();
-  
+
   const hostAGameClickHandler = () => {
     setIsHost(true);
     navigate('/settings');
   };
-  
+
   const joinAGameClickHandler = () => {
     setIsHost(false);
     navigate('/join');
@@ -30,17 +28,17 @@ function Welcome() {
       <div className="hero">
         <div className="hero-content flex-col">
           <h1 className="text-5xl font-bold text-primary mb-4">{appConfig.displayName}</h1>
-          <p className="mb-6 text-lg text-base-content">
-            {appConfig.description}
-          </p>
+          <p className="mb-6 text-lg text-base-content">{appConfig.description}</p>
           <div className="flex gap-4">
             <button
+              type="button"
               onClick={hostAGameClickHandler}
               className="btn btn-primary btn-lg"
             >
               Host a Game
             </button>
             <button
+              type="button"
               onClick={joinAGameClickHandler}
               className="btn btn-success btn-lg"
             >
@@ -50,7 +48,7 @@ function Welcome() {
         </div>
       </div>
     </main>
-  )
+  );
 }
 
 export function App() {
@@ -68,5 +66,5 @@ export function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
-  )
+  );
 }
