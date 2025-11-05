@@ -147,6 +147,12 @@ export function joinGame(gameContext: GameContextType, playerName: string, sessi
                         handlePlayerLeftForPlayer(gameContext, message.payload.playerId);
                         break;
 
+                    case 'game-started':
+                        // Game has been started by the host
+                        console.log('Game started!');
+                        gameContext.setStatus('waiting');
+                        break;
+
                     case 'join-failed':
                         console.error('Failed to join game:', message.payload.reason);
                         resolve(false);
