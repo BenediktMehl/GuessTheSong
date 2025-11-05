@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Card } from '../../../components/Card';
-import PlayersLobby from '../../../components/PlayersLobby';
-import { useGameContext } from '../../../game/context';
+import { Card } from '../../components/Card';
+import PlayersLobby from '../../components/PlayersLobby';
+import { useGameContext } from '../../game/context';
 import { spotifyIsLoggedIn } from '../../services/spotify/auth';
 import {
   getPlaybackState,

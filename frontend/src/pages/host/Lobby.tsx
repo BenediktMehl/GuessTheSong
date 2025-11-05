@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../../components/Card';
-import GameCode from '../../../components/GameCode';
-import PlayersLobby from '../../../components/PlayersLobby';
-import { useGameContext } from '../../../game/context';
+import { Card } from '../../components/Card';
+import GameCode from '../../components/GameCode';
+import PlayersLobby from '../../components/PlayersLobby';
+import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
 import { handleSpotifyLogin } from '../../services/spotify/auth';
 import { useSpotifyAuth } from '../../services/spotify/context';

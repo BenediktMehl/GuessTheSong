@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../../../components/Card';
+import { Card } from '../../components/Card';
 import { handleSpotifyLogin, handleSpotifyLoginCallback } from '../../services/spotify/auth';
 
 export default function SpotifyCallback() {
