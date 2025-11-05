@@ -6,10 +6,11 @@ import { Card } from '../../../components/Card'
 import PlayersLobby from '../../../components/PlayersLobby'
 import { useGameContext } from '../../../game/context'
 
+const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const DEFAULT_PLAYLIST_ID = '1jHJldEedIdF8D49kPEiPR';
 
 export default function HostGame() {
-    const { players } = useGameContext();
+    const { players, waitingPlayers } = useGameContext();
     const [spotifyStatus, setSpotifyStatus] = useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);
     const [showToast, setShowToast] = useState(true);
     const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
@@ -22,13 +23,14 @@ export default function HostGame() {
     const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [loadingTracks, setLoadingTracks] = useState(false);
+    const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
+        const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
+        return stored === 'true';
+    });
     const [loadingDefaultPlaylist, setLoadingDefaultPlaylist] = useState(false);
     const [loadingSearch, setLoadingSearch] = useState(false);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [playerReady, setPlayerReady] = useState(false);
-    const nowPlayingBodyClass = currentTrack
-        ? 'flex items-center gap-4'
-        : 'items-center text-center gap-2';
 
     // Initialize player and set up event listeners
     useEffect(() => {
@@ -112,25 +114,6 @@ export default function HostGame() {
     }, [defaultPlaylist, selectedPlaylistId]);
 
     useEffect(() => {
-        const loadDefaultPlaylist = async () => {
-            setLoadingDefaultPlaylist(true);
-            const playlist = await getPlaylistById(DEFAULT_PLAYLIST_ID);
-            if (playlist) {
-                setDefaultPlaylist(playlist);
-            }
-            setLoadingDefaultPlaylist(false);
-        };
-        loadDefaultPlaylist();
-    }, []);
-
-    // Auto-select default playlist when it's loaded and no playlist is selected
-    useEffect(() => {
-        if (defaultPlaylist && !selectedPlaylistId) {
-            setSelectedPlaylistId(DEFAULT_PLAYLIST_ID);
-        }
-    }, [defaultPlaylist, selectedPlaylistId]);
-
-    useEffect(() => {
         const loadPlaylists = async () => {
             setLoadingPlaylists(true);
             const response = await getUserPlaylists();
@@ -185,6 +168,18 @@ export default function HostGame() {
         setTimeout(() => setShowToast(false), 2000);
     }
 
+    const handleToggleHideSong = (checked: boolean) => {
+        setHideSongUntilBuzzed(checked);
+        localStorage.setItem(HIDE_SONG_UNTIL_BUZZED_KEY, checked.toString());
+    }
+
+    // Determine if song should be visible
+    const shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0;
+    
+    // Determine body class based on track and visibility
+    const nowPlayingBodyClass = currentTrack && shouldShowSong
+        ? 'flex items-center gap-4'
+        : 'items-center text-center gap-2';
     useEffect(() => {
         // Clear existing timeout
         if (searchTimeoutRef.current) {
@@ -223,23 +218,41 @@ export default function HostGame() {
             <div className="w-full max-w-md flex flex-col gap-6">
                 <Card title="Now Playing" className="w-full" bodyClassName={nowPlayingBodyClass}>
                     {currentTrack ? (
-                        <>
-                            <img
-                                src={currentTrack.album?.images?.[0]?.url}
-                                alt={currentTrack.name}
-                                className="w-16 h-16 rounded-xl shadow-lg"
-                            />
-                            <div className="text-left">
-                                <div className="font-bold text-lg">{currentTrack.name}</div>
-                                <div className="text-sm text-base-content/70">
-                                    {currentTrack.artists?.map((a: any) => a.name).join(', ')}
+                        shouldShowSong ? (
+                            <>
+                                <img
+                                    src={currentTrack.album?.images?.[0]?.url}
+                                    alt={currentTrack.name}
+                                    className="w-16 h-16 rounded-xl shadow-lg"
+                                />
+                                <div className="text-left">
+                                    <div className="font-bold text-lg">{currentTrack.name}</div>
+                                    <div className="text-sm text-base-content/70">
+                                        {currentTrack.artists?.map((a: any) => a.name).join(', ')}
+                                    </div>
+                                    <div className="text-xs text-base-content/60">{currentTrack.album?.name}</div>
                                 </div>
-                                <div className="text-xs text-base-content/60">{currentTrack.album?.name}</div>
+                            </>
+                        ) : (
+                            <div className="w-full text-sm text-base-content/60 text-center">
+                                Song hidden - waiting for player guess...
                             </div>
-                        </>
+                        )
                     ) : (
                         <div className="w-full text-sm text-base-content/60">No track playing</div>
                     )}
+                </Card>
+
+                <Card title="Settings" className="w-full" bodyClassName="flex flex-col gap-2">
+                    <label className="label cursor-pointer">
+                        <span className="label-text">Hide song until player guesses</span>
+                        <input
+                            type="checkbox"
+                            className="toggle toggle-primary"
+                            checked={hideSongUntilBuzzed}
+                            onChange={(e) => handleToggleHideSong(e.target.checked)}
+                        />
+                    </label>
                 </Card>
 
                 <Card title="Playlist Selection" className="w-full" bodyClassName="flex flex-col gap-3">
