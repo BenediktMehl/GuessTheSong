@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState, getUserPlaylists, getPlaylistTracks, type SpotifyPlaylist, type SpotifyTrack } from '../MusicHost/spotifyMusic'
-import { initializePlayer, subscribeToStateChanges, subscribeToReadyState } from '../MusicHost/spotifyPlayer'
-import { spotifyIsLoggedIn } from '../MusicHost/spotifyAuth'
+import { useState, useEffect, useRef } from 'react';
+import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState, getUserPlaylists, getPlaylistTracks, getPlaylistById, searchPlaylists, type SpotifyPlaylist, type SpotifyTrack } from '../MusicHost/spotifyMusic'
 import { Card } from '../../../components/Card'
 import PlayersLobby from '../../../components/PlayersLobby'
 import { useGameContext } from '../../../game/context'
+
+const DEFAULT_PLAYLIST_ID = '1jHJldEedIdF8D49kPEiPR';
 
 export default function HostGame() {
     const { players } = useGameContext();
@@ -13,76 +13,55 @@ export default function HostGame() {
     const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
     const [currentTrack, setCurrentTrack] = useState<any>(null);
     const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+    const [defaultPlaylist, setDefaultPlaylist] = useState<SpotifyPlaylist | null>(null);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<SpotifyPlaylist[]>([]);
     const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>('');
     const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [loadingTracks, setLoadingTracks] = useState(false);
-    const [playerReady, setPlayerReady] = useState(false);
+    const [loadingDefaultPlaylist, setLoadingDefaultPlaylist] = useState(false);
+    const [loadingSearch, setLoadingSearch] = useState(false);
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const nowPlayingBodyClass = currentTrack
         ? 'flex items-center gap-4'
         : 'items-center text-center gap-2';
 
-    // Initialize player and set up event listeners
+    // Fetch current track info
+    const fetchCurrentTrack = async () => {
+        const playbackState = await getPlaybackState();
+        if (playbackState && playbackState.item) {
+            setCurrentTrack(playbackState.item);
+        } else {
+            setCurrentTrack(null);
+        }
+    };
+
     useEffect(() => {
-        let unsubscribeState: (() => void) | null = null;
-        let unsubscribeReady: (() => void) | null = null;
-
-        const setupPlayer = async () => {
-            const isLoggedIn = await spotifyIsLoggedIn();
-            if (!isLoggedIn) {
-                return;
-            }
-
-            const initialized = await initializePlayer();
-            if (initialized) {
-                // Subscribe to ready state changes
-                unsubscribeReady = subscribeToReadyState((ready) => {
-                    setPlayerReady(ready);
-                });
-                
-                // Subscribe to state changes
-                unsubscribeState = subscribeToStateChanges((state) => {
-                    if (state && state.track_window.current_track) {
-                        const track = state.track_window.current_track;
-                        setCurrentTrack({
-                            id: track.id,
-                            name: track.name,
-                            uri: track.uri,
-                            artists: track.artists.map((artist) => ({ name: artist.name })),
-                            album: {
-                                name: track.album.name,
-                                images: track.album.images,
-                            },
-                            duration_ms: track.duration_ms,
-                        });
-                        setSpotifyStatus(state.paused ? SpotifyResponseStatus.PAUSED : SpotifyResponseStatus.PLAYING);
-                    } else {
-                        setCurrentTrack(null);
-                    }
-                });
-
-                // Fetch initial state
-                const initialState = await getPlaybackState();
-                if (initialState && initialState.item) {
-                    setCurrentTrack(initialState.item);
-                    setSpotifyStatus(initialState.is_playing ? SpotifyResponseStatus.PLAYING : SpotifyResponseStatus.PAUSED);
-                }
-            } else {
-                setPlayerReady(false);
-            }
-        };
-
-        setupPlayer();
-
-        return () => {
-            if (unsubscribeState) {
-                unsubscribeState();
-            }
-            if (unsubscribeReady) {
-                unsubscribeReady();
-            }
-        };
+        fetchCurrentTrack();
+        // Optionally, poll every few seconds:
+        // const interval = setInterval(fetchCurrentTrack, 5000);
+        // return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        const loadDefaultPlaylist = async () => {
+            setLoadingDefaultPlaylist(true);
+            const playlist = await getPlaylistById(DEFAULT_PLAYLIST_ID);
+            if (playlist) {
+                setDefaultPlaylist(playlist);
+            }
+            setLoadingDefaultPlaylist(false);
+        };
+        loadDefaultPlaylist();
+    }, []);
+
+    // Auto-select default playlist when it's loaded and no playlist is selected
+    useEffect(() => {
+        if (defaultPlaylist && !selectedPlaylistId) {
+            setSelectedPlaylistId(DEFAULT_PLAYLIST_ID);
+        }
+    }, [defaultPlaylist, selectedPlaylistId]);
 
     useEffect(() => {
         const loadPlaylists = async () => {
@@ -118,6 +97,7 @@ export default function HostGame() {
         setSpotifyStatus(spotifyReponse);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
+        fetchCurrentTrack();
     }
 
     const handleSkipTrack = async () => {
@@ -128,6 +108,7 @@ export default function HostGame() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         setTimeout(() => setSkippedTrack(false), 2000);
+        fetchCurrentTrack();
     }
 
     const handlePlayTrackFromPlaylist = async (trackUri: string) => {
@@ -137,7 +118,39 @@ export default function HostGame() {
         setSpotifyStatus(spotifyReponse);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
+        fetchCurrentTrack();
     }
+
+    useEffect(() => {
+        // Clear existing timeout
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        // If search query is empty, clear search results
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            return;
+        }
+
+        // Debounce search
+        searchTimeoutRef.current = setTimeout(async () => {
+            setLoadingSearch(true);
+            const response = await searchPlaylists(searchQuery.trim());
+            if (response) {
+                setSearchResults(response.playlists.items);
+            } else {
+                setSearchResults([]);
+            }
+            setLoadingSearch(false);
+        }, 500);
+
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [searchQuery]);
 
     return (
         <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
@@ -166,23 +179,61 @@ export default function HostGame() {
                 </Card>
 
                 <Card title="Playlist Selection" className="w-full" bodyClassName="flex flex-col gap-3">
-                    {loadingPlaylists ? (
+                    {loadingPlaylists || loadingDefaultPlaylist ? (
                         <div className="flex items-center justify-center py-4">
                             <span className="loading loading-spinner loading-md"></span>
                         </div>
                     ) : (
                         <>
+                            <div className="form-control w-full">
+                                <label className="label">
+                                    <span className="label-text">Search for playlists</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Search playlists..."
+                                    className="input input-bordered w-full bg-white"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                {loadingSearch && (
+                                    <div className="flex items-center justify-start mt-2">
+                                        <span className="loading loading-spinner loading-sm"></span>
+                                        <span className="text-xs text-base-content/60 ml-2">Searching...</span>
+                                    </div>
+                                )}
+                            </div>
                             <select
                                 className="select select-bordered w-full bg-white"
                                 value={selectedPlaylistId}
                                 onChange={(e) => setSelectedPlaylistId(e.target.value)}
                             >
                                 <option value="">Select a playlist...</option>
-                                {playlists.map((playlist) => (
-                                    <option key={playlist.id} value={playlist.id}>
-                                        {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                {defaultPlaylist && (
+                                    <option key={defaultPlaylist.id} value={defaultPlaylist.id}>
+                                        ⭐ {defaultPlaylist.name} {defaultPlaylist.tracks?.total ? `(${defaultPlaylist.tracks.total} tracks)` : ''}
                                     </option>
-                                ))}
+                                )}
+                                {playlists
+                                    .filter(p => p.id !== DEFAULT_PLAYLIST_ID)
+                                    .map((playlist) => (
+                                        <option key={playlist.id} value={playlist.id}>
+                                            {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                        </option>
+                                    ))}
+                                {searchQuery.trim() && searchResults.length > 0 && (
+                                    <>
+                                        <optgroup label="Search Results">
+                                            {searchResults
+                                                .filter(p => p.id !== DEFAULT_PLAYLIST_ID && !playlists.some(up => up.id === p.id))
+                                                .map((playlist) => (
+                                                    <option key={playlist.id} value={playlist.id}>
+                                                        {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                                    </option>
+                                                ))}
+                                        </optgroup>
+                                    </>
+                                )}
                             </select>
                             {selectedPlaylistId && (
                                 <div className="mt-2">
@@ -215,11 +266,6 @@ export default function HostGame() {
                 </Card>
 
                 <Card title="Controls" className="w-full" bodyClassName="flex flex-col gap-2">
-                    {!playerReady && (
-                        <div className="alert alert-info mb-2">
-                            <span>Initializing Spotify player...</span>
-                        </div>
-                    )}
                     <div className="flex gap-2">
                         <button
                             className="btn btn-success flex-1"
@@ -229,7 +275,7 @@ export default function HostGame() {
                                     handlePlayTrackFromPlaylist(randomTrack.track.uri);
                                 }
                             }}
-                            disabled={playlistTracks.length === 0 || !playerReady}
+                            disabled={playlistTracks.length === 0}
                         >
                             Play Random
                         </button>
@@ -238,14 +284,12 @@ export default function HostGame() {
                             onClick={() => {
                                 pauseOrResumeTrack()
                             }}
-                            disabled={!playerReady}
                         >
                             {spotifyStatus === SpotifyResponseStatus.PAUSED ? 'Resume' : 'Pause'}
                         </button>
                         <button
                             className="btn btn-info flex-1"
                             onClick={() => handleSkipTrack()}
-                            disabled={!playerReady}
                         >
                             Skip
                         </button>
