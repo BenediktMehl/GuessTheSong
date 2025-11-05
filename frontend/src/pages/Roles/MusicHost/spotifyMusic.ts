@@ -76,13 +76,33 @@ export async function playSpotifyTrack(trackUri: string) {
         return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
     }
 
+    // Verify player has play method (defensive check)
+    if (!player.play || typeof player.play !== 'function') {
+        console.error("Spotify player.play is not a function", {
+            playerType: typeof player,
+            playerConstructor: player?.constructor?.name,
+            playerMethods: player ? Object.keys(player) : 'null',
+        });
+        return SpotifyResponseStatus.ERROR;
+    }
+
     try {
+        // Activate the player element before playing (required by Spotify SDK for autoplay policies)
+        await player.activateElement();
+        
+        // Use the SDK's play method to play directly in the browser player
         await player.play({
             uris: [trackUri],
         });
+        
         return SpotifyResponseStatus.PLAYING;
     } catch (error) {
-        console.error("Error playing track:", error);
+        console.error("Error playing track:", error, {
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            trackUri,
+            playerReady: isReady(),
+        });
         return SpotifyResponseStatus.ERROR;
     }
 }
