@@ -12,17 +12,24 @@ function handlePlayerDisconnect(ws, sessionId) {
     );
 
     // Store disconnected player info
+    const session = sessions[sessionId];
+    if (!session) {
+      return;
+    }
+
+    session.players.delete(ws);
+
     const timeout = setTimeout(() => {
       // After grace period, remove player if still disconnected
       if (disconnectedPlayers.has(playerId)) {
         disconnectedPlayers.delete(playerId);
 
-        if (sessions[sessionId]) {
-          sessions[sessionId].players.delete(ws);
+        const activeSession = sessions[sessionId];
+        if (activeSession) {
           console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
 
           // Notify host that player left
-          const host = sessions[sessionId].host;
+          const host = activeSession.host;
           if (host) {
             host.send(
               JSON.stringify({
@@ -33,7 +40,7 @@ function handlePlayerDisconnect(ws, sessionId) {
           }
 
           // Notify all other players that this player left
-          sessions[sessionId].players.forEach((playerWs) => {
+          activeSession.players.forEach((playerWs) => {
             playerWs.send(
               JSON.stringify({
                 action: 'player-left',
@@ -45,8 +52,13 @@ function handlePlayerDisconnect(ws, sessionId) {
       }
     }, RECONNECT_GRACE_PERIOD_MS);
 
-    disconnectedPlayers.set(playerId, { ws, sessionId, disconnectTime: Date.now(), timeout });
-  }
+    disconnectedPlayers.set(playerId, {
+      ws,
+      sessionId,
+      playerName: ws.playerName,
+      disconnectTime: Date.now(),
+      timeout,
+    });
 }
 
 function handleGameHostDisconnect(_ws, sessionId) {
