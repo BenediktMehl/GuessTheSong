@@ -10,6 +10,11 @@ const USE_TLS = process.env.WS_USE_TLS === 'true';
 const TLS_CERT_PATH = process.env.WS_TLS_CERT_PATH;
 const TLS_KEY_PATH = process.env.WS_TLS_KEY_PATH;
 
+const ALLOWED_ORIGINS = (process.env.WS_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 function handleHttpRequest(_, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('GuessTheSong backend is running.');
@@ -39,7 +44,21 @@ function createHttpServer() {
 }
 
 const httpServer = createHttpServer();
-const ws = new WebSocket.Server({ server: httpServer });
+const ws = new WebSocket.Server({
+  server: httpServer,
+  verifyClient: ({ origin }, done) => {
+    const allowed =
+      !origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin);
+
+    if (allowed) {
+      done(true);
+      return;
+    }
+
+    console.warn(`Rejecting connection from disallowed origin: ${origin}`);
+    done(false, 403, 'Origin not allowed');
+  },
+});
 
 
 const sessions = {}; // sessionId -> { host: ws, players: Set<ws> }
@@ -201,7 +220,7 @@ function handleCreate(ws) {
     action: 'created',
     payload: { sessionId: newSessionId }
   }));
-  log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
+  console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
 }
 
 function handlePlayerAction(ws, serverPayload) {

@@ -7,6 +7,7 @@ services:
       WS_USE_TLS: "true"
       WS_TLS_CERT_PATH: "/certs/fullchain.pem"
       WS_TLS_KEY_PATH: "/certs/privkey.pem"
+      WS_ALLOWED_ORIGINS: https://www.guess-my-song.de,https://guess-the-song.duckdns.org
     volumes:
       - /etc/letsencrypt/live/guess-the-song.duckdns.org/fullchain.pem:/certs/fullchain.pem:ro
       - /etc/letsencrypt/live/guess-the-song.duckdns.org/privkey.pem:/certs/privkey.pem:ro
