@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
-import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState } from '../MusicHost/spotifyMusic'
+import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState, getUserPlaylists, getPlaylistTracks, type SpotifyPlaylist, type SpotifyTrack } from '../MusicHost/spotifyMusic'
 import { Card } from '../../../components/Card'
+import PlayersLobby from '../../../components/PlayersLobby'
+import { useGameContext } from '../../../game/context'
 
 export default function HostGame() {
+    const { players } = useGameContext();
     const [spotifyStatus, setSpotifyStatus] = useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);
     const [showToast, setShowToast] = useState(true);
     const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
     const [currentTrack, setCurrentTrack] = useState<any>(null);
+    const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>('');
+    const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
+    const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+    const [loadingTracks, setLoadingTracks] = useState(false);
     const nowPlayingBodyClass = currentTrack
         ? 'flex items-center gap-4'
         : 'items-center text-center gap-2';
@@ -28,17 +36,33 @@ export default function HostGame() {
         // return () => clearInterval(interval);
     }, []);
 
-    const playTrack = async () => {
+    useEffect(() => {
+        const loadPlaylists = async () => {
+            setLoadingPlaylists(true);
+            const response = await getUserPlaylists();
+            if (response) {
+                setPlaylists(response.items);
+            }
+            setLoadingPlaylists(false);
+        };
+        loadPlaylists();
+    }, []);
 
-        setSpotifyStatus(SpotifyResponseStatus.TRYING);
-        const trackUri = 'spotify:track:4uLU6hMCjMI75M1A2tKUQC';
-        const spotifyReponse = await playSpotifyTrack(trackUri);
-        console.log('Spotify response:', spotifyReponse);
-        setSpotifyStatus(spotifyReponse);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        fetchCurrentTrack();
-    }
+    useEffect(() => {
+        const loadPlaylistTracks = async () => {
+            if (!selectedPlaylistId) {
+                setPlaylistTracks([]);
+                return;
+            }
+            setLoadingTracks(true);
+            const response = await getPlaylistTracks(selectedPlaylistId);
+            if (response) {
+                setPlaylistTracks(response.items.filter(item => item.track !== null));
+            }
+            setLoadingTracks(false);
+        };
+        loadPlaylistTracks();
+    }, [selectedPlaylistId]);
 
     const pauseOrResumeTrack = async () => {
         const spotifyReponse = await pauseOrResumeSpotifyTrack();
@@ -60,9 +84,21 @@ export default function HostGame() {
         fetchCurrentTrack();
     }
 
+    const handlePlayTrackFromPlaylist = async (trackUri: string) => {
+        setSpotifyStatus(SpotifyResponseStatus.TRYING);
+        const spotifyReponse = await playSpotifyTrack(trackUri);
+        console.log('Spotify response:', spotifyReponse);
+        setSpotifyStatus(spotifyReponse);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+        fetchCurrentTrack();
+    }
+
     return (
-        <main className="min-h-screen flex items-center justify-center bg-base-200">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4">
+        <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+            <h2 className="text-4xl font-bold text-primary mb-2">Host Game</h2>
+
+            <div className="w-full max-w-md flex flex-col gap-6">
                 <Card title="Now Playing" className="w-full" bodyClassName={nowPlayingBodyClass}>
                     {currentTrack ? (
                         <>
@@ -83,6 +119,88 @@ export default function HostGame() {
                         <div className="w-full text-sm text-base-content/60">No track playing</div>
                     )}
                 </Card>
+
+                <Card title="Playlist Selection" className="w-full" bodyClassName="flex flex-col gap-3">
+                    {loadingPlaylists ? (
+                        <div className="flex items-center justify-center py-4">
+                            <span className="loading loading-spinner loading-md"></span>
+                        </div>
+                    ) : (
+                        <>
+                            <select
+                                className="select select-bordered w-full"
+                                value={selectedPlaylistId}
+                                onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                            >
+                                <option value="">Select a playlist...</option>
+                                {playlists.map((playlist) => (
+                                    <option key={playlist.id} value={playlist.id}>
+                                        {playlist.name} {playlist.tracks?.total ? `(${playlist.tracks.total} tracks)` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedPlaylistId && (
+                                <div className="mt-2">
+                                    {loadingTracks ? (
+                                        <div className="flex items-center justify-center py-2">
+                                            <span className="loading loading-spinner loading-sm"></span>
+                                        </div>
+                                    ) : (
+                                        <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                            {playlistTracks.slice(0, 20).map((item, index) => (
+                                                <button
+                                                    key={item.track.id || index}
+                                                    className="btn btn-sm btn-outline w-full justify-start text-left"
+                                                    onClick={() => handlePlayTrackFromPlaylist(item.track.uri)}
+                                                >
+                                                    <span className="truncate">{item.track.name} - {item.track.artists.map(a => a.name).join(', ')}</span>
+                                                </button>
+                                            ))}
+                                            {playlistTracks.length > 20 && (
+                                                <div className="text-xs text-base-content/60 text-center py-2">
+                                                    Showing first 20 tracks...
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </Card>
+
+                <Card title="Controls" className="w-full" bodyClassName="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <button
+                            className="btn btn-success flex-1"
+                            onClick={() => {
+                                if (playlistTracks.length > 0) {
+                                    const randomTrack = playlistTracks[Math.floor(Math.random() * playlistTracks.length)];
+                                    handlePlayTrackFromPlaylist(randomTrack.track.uri);
+                                }
+                            }}
+                            disabled={playlistTracks.length === 0}
+                        >
+                            Play Random
+                        </button>
+                        <button
+                            className="btn btn-warning flex-1"
+                            onClick={() => {
+                                pauseOrResumeTrack()
+                            }}
+                        >
+                            {spotifyStatus === SpotifyResponseStatus.PAUSED ? 'Resume' : 'Pause'}
+                        </button>
+                        <button
+                            className="btn btn-info flex-1"
+                            onClick={() => handleSkipTrack()}
+                        >
+                            Skip
+                        </button>
+                    </div>
+                </Card>
+
+                <PlayersLobby players={players} />
             </div>
             {spotifyStatus === SpotifyResponseStatus.NO_ACTIVE_DEVICE && (
                 <div className="toast toast-top toast-center">
@@ -119,28 +237,6 @@ export default function HostGame() {
                     </div>
                 </div>
             )}
-            <div className="flex gap-4">
-                <button
-                    className="btn btn-success"
-                    onClick={() => playTrack()}
-                >
-                    Play
-                </button>
-                <button
-                    className="btn btn-warning"
-                    onClick={() => {
-                        pauseOrResumeTrack()
-                    }}
-                >
-                    {spotifyStatus === SpotifyResponseStatus.PAUSED ? 'Resume' : 'Pause'}
-                </button>
-                <button
-                    className="btn btn-info"
-                    onClick={() => handleSkipTrack()}
-                >
-                    Skip
-                </button>
-            </div>
-        </main >
+        </main>
     )
 }

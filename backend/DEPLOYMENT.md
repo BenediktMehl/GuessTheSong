@@ -76,13 +76,15 @@ docker compose ps
 
 Der Node.js-Server kann die TLS-Zertifikate direkt laden. Nginx ist nicht mehr zwingend notwendig (kann aber weiterhin als Reverse Proxy genutzt werden, wenn gewünscht).
 
+Das Backend läuft **aus Sicherheitsgründen als non-root Benutzer** (`node`). Um trotzdem auf die Let's Encrypt Zertifikate zugreifen zu können, die standardmäßig nur für Root lesbar sind, kopiert ein Entrypoint-Script die Zertifikate beim Container-Start in ein beschreibbares Verzeichnis mit den richtigen Berechtigungen.
+
 1. Zertifikate liegen standardmäßig unter `/etc/letsencrypt/live/guess-the-song.duckdns.org/`.
 2. Mount die Dateien read-only in den Container, z. B. nach `/certs/fullchain.pem` und `/certs/privkey.pem`.
-3. Setze folgende Environment-Variablen (per `.env` oder direkt im Compose-File):
+3. Ein Entrypoint-Script (`entrypoint.sh`) kopiert die Zertifikate beim Start in das beschreibbare Verzeichnis `/tmp/certs/` und setzt die Berechtigungen (600).
+4. Die Environment-Variablen im Compose-File zeigen auf die kopierten Zertifikate:
    - `WS_USE_TLS=true`
-   - `WS_TLS_CERT_PATH=/certs/fullchain.pem`
-   - `WS_TLS_KEY_PATH=/certs/privkey.pem`
-4. Prüfe die Dateiberechtigungen: Der Container-Nutzer muss Lesezugriff auf die Dateien haben (`chmod 640` + passende Gruppe oder Kopie mit reduziertem Rechteumfang).
+   - `WS_TLS_CERT_PATH=/tmp/certs/fullchain.pem`
+   - `WS_TLS_KEY_PATH=/tmp/certs/privkey.pem`
 
 Nach einem `docker compose up -d --build` lauscht das Backend auf `wss://<host>:8080`.
 
@@ -92,7 +94,7 @@ Nach einem `docker compose up -d --build` lauscht das Backend auf `wss://<host>:
 > docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
 > ```
 >
-> Dieses Overlay wechselt auf den Root-Nutzer im Container, damit die eingebundenen Zertifikats-Dateien (standardmäßig 600) gelesen werden können.
+> Das Overlay konfiguriert automatisch die Zertifikats-Kopie und läuft sicher als non-root Benutzer.
 
 ### Frontend konfigurieren
 
