@@ -118,3 +118,86 @@ export async function getPlaybackState() {
 
     return await response.json();
 }
+
+export interface SpotifyPlaylist {
+    id: string;
+    name: string;
+    description?: string;
+    images?: Array<{ url: string }>;
+    owner?: {
+        display_name?: string;
+    };
+    tracks?: {
+        total: number;
+    };
+}
+
+export interface SpotifyPlaylistsResponse {
+    items: SpotifyPlaylist[];
+    total: number;
+    next: string | null;
+}
+
+export async function getUserPlaylists(limit = 50, offset = 0): Promise<SpotifyPlaylistsResponse | null> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+        console.error("No access token found in localStorage");
+        return null;
+    }
+
+    const url = `https://api.spotify.com/v1/me/playlists?limit=${limit}&offset=${offset}`;
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+        },
+    });
+
+    if (!response.ok) {
+        console.error("Failed to fetch playlists:", response.statusText);
+        return null;
+    }
+
+    return await response.json();
+}
+
+export interface SpotifyTrack {
+    track: {
+        id: string;
+        uri: string;
+        name: string;
+        artists: Array<{ name: string }>;
+        album: {
+            name: string;
+            images?: Array<{ url: string }>;
+        };
+        duration_ms: number;
+    };
+}
+
+export interface SpotifyPlaylistTracksResponse {
+    items: SpotifyTrack[];
+    total: number;
+    next: string | null;
+}
+
+export async function getPlaylistTracks(playlistId: string, limit = 100, offset = 0): Promise<SpotifyPlaylistTracksResponse | null> {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+        console.error("No access token found in localStorage");
+        return null;
+    }
+
+    const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`;
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+        },
+    });
+
+    if (!response.ok) {
+        console.error("Failed to fetch playlist tracks:", response.statusText);
+        return null;
+    }
+
+    return await response.json();
+}
