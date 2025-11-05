@@ -1,8 +1,8 @@
-const fs = require('fs');
-const http = require('http');
-const https = require('https');
+const fs = require('node:fs');
+const http = require('node:http');
+const https = require('node:https');
 const WebSocket = require('ws');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 const PORT = Number.parseInt(process.env.PORT ?? '8080', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -33,10 +33,10 @@ function createHttpServer() {
   try {
     const credentials = {
       cert: fs.readFileSync(TLS_CERT_PATH),
-      key: fs.readFileSync(TLS_KEY_PATH)
+      key: fs.readFileSync(TLS_KEY_PATH),
     };
 
-  return https.createServer(credentials, handleHttpRequest);
+    return https.createServer(credentials, handleHttpRequest);
   } catch (error) {
     console.error('Failed to load TLS credentials:', error);
     process.exit(1);
@@ -47,8 +47,7 @@ const httpServer = createHttpServer();
 const ws = new WebSocket.Server({
   server: httpServer,
   verifyClient: ({ origin }, done) => {
-    const allowed =
-      !origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin);
+    const allowed = !origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin);
 
     if (allowed) {
       done(true);
@@ -59,7 +58,6 @@ const ws = new WebSocket.Server({
     done(false, 403, 'Origin not allowed');
   },
 });
-
 
 const sessions = {}; // sessionId -> { host: ws, players: Set<ws> }
 const disconnectedPlayers = new Map(); // playerId -> { ws, sessionId, disconnectTime, timeout }
@@ -75,10 +73,12 @@ function generatePlayerId() {
 }
 
 function sendError(ws, message) {
-  ws.send(JSON.stringify({
-    action: "error",
-    payload: { message }
-  }));
+  ws.send(
+    JSON.stringify({
+      action: 'error',
+      payload: { message },
+    })
+  );
 }
 
 function handleJoin(ws, serverPayload) {
@@ -86,65 +86,73 @@ function handleJoin(ws, serverPayload) {
   const normalizedSessionId = serverPayload?.sessionId?.toUpperCase();
   const playerName = serverPayload?.name;
   const reconnectPlayerId = serverPayload?.playerId; // For reconnection
-  
+
   if (!normalizedSessionId || !sessions[normalizedSessionId]) {
-    ws.send(JSON.stringify({
-      action: 'join-failed',
-      payload: { reason: 'Session does not exist.' }
-    }));
+    ws.send(
+      JSON.stringify({
+        action: 'join-failed',
+        payload: { reason: 'Session does not exist.' },
+      })
+    );
     return;
   }
 
   // Check if this is a reconnection attempt
   if (reconnectPlayerId && disconnectedPlayers.has(reconnectPlayerId)) {
     const disconnectedPlayer = disconnectedPlayers.get(reconnectPlayerId);
-    
+
     // Verify the player was in this session
     if (disconnectedPlayer.sessionId === normalizedSessionId) {
-  console.log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
-      
+      console.log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
+
       // Cancel the removal timeout
       clearTimeout(disconnectedPlayer.timeout);
       disconnectedPlayers.delete(reconnectPlayerId);
-      
+
       // Remove old WebSocket and add new one
       sessions[normalizedSessionId].players.delete(disconnectedPlayer.ws);
       sessions[normalizedSessionId].players.add(ws);
-      
+
       ws.sessionId = normalizedSessionId;
       ws.playerName = playerName;
       ws.playerId = reconnectPlayerId;
-      
+
       // Send reconnection success
-      ws.send(JSON.stringify({
-        action: 'join-success',
-        payload: { sessionId: normalizedSessionId, playerId: reconnectPlayerId }
-      }));
-      
-  console.log(`Player ${reconnectPlayerId} successfully reconnected`);
+      ws.send(
+        JSON.stringify({
+          action: 'join-success',
+          payload: { sessionId: normalizedSessionId, playerId: reconnectPlayerId },
+        })
+      );
+
+      console.log(`Player ${reconnectPlayerId} successfully reconnected`);
       return;
     }
   }
 
   // Check if this WebSocket is already a player
   if (ws.playerName && ws.playerName !== '') {
-    ws.send(JSON.stringify({
-      action: 'join-failed',
-      payload: { reason: 'You are already connected to a session as a player.' }
-    }));
+    ws.send(
+      JSON.stringify({
+        action: 'join-failed',
+        payload: { reason: 'You are already connected to a session as a player.' },
+      })
+    );
     return;
   }
 
   // Check if a player with the same name already exists in the session
-  const isDuplicate = Array.from(sessions[normalizedSessionId].players).some(player =>
-    player.playerName === playerName
+  const isDuplicate = Array.from(sessions[normalizedSessionId].players).some(
+    (player) => player.playerName === playerName
   );
 
   if (isDuplicate) {
-    ws.send(JSON.stringify({
-      action: 'join-failed',
-      payload: { reason: 'A player with this name already exists in the session.' }
-    }));
+    ws.send(
+      JSON.stringify({
+        action: 'join-failed',
+        payload: { reason: 'A player with this name already exists in the session.' },
+      })
+    );
     return;
   }
 
@@ -152,51 +160,60 @@ function handleJoin(ws, serverPayload) {
   ws.sessionId = normalizedSessionId;
   ws.playerName = playerName;
   ws.playerId = generatePlayerId();
-  
+
   // Now add to session
   sessions[normalizedSessionId].players.add(ws);
 
   // Get list of all players for the new player
-  const allPlayers = Array.from(sessions[normalizedSessionId].players).map(p => ({
+  const allPlayers = Array.from(sessions[normalizedSessionId].players).map((p) => ({
     id: p.playerId,
     name: p.playerName,
-    points: 0 // Initial points
+    points: 0, // Initial points
   }));
 
   // Send join-success with playerId and all players to the new player
-  ws.send(JSON.stringify({
-    action: 'join-success',
-    payload: { 
-      sessionId: normalizedSessionId, 
-      playerId: ws.playerId,
-      players: allPlayers // Send list of all players
-    }
-  }));
+  ws.send(
+    JSON.stringify({
+      action: 'join-success',
+      payload: {
+        sessionId: normalizedSessionId,
+        playerId: ws.playerId,
+        players: allPlayers, // Send list of all players
+      },
+    })
+  );
 
-  console.log(`Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`);
+  console.log(
+    `Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`
+  );
 
   // Notify host that a new player joined
   const host = sessions[normalizedSessionId].host;
   if (host) {
-    host.send(JSON.stringify({
-      action: 'player-joined',
-      payload: {
-        name: ws.playerName,
-        playerId: ws.playerId
-      }
-    }));
-  }
-
-  // Notify all OTHER players in the session about the new player
-  sessions[normalizedSessionId].players.forEach(playerWs => {
-    if (playerWs !== ws) { // Don't send to the player who just joined
-      playerWs.send(JSON.stringify({
+    host.send(
+      JSON.stringify({
         action: 'player-joined',
         payload: {
           name: ws.playerName,
-          playerId: ws.playerId
-        }
-      }));
+          playerId: ws.playerId,
+        },
+      })
+    );
+  }
+
+  // Notify all OTHER players in the session about the new player
+  sessions[normalizedSessionId].players.forEach((playerWs) => {
+    if (playerWs !== ws) {
+      // Don't send to the player who just joined
+      playerWs.send(
+        JSON.stringify({
+          action: 'player-joined',
+          payload: {
+            name: ws.playerName,
+            playerId: ws.playerId,
+          },
+        })
+      );
     }
   });
 }
@@ -216,20 +233,24 @@ function handleCreate(ws) {
 
   sessions[newSessionId] = { host: ws, players: new Set() };
   ws.sessionId = newSessionId;
-  ws.send(JSON.stringify({
-    action: 'created',
-    payload: { sessionId: newSessionId }
-  }));
+  ws.send(
+    JSON.stringify({
+      action: 'created',
+      payload: { sessionId: newSessionId },
+    })
+  );
   console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
 }
 
 function handlePlayerAction(ws, serverPayload) {
   const playerSessionId = ws.sessionId;
   if (playerSessionId && sessions[playerSessionId]) {
-    sessions[playerSessionId].host.send(JSON.stringify({
-      ...serverPayload,
-      serverTimestamp: Date.now()
-    }));
+    sessions[playerSessionId].host.send(
+      JSON.stringify({
+        ...serverPayload,
+        serverTimestamp: Date.now(),
+      })
+    );
   } else {
     sendError(ws, 'Session does not exist.');
   }
@@ -238,7 +259,7 @@ function handlePlayerAction(ws, serverPayload) {
 function handleBroadcast(ws, serverPayload) {
   const hostSessionId = ws.sessionId;
   if (hostSessionId && sessions[hostSessionId]) {
-    sessions[hostSessionId].players.forEach(playerWs => {
+    sessions[hostSessionId].players.forEach((playerWs) => {
       playerWs.send(JSON.stringify(serverPayload));
     });
   }
@@ -246,59 +267,67 @@ function handleBroadcast(ws, serverPayload) {
 
 function handlePlayerDisconnect(ws, sessionId) {
   const playerId = ws.playerId;
-  
+
   // Don't remove immediately - give grace period for reconnection
   const RECONNECT_GRACE_PERIOD_MS = 180000; // 3 minutes
-  
+
   if (sessions[sessionId] && playerId) {
-  console.log(`Player ${playerId} disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`);
-    
+    console.log(
+      `Player ${playerId} disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`
+    );
+
     // Store disconnected player info
     const timeout = setTimeout(() => {
       // After grace period, remove player if still disconnected
       if (disconnectedPlayers.has(playerId)) {
         disconnectedPlayers.delete(playerId);
-        
+
         if (sessions[sessionId]) {
           sessions[sessionId].players.delete(ws);
           console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
-          
+
           // Notify host that player left
           const host = sessions[sessionId].host;
           if (host) {
-            host.send(JSON.stringify({
-              action: 'player-left',
-              payload: { playerId }
-            }));
+            host.send(
+              JSON.stringify({
+                action: 'player-left',
+                payload: { playerId },
+              })
+            );
           }
 
           // Notify all other players that this player left
-          sessions[sessionId].players.forEach(playerWs => {
-            playerWs.send(JSON.stringify({
-              action: 'player-left',
-              payload: { playerId }
-            }));
+          sessions[sessionId].players.forEach((playerWs) => {
+            playerWs.send(
+              JSON.stringify({
+                action: 'player-left',
+                payload: { playerId },
+              })
+            );
           });
         }
       }
     }, RECONNECT_GRACE_PERIOD_MS);
-    
+
     disconnectedPlayers.set(playerId, { ws, sessionId, disconnectTime: Date.now(), timeout });
   }
 }
 
-function handleGameHostDisconnect(ws, sessionId) {
+function handleGameHostDisconnect(_ws, sessionId) {
   if (sessions[sessionId]) {
     // Notify all players in the session
-    sessions[sessionId].players.forEach(playerWs => {
-      playerWs.send(JSON.stringify({
-        action: 'session-closed',
-        payload: { reason: 'Host disconnected' }
-      }));
+    sessions[sessionId].players.forEach((playerWs) => {
+      playerWs.send(
+        JSON.stringify({
+          action: 'session-closed',
+          payload: { reason: 'Host disconnected' },
+        })
+      );
       playerWs.close();
     });
     delete sessions[sessionId];
-  console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
+    console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
   }
 }
 
@@ -320,7 +349,7 @@ ws.on('connection', (ws) => {
     let data;
     try {
       data = JSON.parse(msg);
-    } catch (e) {
+    } catch (_e) {
       sendError(ws, 'Could not interpret the command (invalid JSON).');
       return;
     }

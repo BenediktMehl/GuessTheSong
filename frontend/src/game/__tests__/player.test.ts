@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('Player Reconnect Logic - Documentation', () => {
   it('should document MAX_RECONNECT_ATTEMPTS is set to 3', () => {
@@ -35,7 +35,7 @@ describe('Player Reconnect Logic - Documentation', () => {
   it('should document that reconnection state resets on disconnectFromGame', () => {
     // Manual disconnect via disconnectFromGame() resets:
     // - reconnectAttempts = 0
-    // - hasFailed = false  
+    // - hasFailed = false
     // - clearTimeout(reconnectTimeout)
     // This prevents "ghost" reconnection attempts after manual disconnect
     expect(true).toBe(true);
@@ -102,4 +102,3 @@ describe('Player Connection Behavior - Documentation', () => {
     expect(attempt3).toBe(3000);
   });
 });
-
