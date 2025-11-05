@@ -1,3 +1,5 @@
+import { getPlayer, isReady, getCurrentState } from './spotifyPlayer';
+
 export const SpotifyResponseStatus = {
     NOT_TRIED: 'not_tried',
     TRYING: 'trying',
@@ -9,114 +11,120 @@ export const SpotifyResponseStatus = {
 export type SpotifyResponseStatus = typeof SpotifyResponseStatus[keyof typeof SpotifyResponseStatus];
 
 export async function skipTrack() {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-        console.error("No access token found in localStorage");
+    const player = await getPlayer();
+    if (!player) {
+        console.error("Spotify player not available");
         return SpotifyResponseStatus.ERROR;
     }
 
-    const url = 'https://api.spotify.com/v1/me/player/next';
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-        },
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        if (error.error.reason === "NO_ACTIVE_DEVICE") {
-            console.error("No active device found for playback");
-            return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
-        }
-        return SpotifyResponseStatus.ERROR;
+    if (!isReady()) {
+        console.error("Spotify player is not ready");
+        return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
     }
 
-    return SpotifyResponseStatus.PLAYING;
+    try {
+        await player.nextTrack();
+        return SpotifyResponseStatus.PLAYING;
+    } catch (error) {
+        console.error("Error skipping track:", error);
+        return SpotifyResponseStatus.ERROR;
+    }
 }
 
 export async function pauseOrResumeSpotifyTrack() {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-        console.error("No access token found in localStorage");
+    const player = await getPlayer();
+    if (!player) {
+        console.error("Spotify player not available");
         return SpotifyResponseStatus.ERROR;
     }
-    const playbackState = await getPlaybackState();
-    if (!playbackState) {
-        console.error("Failed to get playback state");
-        return SpotifyResponseStatus.ERROR;
-    }   
-    const isPlaying = playbackState.is_playing;
-    const url = 'https://api.spotify.com/v1/me/player/' + (isPlaying ? 'pause' : 'play');
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-        },
-    });
-    if (!response.ok) {
-        const error = await response.json();
-        if (error.error.reason === "NO_ACTIVE_DEVICE") {
-            console.error("No active device found for playback");
-            return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
+
+    if (!isReady()) {
+        console.error("Spotify player is not ready");
+        return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
+    }
+
+    try {
+        const state = await player.getCurrentState();
+        if (!state) {
+            console.error("Unable to get current playback state");
+            return SpotifyResponseStatus.ERROR;
         }
+
+        const isPlaying = !state.paused;
+        if (isPlaying) {
+            await player.pause();
+            return SpotifyResponseStatus.PAUSED;
+        } else {
+            await player.resume();
+            return SpotifyResponseStatus.PLAYING;
+        }
+    } catch (error) {
+        console.error("Error pausing/resuming track:", error);
         return SpotifyResponseStatus.ERROR;
     }
-    return isPlaying ? SpotifyResponseStatus.PAUSED : SpotifyResponseStatus.PLAYING;
 }
 
 export async function playSpotifyTrack(trackUri: string) {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-        console.error("No access token found in localStorage");
+    const player = await getPlayer();
+    if (!player) {
+        console.error("Spotify player not available");
         return SpotifyResponseStatus.ERROR;
     }
 
-    const url = 'https://api.spotify.com/v1/me/player/play';
-    const body = {
-        uris: [trackUri],
-    };
-
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        if(error.error.reason === "NO_ACTIVE_DEVICE") {
-            console.error("No active device found for playback");
-            return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
-        }
-        return SpotifyResponseStatus.ERROR;
+    if (!isReady()) {
+        console.error("Spotify player is not ready");
+        return SpotifyResponseStatus.NO_ACTIVE_DEVICE;
     }
 
-    return SpotifyResponseStatus.PLAYING;
+    try {
+        await player.play({
+            uris: [trackUri],
+        });
+        return SpotifyResponseStatus.PLAYING;
+    } catch (error) {
+        console.error("Error playing track:", error);
+        return SpotifyResponseStatus.ERROR;
+    }
 }
 
 export async function getPlaybackState() {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-        console.error("No access token found in localStorage");
+    const player = await getPlayer();
+    if (!player) {
         return null;
     }
 
-    const response = await fetch('https://api.spotify.com/v1/me/player', {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-        },
-    });
-
-    if (!response.ok) {
-        console.error("Failed to fetch playback state:", response.statusText);
+    if (!isReady()) {
         return null;
     }
 
-    return await response.json();
+    try {
+        const state = await player.getCurrentState();
+        if (!state) {
+            return null;
+        }
+
+        // Convert SDK state to REST API-like format for backward compatibility
+        const track = state.track_window.current_track;
+        return {
+            is_playing: !state.paused,
+            item: {
+                id: track.id,
+                name: track.name,
+                uri: track.uri,
+                artists: track.artists.map((artist) => ({ name: artist.name })),
+                album: {
+                    name: track.album.name,
+                    images: track.album.images,
+                },
+                duration_ms: track.duration_ms,
+            },
+            progress_ms: state.position,
+            duration_ms: state.duration,
+        };
+    } catch (error) {
+        console.error("Error getting playback state:", error);
+        return null;
+    }
 }
 
 export interface SpotifyPlaylist {
