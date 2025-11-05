@@ -20,6 +20,10 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copy application code
 COPY . .
 
+# Copy entrypoint script and set executable permissions
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Expose WebSocket port
 EXPOSE 8080
 
@@ -29,5 +33,5 @@ ENV NODE_ENV=production
 # Run as non-root user for security
 USER node
 
-# Start the application
-CMD ["node", "index.js"]
+# Use entrypoint script to handle certificate copying and start application
+ENTRYPOINT ["/app/entrypoint.sh"]
