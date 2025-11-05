@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import appConfig from "@app-config";
-import { Card } from "../../components/Card";
-import PlayersLobby from "../../components/PlayersLobby";
-import { useGameContext } from "../../game/context";
+import { Card } from "../../../components/Card";
+import PlayersLobby from "../../../components/PlayersLobby";
+import { useGameContext } from "../../../game/context";
 
 export const Player = () => {
     const { players, currentPlayerId } = useGameContext();
