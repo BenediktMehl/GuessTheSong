@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../components/Card';
 import { handleSpotifyLogin, handleSpotifyLoginCallback } from './spotifyAuth';
 
 export default function SpotifyLoginCallback() {
-  const _location = useLocation();
   const navigate = useNavigate();
   const [isLoggedInSpotify, setIsLoggedInSpotify] = useState<boolean | null>(null);
   const hasHandled = useRef(false);

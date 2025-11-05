@@ -1,5 +1,5 @@
 import { WS_URL } from '../config';
-import type { GameContextType } from './context';
+import type { GameContextType, Player } from './context';
 
 // WebSocket message types
 type WebSocketMessage = {
@@ -215,9 +215,17 @@ export function joinGame(
 }
 
 function handlePlayerJoinedForPlayer(gameContext: GameContextType, msg: WebSocketMessage) {
-  const newPlayer = {
-    id: msg.payload.playerId,
-    name: msg.payload.name,
+  const playerId = msg.payload.playerId;
+  const playerName = msg.payload.name;
+
+  if (!playerId || !playerName) {
+    console.error('Invalid player data: missing playerId or name', msg.payload);
+    return;
+  }
+
+  const newPlayer: Player = {
+    id: playerId,
+    name: playerName,
     points: 0,
   };
   console.log('Player joined (player perspective):', newPlayer);
