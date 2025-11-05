@@ -1,6 +1,7 @@
 services:
   backend:
     entrypoint: /app/entrypoint.sh
+    user: "0"
     environment:
       WS_USE_TLS: "true"
       WS_TLS_CERT_PATH: "/tmp/certs/fullchain.pem"
