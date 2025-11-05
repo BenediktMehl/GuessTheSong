@@ -1,4 +1,4 @@
-import { getPlayer, isReady, getCurrentState } from './spotifyPlayer';
+import { getPlayer, isReady } from './spotifyPlayer';
 
 export const SpotifyResponseStatus = {
     NOT_TRIED: 'not_tried',

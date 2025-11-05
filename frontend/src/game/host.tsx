@@ -157,14 +157,18 @@ export function loggedOutOfSpotify(): boolean {
 }
 
 export function startGame(gameContext: GameContextType): boolean {
-    // Update host's game status to 'waiting'
-    gameContext.setStatus('waiting');
-    
     // Broadcast game-started action to all players
-    return sendHostAction({
+    const success = sendHostAction({
         action: 'game-started',
         payload: {}
     });
+    
+    if (success) {
+        // Update host's game status to 'waiting' only on successful broadcast
+        gameContext.setStatus('waiting');
+    }
+    
+    return success;
 }
 
 function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
