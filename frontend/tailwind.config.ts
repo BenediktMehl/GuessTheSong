@@ -3,7 +3,11 @@ import type { Config } from "tailwindcss";
 const config: Config = {
     content: ["./index.html", "./src/**/*.{ts,tsx}"],
     theme: {
-        extend: {},
+        extend: {
+            boxShadow: {
+                'extreme': '0 40px 80px -12px rgba(0, 0, 0, 0.35)',
+            },
+        },
     },
     plugins: [require("daisyui")],
     daisyui: {
