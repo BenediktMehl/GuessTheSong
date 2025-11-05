@@ -49,6 +49,17 @@ Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify
 - Cards across the UI (game code, lobbies, Spotify login, etc.) share the `Card` component in `frontend/src/components/Card.tsx` for consistent styling.
 - The UI enforces the light theme regardless of the system preference to preserve contrast and readability on all devices.
 
+## Linting and Formatting
+
+The project uses [Biome](https://biomejs.dev/) for linting and formatting. Biome automatically runs on pre-commit and pre-push via Husky and lint-staged, and also in CI via GitHub Actions.
+
+- **Lint**: `cd frontend && npm run lint` or `cd backend && npm run lint`
+- **Format**: `cd frontend && npm run format` or `cd backend && npm run format`
+- **Check (lint + format)**: `cd frontend && npm run check` or `cd backend && npm run check`
+- **Auto-fix**: `cd frontend && npm run check:fix` or `cd backend && npm run check:fix`
+
+Configuration is in `biome.json` at the root level.
+
 ## Tests
 
 - Backend (Jest): `cd backend && npm test`

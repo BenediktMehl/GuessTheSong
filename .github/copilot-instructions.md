@@ -29,7 +29,7 @@
 - **Tests**:
   - Frontend: `cd frontend && npm test` (Vitest)
   - Backend: `cd backend && npm test` (Jest)
-- **Formatting**: BiomeJS auto-formats TypeScript; Husky/lint-staged enforce style on commit.
+- **Linting & Formatting**: Biome is used for linting and formatting across frontend and backend. Configuration is in `biome.json` at the root. Husky pre-commit and pre-push hooks run lint-staged to automatically format and check code. GitHub Actions workflows also run Biome checks on every push.
 - **Branching**: Use `<type>/<name>` (e.g., `feature/add-dark-mode`), always rebase on `main`.
 - **Commits**: Conventional format (see `agents.md` for details).
 
@@ -51,7 +51,10 @@
 - `agents.md`: Coding agent guidelines
 
 ## CI/CD
-- GitHub Actions workflows in `.github/workflows/` (not detailed here)
+- GitHub Actions workflows in `.github/workflows/`:
+  - `frontend.yml`: Runs Biome checks and tests on frontend changes
+  - `backend-tests.yml`: Runs Biome checks and tests on backend changes
+  - `backend.yml`: Deploys backend to production on main branch
 
 ## Example Workflow
 1. Create a plan in `plans/`.
