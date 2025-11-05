@@ -379,7 +379,29 @@ ws.on('connection', (ws) => {
   });
 });
 
-httpServer.listen(PORT, HOST, () => {
-  const protocol = USE_TLS ? 'wss' : 'ws';
-  console.log(`GuessTheSong backend listening on ${protocol}://${HOST}:${PORT}`);
-});
+// Export server and cleanup function for testing purposes
+function cleanupForTests() {
+  // Clear all grace period timers
+  disconnectedPlayers.forEach(({ timeout }) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
+  disconnectedPlayers.clear();
+  
+  // Clear all sessions
+  Object.keys(sessions).forEach((key) => {
+    delete sessions[key];
+  });
+}
+
+// Export server and cleanup function for testing purposes
+module.exports = { httpServer, ws, cleanupForTests, disconnectedPlayers, sessions };
+
+// Only start listening if not in test mode (Jest sets NODE_ENV=test)
+if (process.env.NODE_ENV !== 'test') {
+  httpServer.listen(PORT, HOST, () => {
+    const protocol = USE_TLS ? 'wss' : 'ws';
+    console.log(`GuessTheSong backend listening on ${protocol}://${HOST}:${PORT}`);
+  });
+}
