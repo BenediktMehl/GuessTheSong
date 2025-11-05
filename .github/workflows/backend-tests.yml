@@ -1,0 +1,42 @@
+name: backend-tests
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'backend/**'
+      - 'biome.json'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'biome.json'
+      - '.github/workflows/backend-tests.yml'
+
+jobs:
+  test:
+    name: Run backend tests and linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run Biome linting and formatting checks
+        run: |
+          cd backend
+          npm run check
+
+      - name: Run tests
+        run: |
+          cd backend
+          npm test
+

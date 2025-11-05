@@ -11,9 +11,11 @@ export function BackendToggle() {
   useEffect(() => {
     localStorage.setItem(BACKEND_TOGGLE_KEY, useLocalBackend ? 'local' : 'pi');
     // Trigger event for config.ts to listen to
-    window.dispatchEvent(new CustomEvent('backend-toggle-changed', { 
-      detail: { useLocalBackend } 
-    }));
+    window.dispatchEvent(
+      new CustomEvent('backend-toggle-changed', {
+        detail: { useLocalBackend },
+      })
+    );
   }, [useLocalBackend]);
 
   const handleToggle = () => {
@@ -28,18 +30,14 @@ export function BackendToggle() {
       <div className="flex items-center gap-3">
         <span className="text-sm font-semibold">Backend:</span>
         <label className="flex items-center gap-2 cursor-pointer">
-          <span className={`text-xs ${!useLocalBackend ? 'font-bold' : 'opacity-60'}`}>
-            Pi
-          </span>
+          <span className={`text-xs ${!useLocalBackend ? 'font-bold' : 'opacity-60'}`}>Pi</span>
           <input
             type="checkbox"
             className="toggle toggle-primary toggle-sm"
             checked={useLocalBackend}
             onChange={handleToggle}
           />
-          <span className={`text-xs ${useLocalBackend ? 'font-bold' : 'opacity-60'}`}>
-            Local
-          </span>
+          <span className={`text-xs ${useLocalBackend ? 'font-bold' : 'opacity-60'}`}>Local</span>
         </label>
       </div>
     </div>
