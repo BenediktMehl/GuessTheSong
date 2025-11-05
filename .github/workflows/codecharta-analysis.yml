@@ -1,0 +1,68 @@
+name: CodeCharta Analysis
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Run CodeCharta Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run CodeCharta Analysis
+        run: |
+          CONTAINER_NAME="codecharta-$$"
+          docker run --name $CONTAINER_NAME \
+            -v ${{ github.workspace }}:/mnt/src \
+            codecharta/codecharta-analysis \
+            bash -c 'git config --global --add safe.directory /mnt/src && cd /mnt/src && ccsh unifiedparser -o=/tmp/codechartaVisual3D .'
+          docker cp $CONTAINER_NAME:/tmp/codechartaVisual3D.cc.json.gz ./codechartaVisual3D.cc.json.gz
+          docker rm $CONTAINER_NAME
+
+      - name: Create docs directory
+        run: mkdir -p docs
+
+      - name: Decompress and move to docs
+        run: |
+          gunzip -c codechartaVisual3D.cc.json.gz > docs/codechartaVisual3D.cc.json
+          rm codechartaVisual3D.cc.json.gz
+
+      - name: Commit and push analysis file
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs/codechartaVisual3D.cc.json
+          git diff --staged --quiet || git commit -m "chore: update CodeCharta analysis [skip ci]"
+          git push
+
+      - name: Upload analysis file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codecharta-analysis
+          path: docs/codechartaVisual3D.cc.json
+          retention-days: 30
+
+      - name: Generate visualization link
+        run: |
+          {
+            echo "CodeCharta analysis completed successfully!"
+            echo ""
+            echo "### Visualization Links"
+            echo ""
+            echo "- **Analysis file**: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/codechartaVisual3D.cc.json"
+            echo "- **CodeCharta Web Studio**: https://codecharta.com/web/?file=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/codechartaVisual3D.cc.json"
+            echo ""
+            echo "> Note: Make sure GitHub Pages is enabled in repository settings with source set to \`/docs\` directory."
+          } >> $GITHUB_STEP_SUMMARY
+

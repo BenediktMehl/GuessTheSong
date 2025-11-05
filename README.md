@@ -68,6 +68,25 @@ Configuration is in `biome.json` at the root level.
 
 Please follow the workflow in `plans/` when starting new features or fixes.
 
+## CodeCharta Analysis
+
+This repository uses [CodeCharta](https://codecharta.com/) to visualize code complexity and structure. The analysis runs automatically via GitHub Actions when a pull request is merged into `main`.
+
+### Accessing the Visualization
+
+1. **Enable GitHub Pages** (one-time setup):
+   - Go to Repository Settings → Pages
+   - Source: `/docs` directory from `main` branch
+   - Save the settings
+
+2. **View the visualization**:
+   - After each merged PR, the analysis is available at:
+     - Direct file: `https://[username].github.io/[repo]/cc.json`
+     - CodeCharta Web Studio: `https://codecharta.com/web/?file=https://[username].github.io/[repo]/cc.json`
+   - The workflow summary in GitHub Actions also contains direct links
+
+The analysis uses CodeCharta's unified parser to analyze the entire codebase (frontend and backend) and generates standard metrics for code complexity and structure.
+
 ## Production Deployment (Raspberry Pi)
 
 - Certificates from Let's Encrypt live at `/etc/letsencrypt/live/guess-the-song.duckdns.org/` on the Pi.
