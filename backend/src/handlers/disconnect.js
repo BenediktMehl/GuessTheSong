@@ -59,6 +59,7 @@ function handlePlayerDisconnect(ws, sessionId) {
       disconnectTime: Date.now(),
       timeout,
     });
+  }
 }
 
 function handleGameHostDisconnect(_ws, sessionId) {
