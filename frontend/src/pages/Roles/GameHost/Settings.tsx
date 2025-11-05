@@ -173,6 +173,7 @@ export default function Settings() {
                                         // Start the game and broadcast to all players
                                         const success = startGame(gameContext);
                                         if (!success) {
+                                            // Handle broadcast failure - show error message
                                             alert('Failed to start game. Please check your connection and try again.');
                                             return;
                                         }

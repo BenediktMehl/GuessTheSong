@@ -163,8 +163,8 @@ export function startGame(gameContext: GameContextType): boolean {
         payload: {}
     });
     
-    // Update host's game status to 'waiting' only if broadcast succeeded
     if (success) {
+        // Update host's game status to 'waiting' only on successful broadcast
         gameContext.setStatus('waiting');
     }
     
