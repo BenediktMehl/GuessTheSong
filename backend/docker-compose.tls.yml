@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     entrypoint: /app/entrypoint.sh
@@ -9,7 +7,8 @@ services:
       WS_TLS_KEY_PATH: "/tmp/certs/privkey.pem"
       WS_ALLOWED_ORIGINS: https://www.guess-my-song.de,https://guess-the-song.duckdns.org
     volumes:
-      - /etc/letsencrypt/live/guess-the-song.duckdns.org:/source-certs:ro
+      - /etc/letsencrypt/live/guess-the-song.duckdns.org/fullchain.pem:/source-certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/guess-the-song.duckdns.org/privkey.pem:/source-certs/privkey.pem:ro
       - cert-copy:/tmp/certs
 
 volumes:
