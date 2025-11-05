@@ -88,20 +88,24 @@ export async function playSpotifyTrack(trackUri: string) {
 
     try {
         // Activate the player element before playing (required by Spotify SDK for autoplay policies)
+        // This ensures the browser player is ready for playback
         await player.activateElement();
         
         // Use the SDK's play method to play directly in the browser player
+        // This plays in the Web Playback SDK's browser player, not on external devices
         await player.play({
             uris: [trackUri],
         });
         
+        console.log("Successfully started playback via SDK:", trackUri);
         return SpotifyResponseStatus.PLAYING;
     } catch (error) {
-        console.error("Error playing track:", error, {
+        console.error("Error playing track via SDK:", error, {
             errorType: error instanceof Error ? error.constructor.name : typeof error,
             errorMessage: error instanceof Error ? error.message : String(error),
             trackUri,
             playerReady: isReady(),
+            hasPlayMethod: typeof player.play === 'function',
         });
         return SpotifyResponseStatus.ERROR;
     }

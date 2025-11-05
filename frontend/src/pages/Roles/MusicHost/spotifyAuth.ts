@@ -11,7 +11,10 @@ const redirectBaseUrl = (import.meta.env.VITE_SPOTIFY_REDIRECT_BASE as string | 
     ?? (shouldUseFallbackBase ? FALLBACK_REDIRECT_BASE : DEFAULT_REDIRECT_BASE);
 const redirectUri = `${redirectBaseUrl.replace(/\/$/, '')}${redirectPath}`;
 
-let clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+// Load Spotify Client ID from environment variables
+// Vite automatically loads .env.local, .env.development, .env files
+// Priority: .env.local > .env.[mode].local > .env.[mode] > .env
+let clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined;
 
 const generateRandomString = (length: number) => {
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -84,8 +87,10 @@ const getToken = async (code: string) => {
     }
 
     if (!clientId) {
-        console.error("VITE_SPOTIFY_CLIENT_ID is not defined in .env file or not loaded by Vite");
-        return
+        console.error("VITE_SPOTIFY_CLIENT_ID is not defined in .env.local file or not loaded by Vite");
+        console.error("Available import.meta.env keys:", Object.keys(import.meta.env));
+        console.error("Note: If you just created/updated .env.local, you need to restart the Vite dev server for changes to take effect.");
+        return;
     }
     // Log all available env keys for debugging
     console.log("Available import.meta.env keys:", Object.keys(import.meta.env));
@@ -255,8 +260,10 @@ export async function handleSpotifyLogin() {
     const codeChallenge = base64encode(hashed);
 
     if (!clientId) {
-        console.error("VITE_SPOTIFY_CLIENT_ID is not defined in .env file or not loaded by Vite");
-        return
+        console.error("VITE_SPOTIFY_CLIENT_ID is not defined in .env.local file or not loaded by Vite");
+        console.error("Available import.meta.env keys:", Object.keys(import.meta.env));
+        console.error("Note: If you just created/updated .env.local, you need to restart the Vite dev server for changes to take effect.");
+        return;
     }
     // Log all available env keys for debugging
     console.log("Available import.meta.env keys:", Object.keys(import.meta.env));
