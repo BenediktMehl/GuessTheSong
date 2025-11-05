@@ -114,9 +114,13 @@ export const Player = () => {
                     className="w-full"
                     bodyClassName="items-center text-center gap-2"
                 >
-                    <div onClick={guessSong} className="cursor-pointer w-full">
+                    <button 
+                        onClick={guessSong} 
+                        className="cursor-pointer w-full text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                        aria-label={gameState.title}
+                    >
                         {gameState.content}
-                    </div>
+                    </button>
                 </Card>
 
                 <PlayersLobby players={players} currentPlayerId={currentPlayerId} />
