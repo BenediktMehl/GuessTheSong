@@ -79,7 +79,9 @@ Der Node.js-Server kann die TLS-Zertifikate direkt laden. Nginx ist nicht mehr z
 Das Backend läuft **aus Sicherheitsgründen als non-root Benutzer** (`node`). Um trotzdem auf die Let's Encrypt Zertifikate zugreifen zu können, die standardmäßig nur für Root lesbar sind, kopiert ein Entrypoint-Script die Zertifikate beim Container-Start in ein beschreibbares Verzeichnis mit den richtigen Berechtigungen.
 
 1. Zertifikate liegen standardmäßig unter `/etc/letsencrypt/live/guess-the-song.duckdns.org/`.
-2. Mount die Dateien read-only in den Container, z. B. nach `/certs/fullchain.pem` und `/certs/privkey.pem`.
+1. Zertifikate liegen standardmäßig unter `/etc/letsencrypt/live/guess-the-song.duckdns.org/`.
+2. Mount die Dateien read-only in den Container, z. B. nach `/source-certs/fullchain.pem` und `/source-certs/privkey.pem`.
+3. Ein Entrypoint-Script (`entrypoint.sh`) kopiert die Zertifikate beim Start in das beschreibbare Verzeichnis `/tmp/certs/` und setzt die Berechtigungen (600).
 3. Ein Entrypoint-Script (`entrypoint.sh`) kopiert die Zertifikate beim Start in das beschreibbare Verzeichnis `/tmp/certs/` und setzt die Berechtigungen (600).
 4. Die Environment-Variablen im Compose-File zeigen auf die kopierten Zertifikate:
    - `WS_USE_TLS=true`
