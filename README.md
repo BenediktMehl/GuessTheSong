@@ -49,6 +49,17 @@ Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify
 - Cards across the UI (game code, lobbies, Spotify login, etc.) share the `Card` component in `frontend/src/components/Card.tsx` for consistent styling.
 - The UI enforces the light theme regardless of the system preference to preserve contrast and readability on all devices.
 
+## Linting and Formatting
+
+The project uses [Biome](https://biomejs.dev/) for linting and formatting. Biome automatically runs on pre-commit and pre-push via Husky and lint-staged, and also in CI via GitHub Actions.
+
+- **Lint**: `cd frontend && npm run lint` or `cd backend && npm run lint`
+- **Format**: `cd frontend && npm run format` or `cd backend && npm run format`
+- **Check (lint + format)**: `cd frontend && npm run check` or `cd backend && npm run check`
+- **Auto-fix**: `cd frontend && npm run check:fix` or `cd backend && npm run check:fix`
+
+Configuration is in `biome.json` at the root level.
+
 ## Tests
 
 - Backend (Jest): `cd backend && npm test`
@@ -56,6 +67,25 @@ Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify
 - Branding guard: `node scripts/check-brand.js`
 
 Please follow the workflow in `plans/` when starting new features or fixes.
+
+## CodeCharta Analysis
+
+This repository uses [CodeCharta](https://codecharta.com/) to visualize code complexity and structure. The analysis runs automatically via GitHub Actions when a pull request is merged into `main`.
+
+### Accessing the Visualization
+
+1. **Enable GitHub Pages** (one-time setup):
+   - Go to Repository Settings → Pages
+   - Source: `/docs` directory from `main` branch
+   - Save the settings
+
+2. **View the visualization**:
+   - After each merged PR, the analysis is available at:
+     - Direct file: `https://[username].github.io/[repo]/cc.json`
+     - CodeCharta Web Studio: `https://codecharta.com/web/?file=https://[username].github.io/[repo]/cc.json`
+   - The workflow summary in GitHub Actions also contains direct links
+
+The analysis uses CodeCharta's unified parser to analyze the entire codebase (frontend and backend) and generates standard metrics for code complexity and structure.
 
 ## Production Deployment (Raspberry Pi)
 

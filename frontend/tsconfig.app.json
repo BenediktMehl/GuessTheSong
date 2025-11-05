@@ -11,7 +11,7 @@
     "moduleResolution": "bundler",
     "baseUrl": "./",
     "paths": {
-  "@app-config": ["../app-config/index.d.ts", "../app-config/index.mjs"],
+      "@app-config": ["../app-config/index.d.ts", "../app-config/index.mjs"],
       "@app-config/*": ["../app-config/*"]
     },
     "allowImportingTsExtensions": true,

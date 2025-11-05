@@ -5,6 +5,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "NODE_ENV=development nodemon index.js",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "test": "jest"
   },
   "keywords": [],
@@ -14,6 +20,7 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.3",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10"
   }

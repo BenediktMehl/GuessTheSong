@@ -5,10 +5,12 @@ on:
       - '**'
     paths:
       - 'frontend/**'
+      - 'biome.json'
       - '.github/workflows/frontend.yml'
   pull_request:
     paths:
       - 'frontend/**'
+      - 'biome.json'
       - '.github/workflows/frontend.yml'
 
 jobs:
@@ -27,6 +29,11 @@ jobs:
         run: |
           cd frontend
           npm ci
+
+      - name: Run Biome linting and formatting checks
+        run: |
+          cd frontend
+          npm run check
 
       - name: Run tests
         run: |

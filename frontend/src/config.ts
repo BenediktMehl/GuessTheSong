@@ -1,11 +1,11 @@
 // Configuration for different environments
 const config = {
   development: {
-    wsUrl: 'ws://localhost:8080'
+    wsUrl: 'ws://localhost:8080',
   },
   production: {
-    wsUrl: 'wss://guess-the-song.duckdns.org:8080'
-  }
+    wsUrl: 'wss://guess-the-song.duckdns.org:8080',
+  },
 };
 
 const BACKEND_TOGGLE_KEY = 'dev-backend-toggle';

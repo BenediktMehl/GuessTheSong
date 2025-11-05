@@ -1,19 +1,22 @@
-import './index.css'
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import appConfig from '@app-config'
-import { Background } from './Background.tsx'
+import './index.css';
+import appConfig from '@app-config';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Background } from './Background.tsx';
+import { BackendToggle } from './components/BackendToggle.tsx';
 import { GameProvider } from './game/context';
 import Overlay from './pages/Roles/MusicHost/Overlay';
-import { SpotifyAuthProvider } from './pages/Roles/MusicHost/SpotifyAuthContext.tsx'
+import { SpotifyAuthProvider } from './pages/Roles/MusicHost/SpotifyAuthContext.tsx';
 import { App } from './Welcome.tsx';
-import { BackendToggle } from './components/BackendToggle.tsx';
 
+document.title = appConfig.displayName;
 
-document.title = appConfig.displayName
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error('Root element not found');
+}
 
-
-createRoot(document.getElementById('root')!).render(
+createRoot(rootElement).render(
   <StrictMode>
     <SpotifyAuthProvider>
       <GameProvider>
@@ -25,6 +28,5 @@ createRoot(document.getElementById('root')!).render(
         </div>
       </GameProvider>
     </SpotifyAuthProvider>
-  </StrictMode>,
-)
-
+  </StrictMode>
+);
