@@ -10,4 +10,11 @@
 *.sw?
 .env
 
+node_modules/
+dist/
+build/
+coverage/
+logs/
+*.log
+
 SETUP.md

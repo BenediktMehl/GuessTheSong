@@ -81,9 +81,10 @@ This repository uses [CodeCharta](https://codecharta.com/) to visualize code com
 
 2. **View the visualization**:
    - After each merged PR, the analysis is available at:
-     - Direct file: `https://[username].github.io/[repo]/cc.json`
-     - CodeCharta Web Studio: `https://codecharta.com/web/?file=https://[username].github.io/[repo]/cc.json`
-   - The workflow summary in GitHub Actions also contains direct links
+     - Direct file: `https://[username].github.io/[repo]/cc_metrics_MM_DD_YY.cc.json` (e.g., `cc_metrics_05_11_25.cc.json`)
+     - CodeCharta Web Studio: `https://codecharta.com/web/?file=https://[username].github.io/[repo]/cc_metrics_MM_DD_YY.cc.json`
+   - The workflow summary in GitHub Actions also contains direct links to the latest analysis file
+   - Each analysis run creates a new date-stamped file (format: `cc_metrics_MM_DD_YY.cc.json`)
 
 The analysis uses CodeCharta's unified parser to analyze the entire codebase (frontend and backend) and generates standard metrics for code complexity and structure.
 

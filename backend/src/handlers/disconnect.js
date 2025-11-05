@@ -12,6 +12,7 @@ function handlePlayerDisconnect(ws, sessionId) {
     );
 
     // Store disconnected player info
+<<<<<<< HEAD
     const session = sessions[sessionId];
     if (!session) {
       return;
@@ -19,17 +20,28 @@ function handlePlayerDisconnect(ws, sessionId) {
 
     session.players.delete(ws);
 
+=======
+>>>>>>> origin/main
     const timeout = setTimeout(() => {
       // After grace period, remove player if still disconnected
       if (disconnectedPlayers.has(playerId)) {
         disconnectedPlayers.delete(playerId);
 
+<<<<<<< HEAD
         const activeSession = sessions[sessionId];
         if (activeSession) {
           console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
 
           // Notify host that player left
           const host = activeSession.host;
+=======
+        if (sessions[sessionId]) {
+          sessions[sessionId].players.delete(ws);
+          console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
+
+          // Notify host that player left
+          const host = sessions[sessionId].host;
+>>>>>>> origin/main
           if (host) {
             host.send(
               JSON.stringify({
@@ -40,7 +52,11 @@ function handlePlayerDisconnect(ws, sessionId) {
           }
 
           // Notify all other players that this player left
+<<<<<<< HEAD
           activeSession.players.forEach((playerWs) => {
+=======
+          sessions[sessionId].players.forEach((playerWs) => {
+>>>>>>> origin/main
             playerWs.send(
               JSON.stringify({
                 action: 'player-left',
@@ -52,6 +68,7 @@ function handlePlayerDisconnect(ws, sessionId) {
       }
     }, RECONNECT_GRACE_PERIOD_MS);
 
+<<<<<<< HEAD
     disconnectedPlayers.set(playerId, {
       ws,
       sessionId,
@@ -59,6 +76,9 @@ function handlePlayerDisconnect(ws, sessionId) {
       disconnectTime: Date.now(),
       timeout,
     });
+=======
+    disconnectedPlayers.set(playerId, { ws, sessionId, disconnectTime: Date.now(), timeout });
+>>>>>>> origin/main
   }
 }
 
