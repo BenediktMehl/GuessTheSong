@@ -31,9 +31,6 @@ export default function HostGame() {
     const [loadingSearch, setLoadingSearch] = useState(false);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [playerReady, setPlayerReady] = useState(false);
-    const nowPlayingBodyClass = currentTrack
-        ? 'flex items-center gap-4'
-        : 'items-center text-center gap-2';
 
     // Initialize player and set up event listeners
     useEffect(() => {
@@ -96,25 +93,6 @@ export default function HostGame() {
             }
         };
     }, []);
-
-    useEffect(() => {
-        const loadDefaultPlaylist = async () => {
-            setLoadingDefaultPlaylist(true);
-            const playlist = await getPlaylistById(DEFAULT_PLAYLIST_ID);
-            if (playlist) {
-                setDefaultPlaylist(playlist);
-            }
-            setLoadingDefaultPlaylist(false);
-        };
-        loadDefaultPlaylist();
-    }, []);
-
-    // Auto-select default playlist when it's loaded and no playlist is selected
-    useEffect(() => {
-        if (defaultPlaylist && !selectedPlaylistId) {
-            setSelectedPlaylistId(DEFAULT_PLAYLIST_ID);
-        }
-    }, [defaultPlaylist, selectedPlaylistId]);
 
     useEffect(() => {
         const loadDefaultPlaylist = async () => {
