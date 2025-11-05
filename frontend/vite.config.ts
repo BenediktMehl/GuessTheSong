@@ -59,6 +59,9 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
+      },
+      workbox: {
+        navigationPreload: false
       }
     })
   ],
