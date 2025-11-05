@@ -1,5 +1,4 @@
-import { ws } from '../../game/host';
-import { loggedInToSpotify, loggedOutOfSpotify } from '../../game/host';
+import { loggedInToSpotify, loggedOutOfSpotify, ws } from '../../game/host';
 import { disconnectPlayer, initializePlayer } from './player';
 
 const FALLBACK_REDIRECT_BASE = 'http://127.0.0.1:5173';

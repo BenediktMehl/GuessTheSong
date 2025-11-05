@@ -1,12 +1,12 @@
 import appConfig from '@app-config';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 import { useGameContext } from '../game/context';
-import Join from './player/Join';
-import PlayerLobby from './player/Lobby';
-import Game from './player/Game';
 import HostGame from './host/Game';
 import Settings from './host/Lobby';
 import SpotifyCallback from './host/SpotifyCallback';
+import Game from './player/Game';
+import Join from './player/Join';
+import PlayerLobby from './player/Lobby';
 
 function Welcome() {
   const { setIsHost } = useGameContext();

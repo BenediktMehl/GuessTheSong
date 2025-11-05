@@ -5,8 +5,8 @@ import GameCode from '../../../components/GameCode';
 import PlayersLobby from '../../../components/PlayersLobby';
 import { useGameContext } from '../../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
-import { useSpotifyAuth } from '../../services/spotify/context';
 import { handleSpotifyLogin } from '../../services/spotify/auth';
+import { useSpotifyAuth } from '../../services/spotify/context';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);

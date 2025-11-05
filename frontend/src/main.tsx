@@ -4,10 +4,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Background } from './Background.tsx';
 import { BackendToggle } from './components/BackendToggle.tsx';
-import { GameProvider } from './game/context';
 import SpotifyOverlay from './components/SpotifyOverlay';
-import { SpotifyAuthProvider } from './services/spotify/context';
+import { GameProvider } from './game/context';
 import { App } from './pages/Welcome';
+import { SpotifyAuthProvider } from './services/spotify/context';
 
 document.title = appConfig.displayName;
 
