@@ -1,0 +1,61 @@
+name: CodeCharta Analysis
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Run CodeCharta Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run CodeCharta Analysis
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/mnt/src \
+            codecharta/codecharta-analysis \
+            bash -c 'git config --global --add safe.directory /mnt/src && cd /mnt/src && ccsh unifiedparser -o=cc.json .'
+
+      - name: Create docs directory
+        run: mkdir -p docs
+
+      - name: Move cc.json to docs
+        run: mv cc.json docs/cc.json
+
+      - name: Commit and push cc.json
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add docs/cc.json
+          git diff --staged --quiet || git commit -m "chore: update CodeCharta analysis [skip ci]"
+          git push
+
+      - name: Upload cc.json as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-json
+          path: docs/cc.json
+          retention-days: 30
+
+      - name: Generate visualization link
+        run: |
+          echo "CodeCharta analysis completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Visualization Links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **cc.json file**: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/cc.json" >> $GITHUB_STEP_SUMMARY
+          echo "- **CodeCharta Web Studio**: https://codecharta.com/web/?file=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/cc.json" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Note: Make sure GitHub Pages is enabled in repository settings with source set to `/docs` directory." >> $GITHUB_STEP_SUMMARY
+
