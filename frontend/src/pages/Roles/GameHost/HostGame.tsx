@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { pauseOrResumeSpotifyTrack, playSpotifyTrack, skipTrack, SpotifyResponseStatus, getPlaybackState, getUserPlaylists, getPlaylistTracks, getPlaylistById, searchPlaylists, type SpotifyPlaylist, type SpotifyTrack } from '../MusicHost/spotifyMusic'
+import { initializePlayer, subscribeToStateChanges, subscribeToReadyState } from '../MusicHost/spotifyPlayer'
+import { spotifyIsLoggedIn } from '../MusicHost/spotifyAuth'
 import { Card } from '../../../components/Card'
 import PlayersLobby from '../../../components/PlayersLobby'
 import { useGameContext } from '../../../game/context'
 
+const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const DEFAULT_PLAYLIST_ID = '1jHJldEedIdF8D49kPEiPR';
 
 export default function HostGame() {
-    const { players } = useGameContext();
+    const { players, waitingPlayers } = useGameContext();
     const [spotifyStatus, setSpotifyStatus] = useState<SpotifyResponseStatus>(SpotifyResponseStatus.NOT_TRIED);
     const [showToast, setShowToast] = useState(true);
     const [skippedTrack, setSkippedTrack] = useState<Boolean>(false);
@@ -20,28 +23,75 @@ export default function HostGame() {
     const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [loadingTracks, setLoadingTracks] = useState(false);
+    const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
+        const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
+        return stored === 'true';
+    });
     const [loadingDefaultPlaylist, setLoadingDefaultPlaylist] = useState(false);
     const [loadingSearch, setLoadingSearch] = useState(false);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const nowPlayingBodyClass = currentTrack
-        ? 'flex items-center gap-4'
-        : 'items-center text-center gap-2';
+    const [playerReady, setPlayerReady] = useState(false);
 
-    // Fetch current track info
-    const fetchCurrentTrack = async () => {
-        const playbackState = await getPlaybackState();
-        if (playbackState && playbackState.item) {
-            setCurrentTrack(playbackState.item);
-        } else {
-            setCurrentTrack(null);
-        }
-    };
-
+    // Initialize player and set up event listeners
     useEffect(() => {
-        fetchCurrentTrack();
-        // Optionally, poll every few seconds:
-        // const interval = setInterval(fetchCurrentTrack, 5000);
-        // return () => clearInterval(interval);
+        let unsubscribeState: (() => void) | null = null;
+        let unsubscribeReady: (() => void) | null = null;
+
+        const setupPlayer = async () => {
+            const isLoggedIn = await spotifyIsLoggedIn();
+            if (!isLoggedIn) {
+                return;
+            }
+
+            const initialized = await initializePlayer();
+            if (initialized) {
+                // Subscribe to ready state changes
+                unsubscribeReady = subscribeToReadyState((ready) => {
+                    setPlayerReady(ready);
+                });
+                
+                // Subscribe to state changes
+                unsubscribeState = subscribeToStateChanges((state) => {
+                    if (state && state.track_window.current_track) {
+                        const track = state.track_window.current_track;
+                        setCurrentTrack({
+                            id: track.id,
+                            name: track.name,
+                            uri: track.uri,
+                            artists: track.artists.map((artist) => ({ name: artist.name })),
+                            album: {
+                                name: track.album.name,
+                                images: track.album.images,
+                            },
+                            duration_ms: track.duration_ms,
+                        });
+                        setSpotifyStatus(state.paused ? SpotifyResponseStatus.PAUSED : SpotifyResponseStatus.PLAYING);
+                    } else {
+                        setCurrentTrack(null);
+                    }
+                });
+
+                // Fetch initial state
+                const initialState = await getPlaybackState();
+                if (initialState && initialState.item) {
+                    setCurrentTrack(initialState.item);
+                    setSpotifyStatus(initialState.is_playing ? SpotifyResponseStatus.PLAYING : SpotifyResponseStatus.PAUSED);
+                }
+            } else {
+                setPlayerReady(false);
+            }
+        };
+
+        setupPlayer();
+
+        return () => {
+            if (unsubscribeState) {
+                unsubscribeState();
+            }
+            if (unsubscribeReady) {
+                unsubscribeReady();
+            }
+        };
     }, []);
 
     useEffect(() => {
@@ -97,7 +147,6 @@ export default function HostGame() {
         setSpotifyStatus(spotifyReponse);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
-        fetchCurrentTrack();
     }
 
     const handleSkipTrack = async () => {
@@ -108,7 +157,6 @@ export default function HostGame() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         setTimeout(() => setSkippedTrack(false), 2000);
-        fetchCurrentTrack();
     }
 
     const handlePlayTrackFromPlaylist = async (trackUri: string) => {
@@ -118,9 +166,20 @@ export default function HostGame() {
         setSpotifyStatus(spotifyReponse);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
-        fetchCurrentTrack();
     }
 
+    const handleToggleHideSong = (checked: boolean) => {
+        setHideSongUntilBuzzed(checked);
+        localStorage.setItem(HIDE_SONG_UNTIL_BUZZED_KEY, checked.toString());
+    }
+
+    // Determine if song should be visible
+    const shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0;
+    
+    // Determine body class based on track and visibility
+    const nowPlayingBodyClass = currentTrack && shouldShowSong
+        ? 'flex items-center gap-4'
+        : 'items-center text-center gap-2';
     useEffect(() => {
         // Clear existing timeout
         if (searchTimeoutRef.current) {
@@ -159,23 +218,41 @@ export default function HostGame() {
             <div className="w-full max-w-md flex flex-col gap-6">
                 <Card title="Now Playing" className="w-full" bodyClassName={nowPlayingBodyClass}>
                     {currentTrack ? (
-                        <>
-                            <img
-                                src={currentTrack.album?.images?.[0]?.url}
-                                alt={currentTrack.name}
-                                className="w-16 h-16 rounded-xl shadow-lg"
-                            />
-                            <div className="text-left">
-                                <div className="font-bold text-lg">{currentTrack.name}</div>
-                                <div className="text-sm text-base-content/70">
-                                    {currentTrack.artists?.map((a: any) => a.name).join(', ')}
+                        shouldShowSong ? (
+                            <>
+                                <img
+                                    src={currentTrack.album?.images?.[0]?.url}
+                                    alt={currentTrack.name}
+                                    className="w-16 h-16 rounded-xl shadow-lg"
+                                />
+                                <div className="text-left">
+                                    <div className="font-bold text-lg">{currentTrack.name}</div>
+                                    <div className="text-sm text-base-content/70">
+                                        {currentTrack.artists?.map((a: any) => a.name).join(', ')}
+                                    </div>
+                                    <div className="text-xs text-base-content/60">{currentTrack.album?.name}</div>
                                 </div>
-                                <div className="text-xs text-base-content/60">{currentTrack.album?.name}</div>
+                            </>
+                        ) : (
+                            <div className="w-full text-sm text-base-content/60 text-center">
+                                Song hidden - waiting for player guess...
                             </div>
-                        </>
+                        )
                     ) : (
                         <div className="w-full text-sm text-base-content/60">No track playing</div>
                     )}
+                </Card>
+
+                <Card title="Settings" className="w-full" bodyClassName="flex flex-col gap-2">
+                    <label className="label cursor-pointer">
+                        <span className="label-text">Hide song until player guesses</span>
+                        <input
+                            type="checkbox"
+                            className="toggle toggle-primary"
+                            checked={hideSongUntilBuzzed}
+                            onChange={(e) => handleToggleHideSong(e.target.checked)}
+                        />
+                    </label>
                 </Card>
 
                 <Card title="Playlist Selection" className="w-full" bodyClassName="flex flex-col gap-3">
@@ -266,6 +343,11 @@ export default function HostGame() {
                 </Card>
 
                 <Card title="Controls" className="w-full" bodyClassName="flex flex-col gap-2">
+                    {!playerReady && (
+                        <div className="alert alert-info mb-2">
+                            <span>Initializing Spotify player...</span>
+                        </div>
+                    )}
                     <div className="flex gap-2">
                         <button
                             className="btn btn-success flex-1"
@@ -275,7 +357,7 @@ export default function HostGame() {
                                     handlePlayTrackFromPlaylist(randomTrack.track.uri);
                                 }
                             }}
-                            disabled={playlistTracks.length === 0}
+                            disabled={playlistTracks.length === 0 || !playerReady}
                         >
                             Play Random
                         </button>
@@ -284,12 +366,14 @@ export default function HostGame() {
                             onClick={() => {
                                 pauseOrResumeTrack()
                             }}
+                            disabled={!playerReady}
                         >
                             {spotifyStatus === SpotifyResponseStatus.PAUSED ? 'Resume' : 'Pause'}
                         </button>
                         <button
                             className="btn btn-info flex-1"
                             onClick={() => handleSkipTrack()}
+                            disabled={!playerReady}
                         >
                             Skip
                         </button>
