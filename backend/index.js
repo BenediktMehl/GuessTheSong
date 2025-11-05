@@ -388,7 +388,7 @@ function cleanupForTests() {
     }
   });
   disconnectedPlayers.clear();
-  
+
   // Clear all sessions
   Object.keys(sessions).forEach((key) => {
     delete sessions[key];

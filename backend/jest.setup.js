@@ -43,7 +43,9 @@ beforeAll(async () => {
   // Wait up to 10 seconds for server to be ready
   await Promise.race([
     waitForServer(),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Server startup timeout')), 10000)),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Server startup timeout')), 10000)
+    ),
   ]);
 }, 15000);
 
@@ -51,7 +53,8 @@ beforeAll(async () => {
 afterAll(async () => {
   // Close all WebSocket connections
   wsServer.clients.forEach((client) => {
-    if (client.readyState === 1) { // WebSocket.OPEN
+    if (client.readyState === 1) {
+      // WebSocket.OPEN
       client.terminate();
     }
   });
@@ -71,4 +74,3 @@ afterAll(async () => {
     });
   });
 });
-
