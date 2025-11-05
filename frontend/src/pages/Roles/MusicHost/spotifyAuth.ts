@@ -202,6 +202,12 @@ async function refreshToken() {
         console.error("No refresh token found in localStorage");
         return;
     }
+    
+    if (!clientId) {
+        console.error("VITE_SPOTIFY_CLIENT_ID is not defined. Cannot refresh token.");
+        return;
+    }
+    
     const url = "https://accounts.spotify.com/api/token";
 
     const payload = {
