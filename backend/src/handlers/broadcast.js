@@ -4,7 +4,11 @@ function handleBroadcast(ws, serverPayload) {
   const hostSessionId = ws.sessionId;
   if (hostSessionId && sessions[hostSessionId]) {
     sessions[hostSessionId].players.forEach((playerWs) => {
-      playerWs.send(JSON.stringify(serverPayload));
+      try {
+        playerWs.send(JSON.stringify(serverPayload));
+      } catch (error) {
+        console.error('Failed to broadcast to player:', error);
+      }
     });
   }
 }
