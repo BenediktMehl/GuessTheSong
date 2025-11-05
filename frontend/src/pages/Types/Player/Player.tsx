@@ -116,7 +116,7 @@ export const Player = () => {
                 >
                     <button 
                         onClick={guessSong} 
-                        className="cursor-pointer w-full text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
+                        className="cursor-pointer w-full text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded bg-white"
                         aria-label={gameState.title}
                     >
                         {gameState.content}
