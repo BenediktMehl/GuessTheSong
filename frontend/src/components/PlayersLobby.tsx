@@ -14,7 +14,6 @@ export default function PlayersLobby({
 }: PlayersLobbyProps) {
   return (
     <Card
-      title={`Players (${players.length}/${minPlayers}+)`}
       className="w-full max-w-md max-h-[60vh] flex flex-col"
       bodyClassName="flex flex-col flex-1 gap-3 overflow-hidden"
     >

@@ -52,7 +52,7 @@ export default function GameCode({
   };
 
   return (
-    <Card title="Game Code" className="w-full max-w-md" bodyClassName="gap-3">
+    <Card className="w-full max-w-md" bodyClassName="gap-3">
       <div className="text-center">
         <span className="text-3xl md:text-4xl font-mono font-bold tracking-widest text-primary">
           {sessionId}

@@ -6,15 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "check": "biome check .",
+    "check": "biome check . && npm run typecheck",
     "check:fix": "biome check --write .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:typecheck": "npm run typecheck && npm test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
