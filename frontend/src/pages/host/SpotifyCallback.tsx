@@ -1,42 +1,160 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { handleSpotifyLogin, handleSpotifyLoginCallback } from '../../services/spotify/auth';
+
+const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
 
 export default function SpotifyCallback() {
   const navigate = useNavigate();
-  const [isLoggedInSpotify, setIsLoggedInSpotify] = useState<boolean | null>(null);
-  const hasHandled = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (hasHandled.current) return;
-    hasHandled.current = true;
+    // Small delay to ensure localStorage is accessible
+    const handleCallback = async () => {
+      // Log all localStorage items for debugging
+      const allLocalStorageKeys = Object.keys(localStorage);
+      console.log('All localStorage items:', {
+        spotify_state: localStorage.getItem('spotify_state'),
+        spotify_code_verifier: localStorage.getItem('spotify_code_verifier') ? 'present' : 'missing',
+        allKeys: allLocalStorageKeys,
+        localStorageAvailable: typeof Storage !== 'undefined',
+      });
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const errorParam = urlParams.get('error');
+      const state = urlParams.get('state');
 
-    handleSpotifyLoginCallback().then((isLoggedIn) => {
-      console.log('Spotify login callback handled, isLoggedIn:', isLoggedIn);
-      setIsLoggedInSpotify(isLoggedIn);
-      if (isLoggedIn) {
-        navigate('/settings', { replace: true });
+      console.log('Spotify callback received:', { code: !!code, errorParam, state });
+      console.log('Current URL:', window.location.href);
+      
+      if (errorParam) {
+        console.error('Spotify login error:', errorParam);
+        setError(errorParam);
+        return;
       }
-    });
+
+      if (!code) {
+        setError('No authorization code received');
+        return;
+      }
+
+      // Verify state - check both localStorage and sessionStorage for compatibility
+      const storedState = localStorage.getItem('spotify_state') || sessionStorage.getItem('spotify_state');
+      console.log('State verification:', { 
+        storedState, 
+        receivedState: state, 
+        match: storedState === state,
+        localStorageState: localStorage.getItem('spotify_state'),
+        sessionStorageState: sessionStorage.getItem('spotify_state'),
+        localStorageLength: localStorage.length,
+        sessionStorageLength: sessionStorage.length,
+      });
+      
+      if (!storedState) {
+        console.error('State not found in storage. This might indicate:');
+        console.error('1. localStorage was cleared');
+        console.error('2. Browser privacy mode is blocking storage');
+        console.error('3. The redirect happened in a different context');
+        setError('State not found. This might be due to browser privacy settings or storage being cleared. Please try logging in again and ensure you\'re not in private/incognito mode.');
+        return;
+      }
+      
+      if (storedState !== state) {
+        console.error('State mismatch:', { stored: storedState, received: state });
+        setError('State mismatch - possible CSRF attack. Please try logging in again.');
+        // Clear stored values to allow retry
+        localStorage.removeItem('spotify_code_verifier');
+        localStorage.removeItem('spotify_state');
+        sessionStorage.removeItem('spotify_code_verifier');
+        sessionStorage.removeItem('spotify_state');
+        return;
+      }
+
+      // Get code verifier - check both storage locations
+      const codeVerifier = localStorage.getItem('spotify_code_verifier') || sessionStorage.getItem('spotify_code_verifier');
+      if (!codeVerifier) {
+        setError('Code verifier not found. Please try logging in again.');
+        return;
+      }
+
+      // Exchange code for token via backend (keeps client secret secure)
+      try {
+        // Get backend URL from environment or use default
+        // Use 127.0.0.1 to match the frontend origin
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8080';
+        const response = await fetch(`${backendUrl}/api/spotify/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code: code,
+            code_verifier: codeVerifier,
+            redirect_uri: 'http://127.0.0.1:5173/spotifycallback',
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Token exchange failed:', errorData);
+          setError(`Token exchange failed: ${errorData.error || 'Unknown error'}. Make sure the backend is running and has SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET configured.`);
+          return;
+        }
+
+        const tokenData = await response.json();
+        
+        // Store tokens in localStorage
+        localStorage.setItem('access_token', tokenData.access_token);
+        if (tokenData.refresh_token) {
+          localStorage.setItem('refresh_token', tokenData.refresh_token);
+        }
+        if (tokenData.expires_in) {
+          const expiresAt = Date.now() + tokenData.expires_in * 1000;
+          localStorage.setItem('access_token_expires_at', expiresAt.toString());
+        }
+
+        console.log('Token exchange successful');
+        
+        // Clear stored values from both storage locations
+        localStorage.removeItem('spotify_code_verifier');
+        localStorage.removeItem('spotify_state');
+        sessionStorage.removeItem('spotify_code_verifier');
+        sessionStorage.removeItem('spotify_state');
+
+        // Redirect back to settings
+        navigate('/settings', { replace: true });
+      } catch (error) {
+        console.error('Token exchange error:', error);
+        setError(`Failed to exchange token: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend is running.`);
+      }
+    };
+
+    // Small delay to ensure everything is loaded
+    const timeoutId = setTimeout(handleCallback, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [navigate]);
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md" bodyClassName="items-center text-center gap-4">
-        {isLoggedInSpotify ? (
-          <p>Now redirecting to game</p>
-        ) : (
+        {error ? (
           <>
-            <h2 className="text-2xl font-semibold text-primary">Spotify Login not Successful</h2>
-            <p className="text-error">Something went wrong. Please try logging in again.</p>
+            <h2 className="text-2xl font-semibold text-error">Spotify Login Error</h2>
+            <p className="text-error">{error}</p>
             <button
               type="button"
-              className="btn btn-outline btn-success"
-              onClick={handleSpotifyLogin}
+              className="btn btn-outline"
+              onClick={() => navigate('/settings', { replace: true })}
             >
-              Log in with Spotify
+              Go Back
             </button>
+          </>
+        ) : (
+          <>
+            <p>Processing Spotify login...</p>
+            <span className="loading loading-spinner loading-md"></span>
           </>
         )}
       </Card>
