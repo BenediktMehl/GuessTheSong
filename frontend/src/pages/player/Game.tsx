@@ -94,7 +94,6 @@ export default function Game() {
 
       <div className="w-full max-w-md flex flex-col gap-6">
         <Card
-          title={gameState.title}
           className="w-full"
           bodyClassName="items-center text-center gap-2"
         >

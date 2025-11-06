@@ -5,33 +5,58 @@ import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
-import { handleSpotifyLogin } from '../../services/spotify/auth';
-import { useSpotifyAuth } from '../../services/spotify/context';
+import { getSpotifyUsername, handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showCopyError, setShowCopyError] = useState(false);
   const [spotifyLoginLoading, setSpotifyLoginLoading] = useState(false);
-  const { profile, isLoggedIn, refreshProfile, logout } = useSpotifyAuth();
-  // On mount, check Spotify login status
-  useEffect(() => {
-    refreshProfile();
-  }, [refreshProfile]);
-  const handleSpotifyLoginClick = async () => {
-    setSpotifyLoginLoading(true);
-    try {
-      await handleSpotifyLogin();
-      await refreshProfile();
-    } finally {
-      setSpotifyLoginLoading(false);
-    }
-  };
+  const [isLoggedInSpotify, setIsLoggedInSpotify] = useState(spotifyIsLoggedIn());
+  const [spotifyUsername, setSpotifyUsername] = useState<string | null>(null);
   const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
   const navigate = useNavigate();
   const gameContext = useGameContext();
   const { players, sessionId, status, isHost, setIsHost, wsStatus } = gameContext;
   const isGameRunning = status !== 'notStarted' && status !== 'finished';
   const { initGame } = useGameInitializer();
+
+  // Check Spotify login status periodically and fetch username
+  useEffect(() => {
+    const checkSpotifyStatus = async () => {
+      const isLoggedIn = spotifyIsLoggedIn();
+      setIsLoggedInSpotify(isLoggedIn);
+      
+      if (isLoggedIn) {
+        const username = await getSpotifyUsername();
+        setSpotifyUsername(username);
+      } else {
+        setSpotifyUsername(null);
+      }
+    };
+    
+    checkSpotifyStatus();
+    const interval = setInterval(checkSpotifyStatus, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSpotifyLoginClick = async () => {
+    setSpotifyLoginLoading(true);
+    try {
+      await handleSpotifyLogin();
+    } catch (error) {
+      console.error('Spotify login error:', error);
+      setSpotifyLoginLoading(false);
+    }
+  };
+
+  const handleSpotifyLogout = () => {
+    if (window.confirm('Are you sure you want to logout from Spotify?')) {
+      logoutSpotify();
+      setIsLoggedInSpotify(false);
+      setSpotifyUsername(null);
+    }
+  };
 
   // Wenn jemand auf /settings kommt, ist er der Host
   useEffect(() => {
@@ -70,7 +95,6 @@ export default function Lobby() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-      <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
 
       {/* ...existing connection status UI... */}
       {wsStatus === 'connecting' || wsStatus === 'closed' ? (
@@ -147,38 +171,41 @@ export default function Lobby() {
 
           <PlayersLobby players={players} minPlayers={2} />
 
-          {/* Spotify login section */}
-          <div className="w-full max-w-md flex flex-col gap-3 mt-4">
-            <Card title="Spotify Integration" className="w-full" bodyClassName="items-center gap-3">
-              {isLoggedIn && profile ? (
-                <div className="flex items-center gap-3">
-                  <img
-                    src={profile.images?.[0]?.url}
-                    alt="Spotify profile"
-                    className="w-10 h-10 rounded-full border border-white/40"
-                  />
-                  <span className="font-medium">{profile.display_name}</span>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-error btn-sm bg-white"
-                    onClick={logout}
-                  >
-                    Logout
-                  </button>
+          {/* Spotify Integration */}
+          <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
+            {isLoggedInSpotify ? (
+              <div className="flex items-center gap-3 w-full justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-success">✓</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Connected to Spotify</span>
+                    {spotifyUsername && (
+                      <span className="text-sm text-base-content/70">{spotifyUsername}</span>
+                    )}
+                  </div>
                 </div>
-              ) : (
                 <button
                   type="button"
-                  className={`btn btn-success w-full ${spotifyLoginLoading ? 'loading' : ''}`}
-                  onClick={handleSpotifyLoginClick}
-                  disabled={spotifyLoginLoading}
+                  className="btn btn-outline btn-error btn-sm"
+                  onClick={handleSpotifyLogout}
                 >
-                  {spotifyLoginLoading ? 'Logging in...' : 'Log in to Spotify'}
+                  Logout
                 </button>
-              )}
-            </Card>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={`btn btn-success w-full ${spotifyLoginLoading ? 'loading' : ''}`}
+                onClick={handleSpotifyLoginClick}
+                disabled={spotifyLoginLoading}
+              >
+                {spotifyLoginLoading ? 'Logging in...' : 'Connect to Spotify'}
+              </button>
+            )}
+          </Card>
 
-            {/* ...existing game control buttons... */}
+          {/* Game control buttons */}
+          <div className="w-full max-w-md flex flex-col gap-3 mt-4">
             <button
               type="button"
               onClick={() => {
