@@ -132,7 +132,10 @@ export default function SpotifyCallback() {
         // Check if we have a stored sessionId for reconnection
         const storedSessionId = localStorage.getItem('pending_reconnect_sessionId');
         if (storedSessionId) {
-          console.log('Redirecting back to lobby for reconnection. Stored sessionId:', storedSessionId);
+          console.log(
+            'Redirecting back to lobby for reconnection. Stored sessionId:',
+            storedSessionId
+          );
         }
 
         // Redirect back to settings (lobby) - this will trigger reconnection if sessionId exists

@@ -93,7 +93,9 @@ function handleGameHostDisconnect(ws, sessionId) {
           playerWs.close();
         });
         deleteSession(sessionId);
-        console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
+        console.log(
+          `Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`
+        );
       }
     }
   }, RECONNECT_GRACE_PERIOD_MS);

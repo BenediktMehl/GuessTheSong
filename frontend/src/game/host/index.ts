@@ -87,14 +87,17 @@ export function useGameInitializer() {
 
         // Handle messages based on action rather than type
         switch (msg.action) {
-          case 'created':
+          case 'created': {
             console.log('Session created/reconnected with ID:', msg.payload.sessionId);
             const sessionId = msg.payload.sessionId;
             gameContext.setSessionId(sessionId);
 
             // If this was a reconnection, restore players list and clear stored sessionId
             if (msg.payload.reconnected && msg.payload.players) {
-              console.log('Reconnected to existing session. Restoring players:', msg.payload.players);
+              console.log(
+                'Reconnected to existing session. Restoring players:',
+                msg.payload.players
+              );
               gameContext.setPlayers(msg.payload.players);
               // Clear stored sessionId after successful reconnection
               localStorage.removeItem('pending_reconnect_sessionId');
@@ -103,6 +106,7 @@ export function useGameInitializer() {
               localStorage.removeItem('pending_reconnect_sessionId');
             }
             break;
+          }
 
           case 'player-joined':
             handlePlayerJoined(gameContext, msg);
@@ -137,18 +141,21 @@ export function useGameInitializer() {
             gameContext.setStatus('waiting');
             break;
 
-          case 'error':
+          case 'error': {
             console.error('Server error:', msg.payload.message);
             // If we were trying to reconnect and got an error, clear stored sessionId
             // and try creating a new session
             const storedSessionId = localStorage.getItem('pending_reconnect_sessionId');
             if (storedSessionId && ws && ws.readyState === WebSocket.OPEN) {
-              console.log('Reconnection failed, clearing stored sessionId and creating new session');
+              console.log(
+                'Reconnection failed, clearing stored sessionId and creating new session'
+              );
               localStorage.removeItem('pending_reconnect_sessionId');
               // Try creating a new session
               ws.send(JSON.stringify({ serverAction: 'create' }));
             }
             break;
+          }
 
           default:
             console.warn('Unknown action:', msg.action);
