@@ -95,9 +95,6 @@ describe('Spotify SDK Integration', () => {
   let readyCallback: ((data: { device_id: string }) => void) | null = null;
   let notReadyCallback: ((data: { device_id: string }) => void) | null = null;
   let stateChangeCallback: ((state: SpotifyPlaybackState | null) => void) | null = null;
-  let _initErrorCallback: ((error: { message: string }) => void) | null = null;
-  let _authErrorCallback: ((error: { message: string }) => void) | null = null;
-  let _accountErrorCallback: ((error: { message: string }) => void) | null = null;
 
   beforeEach(() => {
     // Clear localStorage
@@ -114,13 +111,9 @@ describe('Spotify SDK Integration', () => {
           notReadyCallback = callback as (data: { device_id: string }) => void;
         } else if (event === 'player_state_changed') {
           stateChangeCallback = callback as (state: SpotifyPlaybackState | null) => void;
-        } else if (event === 'initialization_error') {
-          _initErrorCallback = callback as (error: { message: string }) => void;
-        } else if (event === 'authentication_error') {
-          _authErrorCallback = callback as (error: { message: string }) => void;
-        } else if (event === 'account_error') {
-          _accountErrorCallback = callback as (error: { message: string }) => void;
         }
+        // Note: initialization_error, authentication_error, and account_error callbacks
+        // are not stored as they are not currently tested (tests are skipped)
         return true;
       }),
       getCurrentState: vi.fn().mockResolvedValue(null),
@@ -175,9 +168,6 @@ describe('Spotify SDK Integration', () => {
     readyCallback = null;
     notReadyCallback = null;
     stateChangeCallback = null;
-    _initErrorCallback = null;
-    _authErrorCallback = null;
-    _accountErrorCallback = null;
   });
 
   it('should load Spotify SDK script when access token is available', async () => {
