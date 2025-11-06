@@ -88,7 +88,6 @@ interface SpotifyPlaybackState {
 describe('Spotify SDK Integration', () => {
   let mockPlayer: MockPlayer;
   let mockSpotify: MockSpotify;
-  let _readyCallback: ((data: { device_id: string }) => void) | null = null;
   let notReadyCallback: ((data: { device_id: string }) => void) | null = null;
   let stateChangeCallback: ((state: SpotifyPlaybackState) => void) | null = null;
 
@@ -102,11 +101,12 @@ describe('Spotify SDK Integration', () => {
       disconnect: vi.fn(),
       addListener: vi.fn((event: string, callback: unknown) => {
         if (event === 'ready') {
-          _readyCallback = callback as (data: { device_id: string }) => void;
+          // Ready callback is tracked internally but not used in tests
+          void (callback as (data: { device_id: string }) => void);
         } else if (event === 'not_ready') {
-          notReadyCallback = callback;
+          notReadyCallback = callback as (data: { device_id: string }) => void;
         } else if (event === 'player_state_changed') {
-          stateChangeCallback = callback;
+          stateChangeCallback = callback as (state: SpotifyPlaybackState) => void;
         }
         // Note: initialization_error, authentication_error, and account_error listeners
         // are not currently implemented in the Game component, so we don't track them
@@ -159,7 +159,6 @@ describe('Spotify SDK Integration', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    _readyCallback = null;
     notReadyCallback = null;
     stateChangeCallback = null;
     // Clean up window properties

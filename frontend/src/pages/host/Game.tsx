@@ -378,7 +378,9 @@ export default function Game() {
                     {current_track.artists[0]?.name || ''}
                   </div>
                   <div className="text-xs text-base-content/60">
-                    {('name' in current_track.album ? current_track.album.name : '') || ''}
+                    {'name' in current_track.album && typeof current_track.album.name === 'string'
+                      ? current_track.album.name
+                      : ''}
                   </div>
                 </div>
               </>
