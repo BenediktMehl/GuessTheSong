@@ -163,7 +163,7 @@ export default function Lobby() {
           <PlayersLobby players={players} minPlayers={2} />
 
           {/* Spotify Integration */}
-          <Card title="Spotify Integration" className="w-full max-w-md" bodyClassName="items-center gap-3">
+          <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
             {isLoggedInSpotify ? (
               <div className="flex items-center gap-3 w-full justify-between">
                 <div className="flex items-center gap-2">
