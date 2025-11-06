@@ -185,30 +185,33 @@ export default function Game() {
         setDeviceId(device_id);
 
         // Check initial state when ready
-        spotifyPlayer.getCurrentState().then((state) => {
-          if (state) {
-            console.log('[Spotify] Initial state:', {
-              paused: state.paused,
-              track: state.track_window.current_track.name,
-            });
-            setActive(true);
-            setPaused(state.paused);
-            setTrack(state.track_window.current_track);
-            hasAttemptedTransferRef.current = true;
-          } else {
-            console.log('[Spotify] No initial playback state');
-            setActive(false);
-            if (!hasAttemptedTransferRef.current) {
-              console.log('[Spotify] Attempting to transfer playback');
+        spotifyPlayer
+          .getCurrentState()
+          .then((state) => {
+            if (state) {
+              console.log('[Spotify] Initial state:', {
+                paused: state.paused,
+                track: state.track_window.current_track.name,
+              });
+              setActive(true);
+              setPaused(state.paused);
+              setTrack(state.track_window.current_track);
               hasAttemptedTransferRef.current = true;
-              setTimeout(() => {
-                transferPlaybackToDevice(device_id, spotifyPlayer);
-              }, 1500);
+            } else {
+              console.log('[Spotify] No initial playback state');
+              setActive(false);
+              if (!hasAttemptedTransferRef.current) {
+                console.log('[Spotify] Attempting to transfer playback');
+                hasAttemptedTransferRef.current = true;
+                setTimeout(() => {
+                  transferPlaybackToDevice(device_id, spotifyPlayer);
+                }, 1500);
+              }
             }
-          }
-        }).catch((error) => {
-          console.error('[Spotify] Error getting initial state:', error);
-        });
+          })
+          .catch((error) => {
+            console.error('[Spotify] Error getting initial state:', error);
+          });
       });
 
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
@@ -339,8 +342,7 @@ export default function Game() {
         playerInstanceRef.current = undefined;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [transferPlaybackToDevice]); // Include transferPlaybackToDevice dependency
 
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
@@ -376,7 +378,7 @@ export default function Game() {
                     {current_track.artists[0]?.name || ''}
                   </div>
                   <div className="text-xs text-base-content/60">
-                    {(current_track.album as any).name || ''}
+                    {('name' in current_track.album ? current_track.album.name : '') || ''}
                   </div>
                 </div>
               </>
@@ -411,7 +413,10 @@ export default function Game() {
                   fill="none"
                   viewBox="0 0 24 24"
                   className="stroke-current shrink-0 w-6 h-6"
+                  role="img"
+                  aria-label="Information icon"
                 >
+                  <title>Information icon</title>
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
