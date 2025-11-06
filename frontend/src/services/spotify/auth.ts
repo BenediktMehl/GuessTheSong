@@ -2,7 +2,19 @@
 // Note: In production, you should use a backend for token exchange
 
 const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
-const REDIRECT_URI = `${window.location.origin}/spotifycallback`;
+
+// Use 127.0.0.1 in development to match the registered redirect URI
+// In production, use the actual origin
+const getRedirectUri = (): string => {
+  if (import.meta.env.DEV) {
+    // In development, always use 127.0.0.1 to match Spotify app settings
+    return 'http://127.0.0.1:5173/spotifycallback';
+  }
+  // In production, use the actual origin
+  return `${window.location.origin}/spotifycallback`;
+};
+
+const REDIRECT_URI = getRedirectUri();
 
 // Generate random string for state/verifier
 function generateRandomString(length: number): string {
@@ -47,8 +59,19 @@ export async function handleSpotifyLogin(): Promise<void> {
   const state = generateRandomString(16);
 
   // Store verifier and state for later use
-  sessionStorage.setItem('spotify_code_verifier', codeVerifier);
-  sessionStorage.setItem('spotify_state', state);
+  // Use localStorage for better persistence across redirects
+  try {
+    localStorage.setItem('spotify_code_verifier', codeVerifier);
+    localStorage.setItem('spotify_state', state);
+    console.log('Stored state for verification:', state);
+    console.log('Verification - stored state:', localStorage.getItem('spotify_state'));
+  } catch (error) {
+    console.error('Failed to store in localStorage:', error);
+    // Fallback to sessionStorage if localStorage fails
+    sessionStorage.setItem('spotify_code_verifier', codeVerifier);
+    sessionStorage.setItem('spotify_state', state);
+    console.log('Fell back to sessionStorage');
+  }
 
   // Build authorization URL
   // Note: scope must be space-separated, URLSearchParams will encode it properly
@@ -94,42 +117,4 @@ export function logoutSpotify(): void {
   localStorage.removeItem('access_token');
   localStorage.removeItem('access_token_expires_at');
   localStorage.removeItem('refresh_token');
-  localStorage.removeItem('spotify_username');
-}
-
-export async function getSpotifyUsername(): Promise<string | null> {
-  const token = localStorage.getItem('access_token');
-  if (!token) return null;
-
-  // Check if we have a cached username
-  const cachedUsername = localStorage.getItem('spotify_username');
-  if (cachedUsername) return cachedUsername;
-
-  try {
-    const response = await fetch('https://api.spotify.com/v1/me', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Token expired or invalid
-        logoutSpotify();
-      }
-      return null;
-    }
-
-    const data = await response.json();
-    const username = data.display_name || data.id || null;
-
-    if (username) {
-      localStorage.setItem('spotify_username', username);
-    }
-
-    return username;
-  } catch (error) {
-    console.error('Failed to fetch Spotify username:', error);
-    return null;
-  }
 }

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run typecheck && vite build",
     "typecheck": "tsc -b --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:typecheck": "npm run typecheck && npm test"
+    "test:typecheck": "npm run typecheck && npm test",
+    "test:all": "npm run typecheck && npm run lint && npm test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",

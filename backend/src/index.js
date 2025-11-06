@@ -1,3 +1,19 @@
+// Load environment variables from .env.local (for local testing) or .env
+const fs = require('node:fs');
+const path = require('node:path');
+
+// Try .env.local first (for local testing), then fall back to .env
+const envLocalPath = path.join(__dirname, '..', '.env.local');
+const envPath = path.join(__dirname, '..', '.env');
+
+if (fs.existsSync(envLocalPath)) {
+  require('dotenv').config({ path: envLocalPath });
+  console.log('Loaded environment variables from .env.local');
+} else if (fs.existsSync(envPath)) {
+  require('dotenv').config({ path: envPath });
+  console.log('Loaded environment variables from .env');
+}
+
 const { httpServer, ws } = require('./server');
 const { PORT, HOST, USE_TLS } = require('./config');
 const { sendError } = require('./utils');

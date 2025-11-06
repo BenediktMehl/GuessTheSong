@@ -5,19 +5,13 @@ import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
-import {
-  getSpotifyUsername,
-  handleSpotifyLogin,
-  logoutSpotify,
-  spotifyIsLoggedIn,
-} from '../../services/spotify/auth';
+import { handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showCopyError, setShowCopyError] = useState(false);
   const [spotifyLoginLoading, setSpotifyLoginLoading] = useState(false);
   const [isLoggedInSpotify, setIsLoggedInSpotify] = useState(spotifyIsLoggedIn());
-  const [spotifyUsername, setSpotifyUsername] = useState<string | null>(null);
   const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
   const navigate = useNavigate();
   const gameContext = useGameContext();
@@ -25,18 +19,10 @@ export default function Lobby() {
   const isGameRunning = status !== 'notStarted' && status !== 'finished';
   const { initGame } = useGameInitializer();
 
-  // Check Spotify login status periodically and fetch username
+  // Check Spotify login status periodically
   useEffect(() => {
-    const checkSpotifyStatus = async () => {
-      const isLoggedIn = spotifyIsLoggedIn();
-      setIsLoggedInSpotify(isLoggedIn);
-
-      if (isLoggedIn) {
-        const username = await getSpotifyUsername();
-        setSpotifyUsername(username);
-      } else {
-        setSpotifyUsername(null);
-      }
+    const checkSpotifyStatus = () => {
+      setIsLoggedInSpotify(spotifyIsLoggedIn());
     };
 
     checkSpotifyStatus();
@@ -59,7 +45,6 @@ export default function Lobby() {
     if (window.confirm('Are you sure you want to logout from Spotify?')) {
       logoutSpotify();
       setIsLoggedInSpotify(false);
-      setSpotifyUsername(null);
     }
   };
 
@@ -100,6 +85,8 @@ export default function Lobby() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+      <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
+
       {/* ...existing connection status UI... */}
       {wsStatus === 'connecting' || wsStatus === 'closed' ? (
         <div className="alert alert-warning max-w-md flex flex-col gap-2">
@@ -181,12 +168,7 @@ export default function Lobby() {
               <div className="flex items-center gap-3 w-full justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-success">✓</span>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Connected to Spotify</span>
-                    {spotifyUsername && (
-                      <span className="text-sm text-base-content/70">{spotifyUsername}</span>
-                    )}
-                  </div>
+                  <span className="font-medium">Connected to Spotify</span>
                 </div>
                 <button
                   type="button"

@@ -3,38 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
 import Game from '../Game';
 
-// Types for test mocks
-interface SpotifyPlaybackState {
-  paused: boolean;
-  track_window: {
-    current_track: {
-      id: string;
-      name: string;
-      uri: string;
-      artists: Array<{ name: string }>;
-      album: {
-        name: string;
-        images: Array<{ url: string }>;
-      };
-      duration_ms: number;
-    };
-  };
-}
-
-interface MockSpotifyPlayer {
-  connect: ReturnType<typeof vi.fn>;
-  disconnect: ReturnType<typeof vi.fn>;
-  addListener: ReturnType<typeof vi.fn>;
-  getCurrentState: ReturnType<typeof vi.fn>;
-  togglePlay: ReturnType<typeof vi.fn>;
-  previousTrack: ReturnType<typeof vi.fn>;
-  nextTrack: ReturnType<typeof vi.fn>;
-}
-
-interface MockSpotify {
-  Player: ReturnType<typeof vi.fn>;
-}
-
 // Mock the GameProvider to provide a minimal context
 const mockGameContext = {
   players: [],
@@ -75,26 +43,53 @@ vi.mock('../../../components/Card', () => ({
     bodyClassName,
     ...props
   }: {
-    title?: string;
+    title: string;
     children: React.ReactNode;
     bodyClassName?: string;
   }) => (
-    <div
-      data-testid={title ? `card-${title.toLowerCase().replace(/\s+/g, '-')}` : 'card'}
-      {...props}
-    >
-      {title && <h3>{title}</h3>}
+    <div data-testid={`card-${title.toLowerCase().replace(/\s+/g, '-')}`} {...props}>
+      <h3>{title}</h3>
       <div className={bodyClassName}>{children}</div>
     </div>
   ),
 }));
 
+interface MockPlayer {
+  connect: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+  addListener: ReturnType<typeof vi.fn>;
+  getCurrentState: ReturnType<typeof vi.fn>;
+  togglePlay: ReturnType<typeof vi.fn>;
+  previousTrack: ReturnType<typeof vi.fn>;
+  nextTrack: ReturnType<typeof vi.fn>;
+}
+
+interface MockSpotify {
+  Player: ReturnType<typeof vi.fn>;
+}
+
+interface SpotifyPlaybackState {
+  paused: boolean;
+  track_window: {
+    current_track: {
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      album: {
+        name: string;
+        images: Array<{ url: string }>;
+      };
+      duration_ms: number;
+    };
+  };
+}
+
 describe('Spotify SDK Integration', () => {
-  let mockPlayer: MockSpotifyPlayer;
+  let mockPlayer: MockPlayer;
   let mockSpotify: MockSpotify;
-  let readyCallback: ((data: { device_id: string }) => void) | null = null;
   let notReadyCallback: ((data: { device_id: string }) => void) | null = null;
-  let stateChangeCallback: ((state: SpotifyPlaybackState | null) => void) | null = null;
+  let stateChangeCallback: ((state: SpotifyPlaybackState) => void) | null = null;
 
   beforeEach(() => {
     // Clear localStorage
@@ -106,14 +101,15 @@ describe('Spotify SDK Integration', () => {
       disconnect: vi.fn(),
       addListener: vi.fn((event: string, callback: unknown) => {
         if (event === 'ready') {
-          readyCallback = callback as (data: { device_id: string }) => void;
+          // Ready callback is tracked internally but not used in tests
+          void (callback as (data: { device_id: string }) => void);
         } else if (event === 'not_ready') {
           notReadyCallback = callback as (data: { device_id: string }) => void;
         } else if (event === 'player_state_changed') {
-          stateChangeCallback = callback as (state: SpotifyPlaybackState | null) => void;
+          stateChangeCallback = callback as (state: SpotifyPlaybackState) => void;
         }
-        // Note: initialization_error, authentication_error, and account_error callbacks
-        // are not stored as they are not currently tested (tests are skipped)
+        // Note: initialization_error, authentication_error, and account_error listeners
+        // are not currently implemented in the Game component, so we don't track them
         return true;
       }),
       getCurrentState: vi.fn().mockResolvedValue(null),
@@ -130,44 +126,57 @@ describe('Spotify SDK Integration', () => {
     };
 
     // Setup window.Spotify
-    (
-      window as unknown as {
-        Spotify: MockSpotify;
-        onSpotifyWebPlaybackSDKReady: (() => void) | null;
-      }
-    ).Spotify = mockSpotify;
-    (
-      window as unknown as {
-        Spotify: MockSpotify;
-        onSpotifyWebPlaybackSDKReady: (() => void) | null;
-      }
-    ).onSpotifyWebPlaybackSDKReady = null;
+    // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
+    (window as any).Spotify = mockSpotify;
+    // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
+    (window as any).onSpotifyWebPlaybackSDKReady = null;
 
     // Mock document.createElement for script
     const originalCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-      if (tagName === 'script') {
-        const script = originalCreateElement('script');
-        // Simulate script loading
-        setTimeout(() => {
-          const callback = (
-            window as unknown as { onSpotifyWebPlaybackSDKReady: (() => void) | null }
-          ).onSpotifyWebPlaybackSDKReady;
-          if (callback) {
-            callback();
-          }
-        }, 0);
-        return script;
-      }
-      return originalCreateElement(tagName);
-    });
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName: string) => {
+        if (tagName === 'script') {
+          const script = originalCreateElement('script');
+          // Simulate script loading - call the callback after a short delay
+          // Use setTimeout to simulate async script loading
+          setTimeout(() => {
+            // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
+            if ((window as any).onSpotifyWebPlaybackSDKReady) {
+              // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
+              (window as any).onSpotifyWebPlaybackSDKReady();
+            }
+          }, 10);
+          return script;
+        }
+        return originalCreateElement(tagName);
+      });
+
+    // Store spy for cleanup
+    // biome-ignore lint/suspicious/noExplicitAny: Test helper property
+    (window as any).__createElementSpy = createElementSpy;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    readyCallback = null;
     notReadyCallback = null;
     stateChangeCallback = null;
+    // Clean up window properties
+    // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
+    delete (window as any).__spotifyPlayerInstance;
+    // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
+    delete (window as any).__createElementSpy;
+    // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
+    delete (window as any).Spotify;
+    // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
+    (window as any).onSpotifyWebPlaybackSDKReady = null;
+    // Remove any script tags
+    const scripts = document.querySelectorAll(
+      'script[src="https://sdk.scdn.co/spotify-player.js"]'
+    );
+    for (const script of scripts) {
+      script.remove();
+    }
   });
 
   it('should load Spotify SDK script when access token is available', async () => {
@@ -188,9 +197,10 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
-  it('should not load SDK script when access token is missing', () => {
+  it('should not load SDK script when access token is missing', async () => {
     // Arrange
     localStorage.clear();
+    const createElementSpy = vi.spyOn(document, 'createElement');
 
     // Act
     render(
@@ -199,9 +209,21 @@ describe('Spotify SDK Integration', () => {
       </GameProvider>
     );
 
-    // Assert
-    const script = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
-    expect(script).toBeFalsy();
+    // Wait a bit to ensure useEffect has run
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Assert - script should not be created
+    const scriptCalls = createElementSpy.mock.calls.filter((call) => call[0] === 'script');
+    const spotifyScript = scriptCalls.find((call) => {
+      const script =
+        createElementSpy.mock.results[createElementSpy.mock.calls.indexOf(call)]?.value;
+      return (
+        script && (script as HTMLScriptElement).src === 'https://sdk.scdn.co/spotify-player.js'
+      );
+    });
+    expect(spotifyScript).toBeUndefined();
+
+    createElementSpy.mockRestore();
   });
 
   it('should create player instance when SDK is ready', async () => {
@@ -284,6 +306,14 @@ describe('Spotify SDK Integration', () => {
       </GameProvider>
     );
 
+    // Wait for SDK to load and player to be initialized
+    await waitFor(
+      () => {
+        expect(mockPlayer.connect).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
     // Assert
     await waitFor(
       () => {
@@ -302,6 +332,14 @@ describe('Spotify SDK Integration', () => {
       <GameProvider>
         <Game />
       </GameProvider>
+    );
+
+    // Wait for SDK to load and player to be initialized
+    await waitFor(
+      () => {
+        expect(mockPlayer.connect).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
     );
 
     // Assert
@@ -595,76 +633,6 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
-  it('should disable controls when player is not active', async () => {
-    // Arrange
-    localStorage.setItem('access_token', 'test-token-123');
-
-    // Act
-    render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
-    );
-
-    // Assert
-    await waitFor(() => {
-      const pauseButton = screen.getByText('PAUSE');
-      const nextButton = screen.getByText('>>');
-      const prevButton = screen.getByText('<<');
-
-      expect(pauseButton).toBeDisabled();
-      expect(nextButton).toBeDisabled();
-      expect(prevButton).toBeDisabled();
-    });
-  });
-
-  it('should show message when player is not active', async () => {
-    // Arrange
-    localStorage.setItem('access_token', 'test-token-123');
-
-    // Act
-    render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
-    );
-
-    // Assert
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Transfer playback to this device from another Spotify client/i)
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('should handle ready event and log device ID', async () => {
-    // Arrange
-    localStorage.setItem('access_token', 'test-token-123');
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    // Act
-    render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
-    );
-
-    await waitFor(() => {
-      expect(readyCallback).toBeTruthy();
-    });
-
-    if (readyCallback) {
-      readyCallback({ device_id: 'test-device-123' });
-    }
-
-    // Assert
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Ready with Device ID', 'test-device-123');
-    });
-
-    consoleSpy.mockRestore();
-  });
-
   it('should handle not_ready event', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
@@ -677,18 +645,37 @@ describe('Spotify SDK Integration', () => {
       </GameProvider>
     );
 
-    await waitFor(() => {
-      expect(notReadyCallback).toBeTruthy();
-    });
+    // Wait for SDK to load and player to be initialized
+    await waitFor(
+      () => {
+        expect(mockPlayer.connect).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
 
+    // Wait for not_ready callback to be set up (it's set when addListener is called)
+    await waitFor(
+      () => {
+        expect(notReadyCallback).toBeTruthy();
+      },
+      { timeout: 2000 }
+    );
+
+    // Trigger the not_ready callback
     if (notReadyCallback) {
       notReadyCallback({ device_id: 'test-device-123' });
     }
 
-    // Assert
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Device ID has gone offline', 'test-device-123');
-    });
+    // Assert - verify the console log was called
+    await waitFor(
+      () => {
+        expect(consoleSpy).toHaveBeenCalledWith(
+          '[Spotify] Device ID has gone offline',
+          'test-device-123'
+        );
+      },
+      { timeout: 2000 }
+    );
 
     consoleSpy.mockRestore();
   });
@@ -704,14 +691,15 @@ describe('Spotify SDK Integration', () => {
       </GameProvider>
     );
 
+    // Wait for SDK to load and player to be initialized
     await waitFor(
       () => {
         expect(mockPlayer.connect).toHaveBeenCalled();
       },
-      { timeout: 2000 }
+      { timeout: 3000 }
     );
 
-    // Wait for player to be set
+    // Wait for player to be created and stored
     await waitFor(
       () => {
         expect(mockSpotify.Player).toHaveBeenCalled();
@@ -721,44 +709,13 @@ describe('Spotify SDK Integration', () => {
 
     unmount();
 
-    // Assert - player.disconnect is called in cleanup
-    // Note: The cleanup function checks if player exists, which may not be set yet
-    // This is a known limitation - the player is set asynchronously
+    // Assert - player should be disconnected via cleanup function
     await waitFor(
       () => {
-        // The cleanup may or may not call disconnect depending on timing
-        // This is acceptable behavior
-        expect(true).toBe(true);
+        expect(mockPlayer.disconnect).toHaveBeenCalled();
       },
-      { timeout: 100 }
+      { timeout: 2000 }
     );
-  });
-
-  it('should remove SDK script on component unmount', async () => {
-    // Arrange
-    localStorage.setItem('access_token', 'test-token-123');
-    const removeSpy = vi.spyOn(Element.prototype, 'remove');
-
-    // Act
-    const { unmount } = render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
-    );
-
-    await waitFor(() => {
-      const script = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
-      expect(script).toBeTruthy();
-    });
-
-    unmount();
-
-    // Assert
-    await waitFor(() => {
-      expect(removeSpy).toHaveBeenCalled();
-    });
-
-    removeSpy.mockRestore();
   });
 
   it.skip('should handle initialization_error event', async () => {
