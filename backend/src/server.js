@@ -21,10 +21,10 @@ if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET) {
 function getCorsHeaders(req) {
   const origin = req.headers.origin;
   const headers = {};
-  
+
   // In development (or if NODE_ENV not set, assume development), allow localhost origins
   const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
-  
+
   if (origin) {
     // In development, allow any localhost/127.0.0.1 origin
     if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
@@ -35,7 +35,7 @@ function getCorsHeaders(req) {
       console.log(`[CORS] Allowing origin: ${origin} (development mode)`);
       return headers;
     }
-    
+
     // Check against configured allowed origins
     const allowedOrigin = ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin);
     if (allowedOrigin) {
@@ -46,12 +46,12 @@ function getCorsHeaders(req) {
       console.log(`[CORS] Allowing origin: ${origin} (configured)`);
       return headers;
     }
-    
+
     console.log(`[CORS] Rejecting origin: ${origin}`);
   } else {
     console.log('[CORS] No origin header present');
   }
-  
+
   return headers;
 }
 
@@ -112,17 +112,21 @@ async function handleTokenExchange(req, res) {
 
       if (!tokenResponse.ok) {
         res.writeHead(tokenResponse.status, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: tokenData.error || 'Token exchange failed', details: tokenData }));
+        res.end(
+          JSON.stringify({ error: tokenData.error || 'Token exchange failed', details: tokenData })
+        );
         return;
       }
 
       // Return only the tokens to frontend (client secret stays on server)
       res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_in: tokenData.expires_in,
-      }));
+      res.end(
+        JSON.stringify({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_in: tokenData.expires_in,
+        })
+      );
     } catch (error) {
       console.error('Token exchange error:', error);
       res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
@@ -133,7 +137,7 @@ async function handleTokenExchange(req, res) {
 
 function handleHttpRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  
+
   // Handle token exchange endpoint (both POST and OPTIONS)
   if (url.pathname === '/api/spotify/token') {
     handleTokenExchange(req, res);

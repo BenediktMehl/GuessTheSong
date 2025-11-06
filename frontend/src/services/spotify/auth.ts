@@ -44,8 +44,12 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 export async function handleSpotifyLogin(): Promise<void> {
   if (!SPOTIFY_CLIENT_ID) {
-    console.error('Spotify Client ID not configured. Please set VITE_SPOTIFY_CLIENT_ID in your .env file');
-    alert('Spotify integration is not configured. Please set VITE_SPOTIFY_CLIENT_ID in your environment variables.');
+    console.error(
+      'Spotify Client ID not configured. Please set VITE_SPOTIFY_CLIENT_ID in your .env file'
+    );
+    alert(
+      'Spotify integration is not configured. Please set VITE_SPOTIFY_CLIENT_ID in your environment variables.'
+    );
     return;
   }
 
@@ -114,4 +118,3 @@ export function logoutSpotify(): void {
   localStorage.removeItem('access_token_expires_at');
   localStorage.removeItem('refresh_token');
 }
-

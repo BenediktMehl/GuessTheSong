@@ -24,10 +24,10 @@ export default function Lobby() {
     const checkSpotifyStatus = () => {
       setIsLoggedInSpotify(spotifyIsLoggedIn());
     };
-    
+
     checkSpotifyStatus();
     const interval = setInterval(checkSpotifyStatus, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
 

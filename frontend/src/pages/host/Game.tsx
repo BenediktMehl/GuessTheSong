@@ -33,9 +33,18 @@ interface SpotifyPlayer {
   disconnect(): void;
   addListener(event: 'ready', callback: (data: { device_id: string }) => void): boolean;
   addListener(event: 'not_ready', callback: (data: { device_id: string }) => void): boolean;
-  addListener(event: 'player_state_changed', callback: (state: SpotifyPlaybackState | null) => void): boolean;
-  addListener(event: 'initialization_error', callback: (error: { message: string }) => void): boolean;
-  addListener(event: 'authentication_error', callback: (error: { message: string }) => void): boolean;
+  addListener(
+    event: 'player_state_changed',
+    callback: (state: SpotifyPlaybackState | null) => void
+  ): boolean;
+  addListener(
+    event: 'initialization_error',
+    callback: (error: { message: string }) => void
+  ): boolean;
+  addListener(
+    event: 'authentication_error',
+    callback: (error: { message: string }) => void
+  ): boolean;
   addListener(event: 'account_error', callback: (error: { message: string }) => void): boolean;
   getCurrentState(): Promise<SpotifyPlaybackState | null>;
   togglePlay(): Promise<void>;
@@ -70,62 +79,69 @@ export default function Game() {
   const [isTransferring, setIsTransferring] = useState(false);
   const hasAttemptedTransferRef = useRef(false);
   const playerInitializedRef = useRef(false);
+  const playerInstanceRef = useRef<SpotifyPlayer | undefined>(undefined);
   const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
     const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
     return stored === 'true';
   });
 
   // Transfer playback to this device using Spotify Web API
-  const transferPlaybackToDevice = useCallback(async (targetDeviceId: string, spotifyPlayerInstance?: SpotifyPlayer) => {
-    const accessToken = localStorage.getItem('access_token');
-    if (!accessToken) {
-      console.error('[Spotify] No access token available for transfer');
-      return;
-    }
-
-    setIsTransferring(true);
-    try {
-      console.log('[Spotify] Transferring playback to device:', targetDeviceId);
-      const response = await fetch('https://api.spotify.com/v1/me/player', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          device_ids: [targetDeviceId],
-          play: false, // Don't auto-play - browser blocks autoplay anyway
-        }),
-      });
-
-      if (response.status === 204) {
-        console.log('[Spotify] Playback transferred successfully');
-        // Wait a bit for the state to update
-        setTimeout(() => {
-          const playerToCheck = spotifyPlayerInstance || player;
-          playerToCheck?.getCurrentState().then((state) => {
-            if (state) {
-              setActive(true);
-              setPaused(state.paused);
-              setTrack(state.track_window.current_track);
-            }
-          }).catch((error) => {
-            console.error('[Spotify] Error getting state after transfer:', error);
-          });
-        }, 1000);
-      } else if (response.status === 404) {
-        console.warn('[Spotify] No active device found to transfer from');
-        // This is okay - user needs to start playback on another device first
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[Spotify] Failed to transfer playback:', response.status, errorData);
+  const transferPlaybackToDevice = useCallback(
+    async (targetDeviceId: string, spotifyPlayerInstance?: SpotifyPlayer) => {
+      const accessToken = localStorage.getItem('access_token');
+      if (!accessToken) {
+        console.error('[Spotify] No access token available for transfer');
+        return;
       }
-    } catch (error) {
-      console.error('[Spotify] Error transferring playback:', error);
-    } finally {
-      setIsTransferring(false);
-    }
-  }, [player]);
+
+      setIsTransferring(true);
+      try {
+        console.log('[Spotify] Transferring playback to device:', targetDeviceId);
+        const response = await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            device_ids: [targetDeviceId],
+            play: false, // Don't auto-play - browser blocks autoplay anyway
+          }),
+        });
+
+        if (response.status === 204) {
+          console.log('[Spotify] Playback transferred successfully');
+          // Wait a bit for the state to update
+          setTimeout(() => {
+            const playerToCheck = spotifyPlayerInstance || player;
+            playerToCheck
+              ?.getCurrentState()
+              .then((state) => {
+                if (state) {
+                  setActive(true);
+                  setPaused(state.paused);
+                  setTrack(state.track_window.current_track);
+                }
+              })
+              .catch((error) => {
+                console.error('[Spotify] Error getting state after transfer:', error);
+              });
+          }, 1000);
+        } else if (response.status === 404) {
+          console.warn('[Spotify] No active device found to transfer from');
+          // This is okay - user needs to start playback on another device first
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[Spotify] Failed to transfer playback:', response.status, errorData);
+        }
+      } catch (error) {
+        console.error('[Spotify] Error transferring playback:', error);
+      } finally {
+        setIsTransferring(false);
+      }
+    },
+    [player]
+  );
 
   // Initialize player following the tutorial exactly
   useEffect(() => {
@@ -143,24 +159,84 @@ export default function Game() {
     playerInitializedRef.current = true;
 
     // Check if script is already loaded
-    const existingScript = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
-    if (existingScript) {
+    const existingScript = document.querySelector(
+      'script[src="https://sdk.scdn.co/spotify-player.js"]'
+    );
+    if (existingScript && window.Spotify) {
       console.log('[Spotify] SDK script already loaded');
       // If SDK is already loaded, initialize player directly
-      if (window.Spotify) {
-        const spotifyPlayer = new window.Spotify.Player({
-          name: 'Guess The Song',
-          getOAuthToken: (cb) => {
-            const token = localStorage.getItem('access_token');
-            if (token) {
-              cb(token);
+      const spotifyPlayer = new window.Spotify.Player({
+        name: 'Guess The Song',
+        getOAuthToken: (cb) => {
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            cb(token);
+          }
+        },
+        volume: 0.5,
+      });
+
+      setPlayer(spotifyPlayer);
+      // Store player instance for cleanup
+      playerInstanceRef.current = spotifyPlayer;
+
+      spotifyPlayer.addListener('ready', ({ device_id }) => {
+        console.log('[Spotify] Ready with Device ID', device_id);
+        setDeviceId(device_id);
+
+        // Check initial state when ready
+        spotifyPlayer.getCurrentState().then((state) => {
+          if (state) {
+            console.log('[Spotify] Initial state:', {
+              paused: state.paused,
+              track: state.track_window.current_track.name,
+            });
+            setActive(true);
+            setPaused(state.paused);
+            setTrack(state.track_window.current_track);
+            hasAttemptedTransferRef.current = true;
+          } else {
+            console.log('[Spotify] No initial playback state');
+            setActive(false);
+            if (!hasAttemptedTransferRef.current) {
+              console.log('[Spotify] Attempting to transfer playback');
+              hasAttemptedTransferRef.current = true;
+              setTimeout(() => {
+                transferPlaybackToDevice(device_id, spotifyPlayer);
+              }, 1500);
             }
-          },
-          volume: 0.5,
+          }
+        }).catch((error) => {
+          console.error('[Spotify] Error getting initial state:', error);
         });
-        setPlayer(spotifyPlayer);
-        spotifyPlayer.connect();
-      }
+      });
+
+      spotifyPlayer.addListener('not_ready', ({ device_id }) => {
+        console.log('[Spotify] Device ID has gone offline', device_id);
+        setActive(false);
+      });
+
+      spotifyPlayer.addListener('player_state_changed', (state) => {
+        if (!state) {
+          console.log(
+            '[Spotify] Player state changed: null state - playback may have been transferred away'
+          );
+          setActive(false);
+          setTrack(track);
+          return;
+        }
+
+        console.log('[Spotify] Player state changed:', {
+          paused: state.paused,
+          track: state.track_window.current_track.name,
+        });
+
+        setTrack(state.track_window.current_track);
+        setPaused(state.paused);
+        setActive(true);
+      });
+
+      spotifyPlayer.connect();
       return;
     }
 
@@ -183,41 +259,46 @@ export default function Game() {
       });
 
       setPlayer(spotifyPlayer);
+      // Store player instance for cleanup
+      playerInstanceRef.current = spotifyPlayer;
 
       spotifyPlayer.addListener('ready', ({ device_id }) => {
         console.log('[Spotify] Ready with Device ID', device_id);
         setDeviceId(device_id);
-        
+
         // Check initial state when ready
-        spotifyPlayer.getCurrentState().then((state) => {
-          if (state) {
-            console.log('[Spotify] Initial state:', {
-              paused: state.paused,
-              track: state.track_window.current_track.name,
-            });
-            setActive(true);
-            setPaused(state.paused);
-            setTrack(state.track_window.current_track);
-            hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
-          } else {
-            console.log('[Spotify] No initial playback state');
-            setActive(false);
-            // Only attempt transfer once
-            if (!hasAttemptedTransferRef.current) {
-              console.log('[Spotify] Attempting to transfer playback');
-              hasAttemptedTransferRef.current = true;
-              // Use setTimeout to avoid calling during listener setup
-              // Pass spotifyPlayer instance directly to avoid dependency issues
-              setTimeout(() => {
-                transferPlaybackToDevice(device_id, spotifyPlayer);
-              }, 1500);
+        spotifyPlayer
+          .getCurrentState()
+          .then((state) => {
+            if (state) {
+              console.log('[Spotify] Initial state:', {
+                paused: state.paused,
+                track: state.track_window.current_track.name,
+              });
+              setActive(true);
+              setPaused(state.paused);
+              setTrack(state.track_window.current_track);
+              hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
             } else {
-              console.log('[Spotify] Transfer already attempted, skipping');
+              console.log('[Spotify] No initial playback state');
+              setActive(false);
+              // Only attempt transfer once
+              if (!hasAttemptedTransferRef.current) {
+                console.log('[Spotify] Attempting to transfer playback');
+                hasAttemptedTransferRef.current = true;
+                // Use setTimeout to avoid calling during listener setup
+                // Pass spotifyPlayer instance directly to avoid dependency issues
+                setTimeout(() => {
+                  transferPlaybackToDevice(device_id, spotifyPlayer);
+                }, 1500);
+              } else {
+                console.log('[Spotify] Transfer already attempted, skipping');
+              }
             }
-          }
-        }).catch((error) => {
-          console.error('[Spotify] Error getting initial state:', error);
-        });
+          })
+          .catch((error) => {
+            console.error('[Spotify] Error getting initial state:', error);
+          });
       });
 
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
@@ -227,7 +308,9 @@ export default function Game() {
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
-          console.log('[Spotify] Player state changed: null state - playback may have been transferred away');
+          console.log(
+            '[Spotify] Player state changed: null state - playback may have been transferred away'
+          );
           setActive(false);
           // Clear track info when state is null
           setTrack(track);
@@ -250,8 +333,10 @@ export default function Game() {
 
     return () => {
       // Cleanup: disconnect player but don't remove script (it might be used by other components)
-      if (player) {
-        player.disconnect();
+      // Get player instance from ref (stored during initialization)
+      if (playerInstanceRef.current) {
+        playerInstanceRef.current.disconnect();
+        playerInstanceRef.current = undefined;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,7 +352,9 @@ export default function Game() {
 
   // Determine body class based on track and visibility
   const nowPlayingBodyClass =
-    current_track.name && shouldShowSong ? 'flex items-center gap-4' : 'items-center text-center gap-2';
+    current_track.name && shouldShowSong
+      ? 'flex items-center gap-4'
+      : 'items-center text-center gap-2';
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
@@ -288,7 +375,9 @@ export default function Game() {
                   <div className="text-sm text-base-content/70">
                     {current_track.artists[0]?.name || ''}
                   </div>
-                  <div className="text-xs text-base-content/60">{(current_track.album as any).name || ''}</div>
+                  <div className="text-xs text-base-content/60">
+                    {(current_track.album as any).name || ''}
+                  </div>
                 </div>
               </>
             ) : (
@@ -373,7 +462,7 @@ export default function Game() {
                     console.log('[Spotify] Toggling play, current paused state:', is_paused);
                     console.log('[Spotify] Current track:', current_track.name || 'No track');
                     console.log('[Spotify] Player active:', is_active);
-                    
+
                     // Check current state before toggling
                     const currentState = await player.getCurrentState();
                     console.log('[Spotify] Current state before toggle:', {
@@ -381,16 +470,20 @@ export default function Game() {
                       paused: currentState?.paused,
                       track: currentState?.track_window.current_track.name,
                     });
-                    
+
                     if (!currentState) {
-                      console.warn('[Spotify] No active playback state. Make sure playback is transferred to this device and a track is loaded.');
-                      alert('No active playback. Please transfer playback to "Guess The Song" from another Spotify client and ensure a track is loaded.');
+                      console.warn(
+                        '[Spotify] No active playback state. Make sure playback is transferred to this device and a track is loaded.'
+                      );
+                      alert(
+                        'No active playback. Please transfer playback to "Guess The Song" from another Spotify client and ensure a track is loaded.'
+                      );
                       return;
                     }
-                    
+
                     await player.togglePlay();
                     console.log('[Spotify] togglePlay() called successfully');
-                    
+
                     // Check state after a short delay
                     setTimeout(async () => {
                       const newState = await player.getCurrentState();
@@ -399,7 +492,7 @@ export default function Game() {
                         paused: newState?.paused,
                         track: newState?.track_window.current_track.name,
                       });
-                      
+
                       if (newState) {
                         // Update local state to match
                         setPaused(newState.paused);
@@ -408,7 +501,9 @@ export default function Game() {
                     }, 500);
                   } catch (error) {
                     console.error('[Spotify] Error toggling play:', error);
-                    alert(`Error controlling playback: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    alert(
+                      `Error controlling playback: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    );
                   }
                 }}
                 disabled={!player || !is_active}
