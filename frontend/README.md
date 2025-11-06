@@ -26,7 +26,7 @@ VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
 VITE_WS_URL=ws://localhost:8080        # optional override
 ```
 
-The backend HTTP URL is automatically derived from the WebSocket URL (converting `ws://` to `http://` and `wss://` to `https://`). If you need to override the backend URL separately, you can set `VITE_BACKEND_URL`, but this is typically not necessary.
+The backend HTTP URL is automatically derived from the WebSocket URL (converting `ws://` to `http://` and `wss://` to `https://`). This works correctly even when the frontend and backend are on different domains (e.g., frontend on `guess-my-song.de`, backend on `guess-the-song.duckdns.org`), since the WebSocket URL points to the backend domain. If you need to override the backend HTTP URL separately, you can set `VITE_BACKEND_URL`.
 
 ### Spotify OAuth Configuration
 

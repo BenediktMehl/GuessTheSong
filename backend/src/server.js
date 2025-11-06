@@ -88,7 +88,9 @@ async function handleTokenExchange(req, res) {
       }
 
       if (!redirect_uri) {
-        console.warn('Token exchange request missing redirect_uri. This should be provided by the frontend.');
+        console.warn(
+          'Token exchange request missing redirect_uri. This should be provided by the frontend.'
+        );
         res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Missing redirect_uri' }));
         return;

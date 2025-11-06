@@ -3,14 +3,16 @@
 
 const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
 
-// Use 127.0.0.1 in development to match the registered redirect URI
-// In production, use the actual origin
+// Get the redirect URI for Spotify OAuth
+// - Local development: Uses fixed port 5173 (http://127.0.0.1:5173/spotifycallback)
+// - Production: Uses dynamic origin from window.location (e.g., https://guess-my-song.de/spotifycallback)
+// This ensures the redirect URI matches what's registered in Spotify Developer Dashboard
 export const getRedirectUri = (): string => {
   if (import.meta.env.DEV) {
-    // In development, always use 127.0.0.1 to match Spotify app settings
+    // In development, always use 127.0.0.1:5173 to match the registered redirect URI in Spotify app settings
     return 'http://127.0.0.1:5173/spotifycallback';
   }
-  // In production, use the actual origin
+  // In production, use the actual origin (works with any domain, e.g., guess-my-song.de)
   return `${window.location.origin}/spotifycallback`;
 };
 
