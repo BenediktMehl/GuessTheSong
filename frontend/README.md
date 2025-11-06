@@ -26,7 +26,15 @@ VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
 VITE_WS_URL=ws://localhost:8080        # optional override
 ```
 
-Register `http://127.0.0.1:5173/spotifycallback` in the Spotify Developer Dashboard. The login flow stores tokens in `localStorage` and broadcasts login state over the WebSocket connection.
+The backend HTTP URL is automatically derived from the WebSocket URL (converting `ws://` to `http://` and `wss://` to `https://`). If you need to override the backend URL separately, you can set `VITE_BACKEND_URL`, but this is typically not necessary.
+
+### Spotify OAuth Configuration
+
+**Development**: Register `http://127.0.0.1:5173/spotifycallback` in the Spotify Developer Dashboard.
+
+**Production**: Register your production redirect URI (e.g., `https://your-domain.com/spotifycallback`) in the Spotify Developer Dashboard. The redirect URI is automatically determined based on the current origin in production.
+
+The login flow stores tokens in `localStorage` and broadcasts login state over the WebSocket connection.
 
 Production builds default to `wss://guess-the-song.duckdns.org:8080`. Override `VITE_WS_URL` if you deploy the backend under a different host or port.
 

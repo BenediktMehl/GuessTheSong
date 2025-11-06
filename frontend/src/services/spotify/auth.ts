@@ -5,7 +5,7 @@ const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
 
 // Use 127.0.0.1 in development to match the registered redirect URI
 // In production, use the actual origin
-const getRedirectUri = (): string => {
+export const getRedirectUri = (): string => {
   if (import.meta.env.DEV) {
     // In development, always use 127.0.0.1 to match Spotify app settings
     return 'http://127.0.0.1:5173/spotifycallback';

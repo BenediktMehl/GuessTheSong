@@ -49,3 +49,19 @@ const getWsUrl = (): string => {
 };
 
 export const WS_URL = getWsUrl();
+
+// Derive HTTP/HTTPS URL from WebSocket URL
+const getBackendHttpUrl = (): string => {
+  const wsUrl = getWsUrl();
+  // Convert ws:// to http:// and wss:// to https://
+  if (wsUrl.startsWith('wss://')) {
+    return wsUrl.replace('wss://', 'https://');
+  }
+  if (wsUrl.startsWith('ws://')) {
+    return wsUrl.replace('ws://', 'http://');
+  }
+  // Fallback if URL doesn't match expected pattern
+  return wsUrl;
+};
+
+export const BACKEND_HTTP_URL = getBackendHttpUrl();
