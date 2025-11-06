@@ -185,29 +185,27 @@ export default function Game() {
         setDeviceId(device_id);
 
         // Check initial state when ready
-        spotifyPlayer
-          .getCurrentState()
-          .then((state) => {
-            if (state) {
-              console.log('[Spotify] Initial state:', {
-                paused: state.paused,
-                track: state.track_window.current_track.name,
-              });
-              setActive(true);
-              setPaused(state.paused);
-              setTrack(state.track_window.current_track);
+        spotifyPlayer.getCurrentState().then((state) => {
+          if (state) {
+            console.log('[Spotify] Initial state:', {
+              paused: state.paused,
+              track: state.track_window.current_track.name,
+            });
+            setActive(true);
+            setPaused(state.paused);
+            setTrack(state.track_window.current_track);
+            hasAttemptedTransferRef.current = true;
+          } else {
+            console.log('[Spotify] No initial playback state');
+            setActive(false);
+            if (!hasAttemptedTransferRef.current) {
+              console.log('[Spotify] Attempting to transfer playback');
               hasAttemptedTransferRef.current = true;
-            } else {
-              console.log('[Spotify] No initial playback state');
-              setActive(false);
-              if (!hasAttemptedTransferRef.current) {
-                console.log('[Spotify] Attempting to transfer playback');
-                hasAttemptedTransferRef.current = true;
-                setTimeout(() => {
-                  transferPlaybackToDevice(device_id, spotifyPlayer);
-                }, 1500);
-              }
+              setTimeout(() => {
+                transferPlaybackToDevice(device_id, spotifyPlayer);
+              }, 1500);
             }
+          }
           })
           .catch((error) => {
             console.error('[Spotify] Error getting initial state:', error);
