@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 
-const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
-
 export default function SpotifyCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);

@@ -51,9 +51,6 @@ describe('Spotify SDK Integration', () => {
   let readyCallback: ((data: { device_id: string }) => void) | null = null;
   let notReadyCallback: ((data: { device_id: string }) => void) | null = null;
   let stateChangeCallback: ((state: any) => void) | null = null;
-  let initErrorCallback: ((error: { message: string }) => void) | null = null;
-  let authErrorCallback: ((error: { message: string }) => void) | null = null;
-  let accountErrorCallback: ((error: { message: string }) => void) | null = null;
 
   beforeEach(() => {
     // Clear localStorage
@@ -70,13 +67,9 @@ describe('Spotify SDK Integration', () => {
           notReadyCallback = callback;
         } else if (event === 'player_state_changed') {
           stateChangeCallback = callback;
-        } else if (event === 'initialization_error') {
-          initErrorCallback = callback;
-        } else if (event === 'authentication_error') {
-          authErrorCallback = callback;
-        } else if (event === 'account_error') {
-          accountErrorCallback = callback;
         }
+        // Note: initialization_error, authentication_error, and account_error listeners
+        // are not currently implemented in the Game component, so we don't track them
         return true;
       }),
       getCurrentState: vi.fn().mockResolvedValue(null),
@@ -118,9 +111,6 @@ describe('Spotify SDK Integration', () => {
     readyCallback = null;
     notReadyCallback = null;
     stateChangeCallback = null;
-    initErrorCallback = null;
-    authErrorCallback = null;
-    accountErrorCallback = null;
   });
 
   it('should load Spotify SDK script when access token is available', async () => {

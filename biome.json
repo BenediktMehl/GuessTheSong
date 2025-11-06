@@ -32,7 +32,8 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
       },
       "style": {
         "useImportType": "error",
@@ -46,6 +47,18 @@
       }
     }
   },
+  "overrides": [
+    {
+      "include": ["*.ts", "*.tsx"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "error"
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
