@@ -63,7 +63,20 @@ export function useGameInitializer() {
       hasFailed = false; // Reset failed flag on success
 
       if (ws) {
-        ws.send(JSON.stringify({ serverAction: 'create' }));
+        // Check if we have a stored sessionId for reconnection
+        const storedSessionId = localStorage.getItem('pending_reconnect_sessionId');
+        if (storedSessionId) {
+          console.log('Attempting to reconnect to session:', storedSessionId);
+          ws.send(
+            JSON.stringify({
+              serverAction: 'create',
+              serverPayload: { reconnectSessionId: storedSessionId },
+            })
+          );
+        } else {
+          // Normal flow: create new session
+          ws.send(JSON.stringify({ serverAction: 'create' }));
+        }
       }
     };
 
@@ -75,8 +88,20 @@ export function useGameInitializer() {
         // Handle messages based on action rather than type
         switch (msg.action) {
           case 'created':
-            console.log('Session created with ID:', msg.payload.sessionId);
-            gameContext.setSessionId(msg.payload.sessionId);
+            console.log('Session created/reconnected with ID:', msg.payload.sessionId);
+            const sessionId = msg.payload.sessionId;
+            gameContext.setSessionId(sessionId);
+
+            // If this was a reconnection, restore players list and clear stored sessionId
+            if (msg.payload.reconnected && msg.payload.players) {
+              console.log('Reconnected to existing session. Restoring players:', msg.payload.players);
+              gameContext.setPlayers(msg.payload.players);
+              // Clear stored sessionId after successful reconnection
+              localStorage.removeItem('pending_reconnect_sessionId');
+            } else {
+              // New session created, clear any stored sessionId (shouldn't exist, but just in case)
+              localStorage.removeItem('pending_reconnect_sessionId');
+            }
             break;
 
           case 'player-joined':
@@ -114,6 +139,15 @@ export function useGameInitializer() {
 
           case 'error':
             console.error('Server error:', msg.payload.message);
+            // If we were trying to reconnect and got an error, clear stored sessionId
+            // and try creating a new session
+            const storedSessionId = localStorage.getItem('pending_reconnect_sessionId');
+            if (storedSessionId && ws && ws.readyState === WebSocket.OPEN) {
+              console.log('Reconnection failed, clearing stored sessionId and creating new session');
+              localStorage.removeItem('pending_reconnect_sessionId');
+              // Try creating a new session
+              ws.send(JSON.stringify({ serverAction: 'create' }));
+            }
             break;
 
           default:

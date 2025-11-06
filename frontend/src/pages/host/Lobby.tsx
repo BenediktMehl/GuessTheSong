@@ -34,10 +34,17 @@ export default function Lobby() {
   const handleSpotifyLoginClick = async () => {
     setSpotifyLoginLoading(true);
     try {
+      // Store sessionId before redirecting to Spotify for reconnection
+      if (sessionId) {
+        localStorage.setItem('pending_reconnect_sessionId', sessionId);
+        console.log('Stored sessionId for reconnection:', sessionId);
+      }
       await handleSpotifyLogin();
     } catch (error) {
       console.error('Spotify login error:', error);
       setSpotifyLoginLoading(false);
+      // Clear stored sessionId on error
+      localStorage.removeItem('pending_reconnect_sessionId');
     }
   };
 

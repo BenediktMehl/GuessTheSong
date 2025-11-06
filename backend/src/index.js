@@ -42,7 +42,7 @@ ws.on('connection', (ws) => {
           handleJoin(ws, serverPayload);
           break;
         case 'create':
-          handleCreate(ws);
+          handleCreate(ws, serverPayload);
           break;
         case 'player-action':
           handlePlayerAction(ws, serverPayload);

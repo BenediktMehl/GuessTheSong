@@ -1,4 +1,4 @@
-const { sessions, disconnectedPlayers, deleteSession } = require('../sessions');
+const { sessions, disconnectedPlayers, disconnectedHosts, deleteSession } = require('../sessions');
 
 // Don't remove immediately - give grace period for reconnection
 const RECONNECT_GRACE_PERIOD_MS = 180000; // 3 minutes
@@ -62,21 +62,52 @@ function handlePlayerDisconnect(ws, sessionId) {
   }
 }
 
-function handleGameHostDisconnect(_ws, sessionId) {
-  if (sessions[sessionId]) {
-    // Notify all players in the session
-    sessions[sessionId].players.forEach((playerWs) => {
-      playerWs.send(
-        JSON.stringify({
-          action: 'session-closed',
-          payload: { reason: 'Host disconnected' },
-        })
-      );
-      playerWs.close();
-    });
-    deleteSession(sessionId);
-    console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
+function handleGameHostDisconnect(ws, sessionId) {
+  const session = sessions[sessionId];
+  if (!session) {
+    return;
   }
+
+  console.log(
+    `Host disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`
+  );
+
+  // Store disconnected host info for reconnection
+  const timeout = setTimeout(() => {
+    // After grace period, delete session if host hasn't reconnected
+    if (disconnectedHosts.has(sessionId)) {
+      disconnectedHosts.delete(sessionId);
+
+      const activeSession = sessions[sessionId];
+      if (activeSession) {
+        console.log(`Session ${sessionId} deleted after host timeout`);
+
+        // Notify all players in the session
+        activeSession.players.forEach((playerWs) => {
+          playerWs.send(
+            JSON.stringify({
+              action: 'session-closed',
+              payload: { reason: 'Host disconnected' },
+            })
+          );
+          playerWs.close();
+        });
+        deleteSession(sessionId);
+        console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
+      }
+    }
+  }, RECONNECT_GRACE_PERIOD_MS);
+
+  // Store disconnected host info
+  disconnectedHosts.set(sessionId, {
+    ws,
+    sessionId,
+    disconnectTime: Date.now(),
+    timeout,
+  });
+
+  // Clear the host from the session but keep the session alive
+  session.host = null;
 }
 
 function handleDisconnect(ws) {
