@@ -1,20 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 
-// Track object structure as per tutorial
-const track = {
-  name: '',
-  album: {
-    images: [{ url: '' }],
-  },
-  artists: [{ name: '' }],
-};
-
 // Spotify Player types
+interface SpotifyPlaybackState {
+  paused: boolean;
+  track_window: {
+    current_track: {
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      album: {
+        name: string;
+        images: Array<{ url: string }>;
+      };
+      duration_ms: number;
+    };
+  };
+}
+
 declare global {
   interface Window {
     Spotify: {
@@ -33,9 +41,18 @@ interface SpotifyPlayer {
   disconnect(): void;
   addListener(event: 'ready', callback: (data: { device_id: string }) => void): boolean;
   addListener(event: 'not_ready', callback: (data: { device_id: string }) => void): boolean;
-  addListener(event: 'player_state_changed', callback: (state: SpotifyPlaybackState | null) => void): boolean;
-  addListener(event: 'initialization_error', callback: (error: { message: string }) => void): boolean;
-  addListener(event: 'authentication_error', callback: (error: { message: string }) => void): boolean;
+  addListener(
+    event: 'player_state_changed',
+    callback: (state: SpotifyPlaybackState | null) => void
+  ): boolean;
+  addListener(
+    event: 'initialization_error',
+    callback: (error: { message: string }) => void
+  ): boolean;
+  addListener(
+    event: 'authentication_error',
+    callback: (error: { message: string }) => void
+  ): boolean;
   addListener(event: 'account_error', callback: (error: { message: string }) => void): boolean;
   getCurrentState(): Promise<SpotifyPlaybackState | null>;
   togglePlay(): Promise<void>;
@@ -43,26 +60,23 @@ interface SpotifyPlayer {
   nextTrack(): Promise<void>;
 }
 
-interface SpotifyPlaybackState {
-  paused: boolean;
-  track_window: {
-    current_track: {
-      id: string;
-      name: string;
-      uri: string;
-      artists: Array<{ name: string }>;
-      album: {
-        name: string;
-        images: Array<{ url: string }>;
-      };
-      duration_ms: number;
-    };
-  };
-}
+// Track object structure as per tutorial
+const track: SpotifyPlaybackState['track_window']['current_track'] = {
+  id: '',
+  name: '',
+  uri: '',
+  artists: [{ name: '' }],
+  album: {
+    name: '',
+    images: [{ url: '' }],
+  },
+  duration_ms: 0,
+};
 
 export default function Game() {
   const { players, waitingPlayers } = useGameContext();
   const [player, setPlayer] = useState<SpotifyPlayer | undefined>(undefined);
+  const playerRef = useRef<SpotifyPlayer | undefined>(undefined);
   const [is_paused, setPaused] = useState(false);
   const [is_active, setActive] = useState(false);
   const [current_track, setTrack] = useState(track);
@@ -98,6 +112,7 @@ export default function Game() {
       });
 
       setPlayer(spotifyPlayer);
+      playerRef.current = spotifyPlayer;
 
       spotifyPlayer.addListener('ready', ({ device_id }) => {
         console.log('Ready with Device ID', device_id);
@@ -129,12 +144,14 @@ export default function Game() {
 
     return () => {
       // Cleanup: remove script if component unmounts
-      const existingScript = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
+      const existingScript = document.querySelector(
+        'script[src="https://sdk.scdn.co/spotify-player.js"]'
+      );
       if (existingScript) {
         existingScript.remove();
       }
-      if (player) {
-        player.disconnect();
+      if (playerRef.current) {
+        playerRef.current.disconnect();
       }
     };
   }, []);
@@ -149,11 +166,12 @@ export default function Game() {
 
   // Determine body class based on track and visibility
   const nowPlayingBodyClass =
-    current_track.name && shouldShowSong ? 'flex items-center gap-4' : 'items-center text-center gap-2';
+    current_track.name && shouldShowSong
+      ? 'flex items-center gap-4'
+      : 'items-center text-center gap-2';
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-
       <div className="w-full max-w-md flex flex-col gap-6">
         <Card className="w-full" bodyClassName={nowPlayingBodyClass}>
           {current_track.name ? (
@@ -169,7 +187,9 @@ export default function Game() {
                   <div className="text-sm text-base-content/70">
                     {current_track.artists[0]?.name || ''}
                   </div>
-                  <div className="text-xs text-base-content/60">{(current_track.album as any).name || ''}</div>
+                  <div className="text-xs text-base-content/60">
+                    {current_track.album.name || ''}
+                  </div>
                 </div>
               </>
             ) : (

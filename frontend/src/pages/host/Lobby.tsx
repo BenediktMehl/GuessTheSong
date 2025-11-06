@@ -5,7 +5,12 @@ import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
-import { getSpotifyUsername, handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
+import {
+  getSpotifyUsername,
+  handleSpotifyLogin,
+  logoutSpotify,
+  spotifyIsLoggedIn,
+} from '../../services/spotify/auth';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -25,7 +30,7 @@ export default function Lobby() {
     const checkSpotifyStatus = async () => {
       const isLoggedIn = spotifyIsLoggedIn();
       setIsLoggedInSpotify(isLoggedIn);
-      
+
       if (isLoggedIn) {
         const username = await getSpotifyUsername();
         setSpotifyUsername(username);
@@ -33,10 +38,10 @@ export default function Lobby() {
         setSpotifyUsername(null);
       }
     };
-    
+
     checkSpotifyStatus();
     const interval = setInterval(checkSpotifyStatus, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -95,7 +100,6 @@ export default function Lobby() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-
       {/* ...existing connection status UI... */}
       {wsStatus === 'connecting' || wsStatus === 'closed' ? (
         <div className="alert alert-warning max-w-md flex flex-col gap-2">

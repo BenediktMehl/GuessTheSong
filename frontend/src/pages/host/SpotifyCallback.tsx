@@ -43,7 +43,7 @@ export default function SpotifyCallback() {
     // Note: This requires a backend in production. For now, we'll show a message.
     // In a real implementation, you would make a POST request to your backend
     // which would exchange the code for tokens using the client secret.
-    
+
     if (!SPOTIFY_CLIENT_ID) {
       setError('Spotify Client ID not configured. Token exchange requires a backend server.');
       return;
@@ -53,7 +53,7 @@ export default function SpotifyCallback() {
     // The actual token exchange should be done on a backend
     console.log('Authorization code received:', code);
     console.log('Note: Token exchange requires a backend server with client secret');
-    
+
     // Clear stored values
     sessionStorage.removeItem('spotify_code_verifier');
     sessionStorage.removeItem('spotify_state');
@@ -83,7 +83,8 @@ export default function SpotifyCallback() {
           <>
             <p>Processing Spotify login...</p>
             <p className="text-sm text-base-content/70">
-              Note: Token exchange requires a backend server. Please implement the token exchange endpoint.
+              Note: Token exchange requires a backend server. Please implement the token exchange
+              endpoint.
             </p>
           </>
         )}

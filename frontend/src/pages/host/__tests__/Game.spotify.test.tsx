@@ -1,7 +1,39 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Game from '../Game';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
+import Game from '../Game';
+
+// Types for test mocks
+interface SpotifyPlaybackState {
+  paused: boolean;
+  track_window: {
+    current_track: {
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      album: {
+        name: string;
+        images: Array<{ url: string }>;
+      };
+      duration_ms: number;
+    };
+  };
+}
+
+interface MockSpotifyPlayer {
+  connect: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+  addListener: ReturnType<typeof vi.fn>;
+  getCurrentState: ReturnType<typeof vi.fn>;
+  togglePlay: ReturnType<typeof vi.fn>;
+  previousTrack: ReturnType<typeof vi.fn>;
+  nextTrack: ReturnType<typeof vi.fn>;
+}
+
+interface MockSpotify {
+  Player: ReturnType<typeof vi.fn>;
+}
 
 // Mock the GameProvider to provide a minimal context
 const mockGameContext = {
@@ -37,23 +69,35 @@ vi.mock('../../../components/PlayersLobby', () => ({
 
 // Mock Card component
 vi.mock('../../../components/Card', () => ({
-  Card: ({ title, children, bodyClassName, ...props }: { title: string; children: React.ReactNode; bodyClassName?: string }) => (
-    <div data-testid={`card-${title.toLowerCase().replace(/\s+/g, '-')}`} {...props}>
-      <h3>{title}</h3>
+  Card: ({
+    title,
+    children,
+    bodyClassName,
+    ...props
+  }: {
+    title?: string;
+    children: React.ReactNode;
+    bodyClassName?: string;
+  }) => (
+    <div
+      data-testid={title ? `card-${title.toLowerCase().replace(/\s+/g, '-')}` : 'card'}
+      {...props}
+    >
+      {title && <h3>{title}</h3>}
       <div className={bodyClassName}>{children}</div>
     </div>
   ),
 }));
 
 describe('Spotify SDK Integration', () => {
-  let mockPlayer: any;
-  let mockSpotify: any;
+  let mockPlayer: MockSpotifyPlayer;
+  let mockSpotify: MockSpotify;
   let readyCallback: ((data: { device_id: string }) => void) | null = null;
   let notReadyCallback: ((data: { device_id: string }) => void) | null = null;
-  let stateChangeCallback: ((state: any) => void) | null = null;
-  let initErrorCallback: ((error: { message: string }) => void) | null = null;
-  let authErrorCallback: ((error: { message: string }) => void) | null = null;
-  let accountErrorCallback: ((error: { message: string }) => void) | null = null;
+  let stateChangeCallback: ((state: SpotifyPlaybackState | null) => void) | null = null;
+  let _initErrorCallback: ((error: { message: string }) => void) | null = null;
+  let _authErrorCallback: ((error: { message: string }) => void) | null = null;
+  let _accountErrorCallback: ((error: { message: string }) => void) | null = null;
 
   beforeEach(() => {
     // Clear localStorage
@@ -63,19 +107,19 @@ describe('Spotify SDK Integration', () => {
     mockPlayer = {
       connect: vi.fn().mockResolvedValue(true),
       disconnect: vi.fn(),
-      addListener: vi.fn((event: string, callback: any) => {
+      addListener: vi.fn((event: string, callback: unknown) => {
         if (event === 'ready') {
-          readyCallback = callback;
+          readyCallback = callback as (data: { device_id: string }) => void;
         } else if (event === 'not_ready') {
-          notReadyCallback = callback;
+          notReadyCallback = callback as (data: { device_id: string }) => void;
         } else if (event === 'player_state_changed') {
-          stateChangeCallback = callback;
+          stateChangeCallback = callback as (state: SpotifyPlaybackState | null) => void;
         } else if (event === 'initialization_error') {
-          initErrorCallback = callback;
+          _initErrorCallback = callback as (error: { message: string }) => void;
         } else if (event === 'authentication_error') {
-          authErrorCallback = callback;
+          _authErrorCallback = callback as (error: { message: string }) => void;
         } else if (event === 'account_error') {
-          accountErrorCallback = callback;
+          _accountErrorCallback = callback as (error: { message: string }) => void;
         }
         return true;
       }),
@@ -93,8 +137,18 @@ describe('Spotify SDK Integration', () => {
     };
 
     // Setup window.Spotify
-    (window as any).Spotify = mockSpotify;
-    (window as any).onSpotifyWebPlaybackSDKReady = null;
+    (
+      window as unknown as {
+        Spotify: MockSpotify;
+        onSpotifyWebPlaybackSDKReady: (() => void) | null;
+      }
+    ).Spotify = mockSpotify;
+    (
+      window as unknown as {
+        Spotify: MockSpotify;
+        onSpotifyWebPlaybackSDKReady: (() => void) | null;
+      }
+    ).onSpotifyWebPlaybackSDKReady = null;
 
     // Mock document.createElement for script
     const originalCreateElement = document.createElement.bind(document);
@@ -103,8 +157,11 @@ describe('Spotify SDK Integration', () => {
         const script = originalCreateElement('script');
         // Simulate script loading
         setTimeout(() => {
-          if ((window as any).onSpotifyWebPlaybackSDKReady) {
-            (window as any).onSpotifyWebPlaybackSDKReady();
+          const callback = (
+            window as unknown as { onSpotifyWebPlaybackSDKReady: (() => void) | null }
+          ).onSpotifyWebPlaybackSDKReady;
+          if (callback) {
+            callback();
           }
         }, 0);
         return script;
@@ -118,9 +175,9 @@ describe('Spotify SDK Integration', () => {
     readyCallback = null;
     notReadyCallback = null;
     stateChangeCallback = null;
-    initErrorCallback = null;
-    authErrorCallback = null;
-    accountErrorCallback = null;
+    _initErrorCallback = null;
+    _authErrorCallback = null;
+    _accountErrorCallback = null;
   });
 
   it('should load Spotify SDK script when access token is available', async () => {
@@ -280,7 +337,10 @@ describe('Spotify SDK Integration', () => {
     // Assert
     await waitFor(
       () => {
-        expect(mockPlayer.addListener).toHaveBeenCalledWith('player_state_changed', expect.any(Function));
+        expect(mockPlayer.addListener).toHaveBeenCalledWith(
+          'player_state_changed',
+          expect.any(Function)
+        );
       },
       { timeout: 2000 }
     );
@@ -726,4 +786,3 @@ describe('Spotify SDK Integration', () => {
     // The listener exists in the SDK but isn't used in the component yet
   });
 });
-
