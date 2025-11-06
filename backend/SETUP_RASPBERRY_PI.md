@@ -37,8 +37,8 @@ Just push your changes to the `main` branch and the workflow will handle everyth
 After deployment, SSH into your Raspberry Pi and check the logs:
 
 ```bash
-ssh benedikt.mehl@your-pi-ip
-cd /home/benedikt.mehl/guessthesong-backend
+ssh <SSH_USERNAME>@your-pi-ip
+cd /home/<SSH_USERNAME>/guessthesong-backend
 docker compose logs backend | grep -i spotify
 ```
 
