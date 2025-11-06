@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
 import Game from '../Game';
 
@@ -37,7 +37,16 @@ vi.mock('../../../components/PlayersLobby', () => ({
 
 // Mock Card component
 vi.mock('../../../components/Card', () => ({
-  Card: ({ title, children, bodyClassName, ...props }: { title: string; children: React.ReactNode; bodyClassName?: string }) => (
+  Card: ({
+    title,
+    children,
+    bodyClassName,
+    ...props
+  }: {
+    title: string;
+    children: React.ReactNode;
+    bodyClassName?: string;
+  }) => (
     <div data-testid={`card-${title.toLowerCase().replace(/\s+/g, '-')}`} {...props}>
       <h3>{title}</h3>
       <div className={bodyClassName}>{children}</div>
@@ -124,23 +133,25 @@ describe('Spotify SDK Integration', () => {
 
     // Mock document.createElement for script
     const originalCreateElement = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-      if (tagName === 'script') {
-        const script = originalCreateElement('script');
-        // Simulate script loading - call the callback after a short delay
-        // Use setTimeout to simulate async script loading
-        setTimeout(() => {
-          // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
-          if ((window as any).onSpotifyWebPlaybackSDKReady) {
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName: string) => {
+        if (tagName === 'script') {
+          const script = originalCreateElement('script');
+          // Simulate script loading - call the callback after a short delay
+          // Use setTimeout to simulate async script loading
+          setTimeout(() => {
             // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
-            (window as any).onSpotifyWebPlaybackSDKReady();
-          }
-        }, 10);
-        return script;
-      }
-      return originalCreateElement(tagName);
-    });
-    
+            if ((window as any).onSpotifyWebPlaybackSDKReady) {
+              // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK types are not available in test environment
+              (window as any).onSpotifyWebPlaybackSDKReady();
+            }
+          }, 10);
+          return script;
+        }
+        return originalCreateElement(tagName);
+      });
+
     // Store spy for cleanup
     // biome-ignore lint/suspicious/noExplicitAny: Test helper property
     (window as any).__createElementSpy = createElementSpy;
@@ -161,7 +172,9 @@ describe('Spotify SDK Integration', () => {
     // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
     (window as any).onSpotifyWebPlaybackSDKReady = null;
     // Remove any script tags
-    const scripts = document.querySelectorAll('script[src="https://sdk.scdn.co/spotify-player.js"]');
+    const scripts = document.querySelectorAll(
+      'script[src="https://sdk.scdn.co/spotify-player.js"]'
+    );
     for (const script of scripts) {
       script.remove();
     }
@@ -203,11 +216,14 @@ describe('Spotify SDK Integration', () => {
     // Assert - script should not be created
     const scriptCalls = createElementSpy.mock.calls.filter((call) => call[0] === 'script');
     const spotifyScript = scriptCalls.find((call) => {
-      const script = createElementSpy.mock.results[createElementSpy.mock.calls.indexOf(call)]?.value;
-      return script && (script as HTMLScriptElement).src === 'https://sdk.scdn.co/spotify-player.js';
+      const script =
+        createElementSpy.mock.results[createElementSpy.mock.calls.indexOf(call)]?.value;
+      return (
+        script && (script as HTMLScriptElement).src === 'https://sdk.scdn.co/spotify-player.js'
+      );
     });
     expect(spotifyScript).toBeUndefined();
-    
+
     createElementSpy.mockRestore();
   });
 
@@ -350,7 +366,10 @@ describe('Spotify SDK Integration', () => {
     // Assert
     await waitFor(
       () => {
-        expect(mockPlayer.addListener).toHaveBeenCalledWith('player_state_changed', expect.any(Function));
+        expect(mockPlayer.addListener).toHaveBeenCalledWith(
+          'player_state_changed',
+          expect.any(Function)
+        );
       },
       { timeout: 2000 }
     );
@@ -615,7 +634,6 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
-
   it('should handle not_ready event', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
@@ -716,4 +734,3 @@ describe('Spotify SDK Integration', () => {
     // The listener exists in the SDK but isn't used in the component yet
   });
 });
-
