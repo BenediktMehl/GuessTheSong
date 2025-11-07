@@ -11,6 +11,7 @@ import {
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
+const AUTOPLAY_KEY = 'hostAutoplay';
 
 // Track object structure as per tutorial
 const track = {
@@ -109,9 +110,14 @@ export default function Game() {
   const previousTrackIdRef = useRef<string>(''); // Track previous track ID to detect loops
   const hasLoopedRef = useRef(false); // Track if the song has looped once
   const previousPositionRef = useRef<number>(0); // Track previous position to detect loops
+  const pendingPauseRef = useRef(false); // Track if we need to pause after track change
   const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
     const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
     return stored === 'true';
+  });
+  const [autoplay, setAutoplay] = useState<boolean>(() => {
+    const stored = localStorage.getItem(AUTOPLAY_KEY);
+    return stored === null ? true : stored === 'true'; // Default to true if not set
   });
   const [volume, setVolume] = useState<number>(() => {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
@@ -359,6 +365,26 @@ export default function Game() {
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
           enableRepeatMode(newTrackId);
+          
+          // If autoplay is OFF and we have a pending pause, pause the track
+          if (pendingPauseRef.current && !state.paused) {
+            console.log('[Spotify] Autoplay is OFF, pausing new track');
+            pendingPauseRef.current = false;
+            const currentPlayer = playerInstanceRef.current;
+            if (currentPlayer) {
+              currentPlayer.togglePlay().catch((error) => {
+                console.error('[Host Game] Error pausing after track change:', error);
+              });
+            }
+            // Update state to reflect pause and new track
+            setPaused(true);
+            setTrack(state.track_window.current_track);
+            setCurrentPosition(position);
+            setTrackDuration(duration);
+            setActive(true);
+            previousPositionRef.current = position;
+            return;
+          }
         } else if (previousTrackIdRef.current === '') {
           // First time we see this track - enable repeat mode
           previousTrackIdRef.current = newTrackId;
@@ -537,6 +563,26 @@ export default function Game() {
           previousPositionRef.current = position;
           hasLoopedRef.current = false;
           enableRepeatMode(newTrackId);
+          
+          // If autoplay is OFF and we have a pending pause, pause the track
+          if (pendingPauseRef.current && !state.paused) {
+            console.log('[Spotify] Autoplay is OFF, pausing new track');
+            pendingPauseRef.current = false;
+            const currentPlayer = playerInstanceRef.current;
+            if (currentPlayer) {
+              currentPlayer.togglePlay().catch((error) => {
+                console.error('[Host Game] Error pausing after track change:', error);
+              });
+            }
+            // Update state to reflect pause
+            setPaused(true);
+            setTrack(state.track_window.current_track);
+            setCurrentPosition(position);
+            setTrackDuration(duration);
+            setActive(true);
+            previousPositionRef.current = position;
+            return;
+          }
         } else if (previousTrackIdRef.current === '') {
           // First time we see this track - enable repeat mode
           previousTrackIdRef.current = newTrackId;
@@ -601,6 +647,11 @@ export default function Game() {
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
     localStorage.setItem(HIDE_SONG_UNTIL_BUZZED_KEY, checked.toString());
+  };
+
+  const handleToggleAutoplay = (checked: boolean) => {
+    setAutoplay(checked);
+    localStorage.setItem(AUTOPLAY_KEY, checked.toString());
   };
 
   const handleVolumeChange = async (newVolume: number) => {
@@ -751,14 +802,37 @@ export default function Game() {
       // Play next song
       if (player) {
         try {
+          // Set pending pause flag if autoplay is OFF
+          if (!autoplay) {
+            pendingPauseRef.current = true;
+          }
           await player.nextTrack();
-          console.log('[Host] Playing next song after correct guess');
+          console.log('[Host] Playing next song after correct guess', { autoplay });
+          
+          // If autoplay is OFF, pause immediately after a short delay
+          if (!autoplay) {
+            setTimeout(async () => {
+              const currentPlayer = playerInstanceRef.current || player;
+              if (currentPlayer) {
+                try {
+                  const state = await currentPlayer.getCurrentState();
+                  if (state && !state.paused) {
+                    await currentPlayer.togglePlay();
+                    console.log('[Host] Paused next song (autoplay OFF)');
+                  }
+                } catch (error) {
+                  console.error('[Host] Error pausing after next track:', error);
+                }
+              }
+            }, 300);
+          }
         } catch (error) {
           console.error('[Host] Error playing next song:', error);
+          pendingPauseRef.current = false;
         }
       }
     });
-  }, [currentGuessingPlayer, player, gameContext]);
+  }, [currentGuessingPlayer, player, gameContext, autoplay]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
@@ -781,15 +855,38 @@ export default function Game() {
         // Play next song if no more players can guess
         if (player) {
           try {
+            // Set pending pause flag if autoplay is OFF
+            if (!autoplay) {
+              pendingPauseRef.current = true;
+            }
             await player.nextTrack();
-            console.log('[Host] Playing next song - no more players can guess');
+            console.log('[Host] Playing next song - no more players can guess', { autoplay });
+            
+            // If autoplay is OFF, pause immediately after a short delay
+            if (!autoplay) {
+              setTimeout(async () => {
+                const currentPlayer = playerInstanceRef.current || player;
+                if (currentPlayer) {
+                  try {
+                    const state = await currentPlayer.getCurrentState();
+                    if (state && !state.paused) {
+                      await currentPlayer.togglePlay();
+                      console.log('[Host] Paused next song (autoplay OFF)');
+                    }
+                  } catch (error) {
+                    console.error('[Host] Error pausing after next track:', error);
+                  }
+                }
+              }, 300);
+            }
           } catch (error) {
             console.error('[Host] Error playing next song:', error);
+            pendingPauseRef.current = false;
           }
         }
       }
     );
-  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+  }, [currentGuessingPlayer, player, is_paused, gameContext, autoplay]);
 
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
@@ -1008,12 +1105,26 @@ export default function Game() {
                 />
               </label>
 
+              <label className="label cursor-pointer">
+                <span className="label-text">Autoplay</span>
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary"
+                  checked={autoplay}
+                  onChange={(e) => handleToggleAutoplay(e.target.checked)}
+                />
+              </label>
+
               <div className="divider my-0"></div>
 
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="btn btn-warning flex-1"
+                  className={`flex-1 ${
+                    !autoplay && is_paused
+                      ? 'btn btn-success animate-pulse'
+                      : 'btn btn-warning'
+                  }`}
                   onClick={async () => {
                     if (!player) {
                       console.error('[Spotify] Player not available');
@@ -1113,10 +1224,33 @@ export default function Game() {
                     // Go to next track
                     if (player) {
                       try {
+                        // Set pending pause flag if autoplay is OFF
+                        if (!autoplay) {
+                          pendingPauseRef.current = true;
+                        }
                         await player.nextTrack();
-                        console.log('[Host Game] Next track started');
+                        console.log('[Host Game] Next track started', { autoplay });
+                        
+                        // If autoplay is OFF, pause immediately after a short delay
+                        if (!autoplay) {
+                          setTimeout(async () => {
+                            const currentPlayer = playerInstanceRef.current || player;
+                            if (currentPlayer) {
+                              try {
+                                const state = await currentPlayer.getCurrentState();
+                                if (state && !state.paused) {
+                                  await currentPlayer.togglePlay();
+                                  console.log('[Host Game] Paused next track (autoplay OFF)');
+                                }
+                              } catch (error) {
+                                console.error('[Host Game] Error pausing after next track:', error);
+                              }
+                            }
+                          }, 300);
+                        }
                       } catch (error) {
                         console.error('[Host Game] Error going to next track:', error);
+                        pendingPauseRef.current = false;
                       }
                     }
                   }}
