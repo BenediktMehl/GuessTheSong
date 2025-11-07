@@ -72,6 +72,9 @@ export default function Game() {
     ? (guessedPlayers || []).some((p) => p.id === currentPlayerId)
     : false;
 
+  // Check if buzzer should be disabled (already buzzed or already guessed)
+  const isBuzzerDisabled = isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId;
+
   const handleBuzz = useCallback(() => {
     console.log('[Buzzer] handleBuzz called', {
       isCurrentPlayerInQueue,
@@ -80,7 +83,7 @@ export default function Game() {
     });
 
     // Don't allow buzzing if already in queue or already guessed
-    if (isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId) {
+    if (isBuzzerDisabled) {
       console.log('[Buzzer] Buzzer blocked:', {
         isCurrentPlayerInQueue,
         hasCurrentPlayerGuessed,
@@ -97,7 +100,7 @@ export default function Game() {
     } else {
       console.log('[Buzzer] Buzz action sent successfully');
     }
-  }, [isCurrentPlayerInQueue, hasCurrentPlayerGuessed, currentPlayerId]);
+  }, [isBuzzerDisabled, isCurrentPlayerInQueue, hasCurrentPlayerGuessed, currentPlayerId]);
 
   const getGameStateContent = (buzzerColorValue: string) => {
     if (isCurrentPlayerFirst) {
@@ -205,44 +208,66 @@ export default function Game() {
             <div className="w-full">{gameState.content}</div>
             <button
               type="button"
-              className="relative w-44 h-44 rounded-full transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-offset-2 cursor-pointer"
+              disabled={isBuzzerDisabled}
+              className={`relative w-44 h-44 rounded-full transition-all focus:outline-none focus:ring-4 focus:ring-offset-2 ${
+                isBuzzerDisabled
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'cursor-pointer hover:scale-105 active:scale-95'
+              }`}
               onClick={handleBuzz}
               onTouchStart={handleBuzz}
               style={{
-                background: `radial-gradient(circle at 30% 30%, ${buzzerColor || '#FF1744'}ff, ${buzzerColor || '#FF1744'} 50%, ${buzzerColor || '#FF1744'}dd)`,
-                boxShadow: `
-                  0 20px 40px -5px rgba(0, 0, 0, 0.5),
-                  0 0 0 4px rgba(0, 0, 0, 0.15),
-                  inset 0 -10px 20px -5px rgba(0, 0, 0, 0.4),
-                  inset 0 10px 25px -5px rgba(255, 255, 255, 0.4),
-                  inset 0 0 30px rgba(255, 255, 255, 0.2)
-                `,
+                background: isBuzzerDisabled
+                  ? `radial-gradient(circle at 30% 30%, #9E9E9Eff, #757575 50%, #616161dd)`
+                  : `radial-gradient(circle at 30% 30%, ${buzzerColor || '#FF1744'}ff, ${buzzerColor || '#FF1744'} 50%, ${buzzerColor || '#FF1744'}dd)`,
+                boxShadow: isBuzzerDisabled
+                  ? `
+                      0 10px 20px -5px rgba(0, 0, 0, 0.3),
+                      0 0 0 4px rgba(0, 0, 0, 0.1),
+                      inset 0 -5px 10px -5px rgba(0, 0, 0, 0.3),
+                      inset 0 5px 12px -5px rgba(255, 255, 255, 0.2)
+                    `
+                  : `
+                      0 20px 40px -5px rgba(0, 0, 0, 0.5),
+                      0 0 0 4px rgba(0, 0, 0, 0.15),
+                      inset 0 -10px 20px -5px rgba(0, 0, 0, 0.4),
+                      inset 0 10px 25px -5px rgba(255, 255, 255, 0.4),
+                      inset 0 0 30px rgba(255, 255, 255, 0.2)
+                    `,
               }}
-              aria-label="Press to buzz and guess the current song"
+              aria-label={
+                isBuzzerDisabled
+                  ? 'Buzzer already pressed'
+                  : 'Press to buzz and guess the current song'
+              }
             >
               {/* Outer ring */}
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  border: `5px solid ${buzzerColor || '#FF1744'}`,
+                  border: `5px solid ${isBuzzerDisabled ? '#9E9E9E' : buzzerColor || '#FF1744'}`,
                   boxShadow: 'inset 0 3px 6px rgba(0, 0, 0, 0.3)',
                 }}
               />
-              {/* Shiny dome effect */}
-              <div
-                className="absolute inset-3 rounded-full"
-                style={{
-                  background: `radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2) 40%, transparent 70%)`,
-                  boxShadow: 'inset 0 -5px 15px rgba(0, 0, 0, 0.2)',
-                }}
-              />
-              {/* Additional shine highlight */}
-              <div
-                className="absolute top-4 left-6 w-12 h-12 rounded-full opacity-60"
-                style={{
-                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent)',
-                }}
-              />
+              {/* Shiny dome effect - only show when enabled */}
+              {!isBuzzerDisabled && (
+                <>
+                  <div
+                    className="absolute inset-3 rounded-full"
+                    style={{
+                      background: `radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2) 40%, transparent 70%)`,
+                      boxShadow: 'inset 0 -5px 15px rgba(0, 0, 0, 0.2)',
+                    }}
+                  />
+                  {/* Additional shine highlight */}
+                  <div
+                    className="absolute top-4 left-6 w-12 h-12 rounded-full opacity-60"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent)',
+                    }}
+                  />
+                </>
+              )}
             </button>
           </div>
         </Card>

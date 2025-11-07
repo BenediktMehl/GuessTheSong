@@ -206,7 +206,9 @@ export function joinGame(
 
           case 'player-left':
             // Another player left the session
-            handlePlayerLeftForPlayer(gameContext, message.payload.playerId);
+            if (message.payload?.playerId) {
+              handlePlayerLeftForPlayer(gameContext, message.payload.playerId);
+            }
             break;
 
           case 'game-started':
@@ -218,22 +220,142 @@ export function joinGame(
           case 'playersChanged':
             // Players list updated (points, etc.)
             if (message.data?.players && Array.isArray(message.data.players)) {
-              gameContext.setPlayers(message.data.players);
+              console.log('[Player] Players list updated, syncing points');
+              const updatedPlayers = message.data.players;
+              gameContext.setPlayers(updatedPlayers);
+
+              // After updating players list, sync waiting and guessed players to ensure correct points
+              // This ensures that when points are updated, they are reflected in all lists
+              gameContext.setWaitingPlayers((currentWaiting) => {
+                if (currentWaiting.length === 0) {
+                  return [];
+                }
+                const synced = currentWaiting.map((listPlayer) => {
+                  const playerWithPoints = updatedPlayers.find(
+                    (p: Player) => p.id === listPlayer.id
+                  );
+                  if (playerWithPoints) {
+                    console.log(
+                      '[Player] Syncing waiting player points:',
+                      listPlayer.name,
+                      listPlayer.points,
+                      '->',
+                      playerWithPoints.points
+                    );
+                  }
+                  return playerWithPoints || listPlayer;
+                });
+                return synced;
+              });
+
+              gameContext.setGuessedPlayers((currentGuessed) => {
+                if (currentGuessed.length === 0) {
+                  return [];
+                }
+                const synced = currentGuessed.map((listPlayer) => {
+                  const playerWithPoints = updatedPlayers.find(
+                    (p: Player) => p.id === listPlayer.id
+                  );
+                  if (playerWithPoints) {
+                    console.log(
+                      '[Player] Syncing guessed player points:',
+                      listPlayer.name,
+                      listPlayer.points,
+                      '->',
+                      playerWithPoints.points
+                    );
+                  }
+                  return playerWithPoints || listPlayer;
+                });
+                return synced;
+              });
             }
             break;
 
           case 'waitingPlayersChanged':
             // Waiting players queue updated
-            if (message.data?.buzzedPlayers && Array.isArray(message.data.buzzedPlayers)) {
-              gameContext.setWaitingPlayers(message.data.buzzedPlayers);
+            if (
+              message.data?.buzzedPlayers !== undefined &&
+              Array.isArray(message.data.buzzedPlayers)
+            ) {
+              // Handle empty array (reset) or populated array
+              if (message.data.buzzedPlayers.length === 0) {
+                // Clear waiting list - all players reset for new round
+                console.log('[Player] Clearing waiting players list');
+                gameContext.setWaitingPlayers([]);
+              } else {
+                // Sync points from main players list to ensure correct points are displayed
+                // Use functional update to get the latest players list
+                gameContext.setWaitingPlayers((_currentWaiting) => {
+                  const syncedWaitingPlayers = message.data.buzzedPlayers.map(
+                    (listPlayer: Player) => {
+                      // Get latest players list from context
+                      const playerWithPoints = gameContext.players.find(
+                        (p) => p.id === listPlayer.id
+                      );
+                      if (playerWithPoints && playerWithPoints.points !== listPlayer.points) {
+                        console.log(
+                          '[Player] Syncing waiting player points:',
+                          listPlayer.name,
+                          listPlayer.points,
+                          '->',
+                          playerWithPoints.points
+                        );
+                      }
+                      return playerWithPoints || listPlayer;
+                    }
+                  );
+                  return syncedWaitingPlayers;
+                });
+              }
             }
             break;
 
           case 'guessedPlayersChanged':
             // Guessed players list updated
-            if (message.data?.guessedPlayers && Array.isArray(message.data.guessedPlayers)) {
-              gameContext.setGuessedPlayers(message.data.guessedPlayers);
+            if (
+              message.data?.guessedPlayers !== undefined &&
+              Array.isArray(message.data.guessedPlayers)
+            ) {
+              // Handle empty array (reset) or populated array
+              if (message.data.guessedPlayers.length === 0) {
+                // Clear guessed list - all players reset for new round
+                console.log('[Player] Clearing guessed players list');
+                gameContext.setGuessedPlayers([]);
+              } else {
+                // Sync points from main players list to ensure correct points are displayed
+                // Use functional update to get the latest players list
+                gameContext.setGuessedPlayers((_currentGuessed) => {
+                  const syncedGuessedPlayers = message.data.guessedPlayers.map(
+                    (listPlayer: Player) => {
+                      // Get latest players list from context
+                      const playerWithPoints = gameContext.players.find(
+                        (p) => p.id === listPlayer.id
+                      );
+                      if (playerWithPoints && playerWithPoints.points !== listPlayer.points) {
+                        console.log(
+                          '[Player] Syncing guessed player points:',
+                          listPlayer.name,
+                          listPlayer.points,
+                          '->',
+                          playerWithPoints.points
+                        );
+                      }
+                      return playerWithPoints || listPlayer;
+                    }
+                  );
+                  return syncedGuessedPlayers;
+                });
+              }
             }
+            break;
+
+          case 'player-guessed-right':
+            // Player guessed right - reset all lists for new round
+            // The host sends empty arrays via waitingPlayersChanged and guessedPlayersChanged,
+            // but we also handle this message explicitly to ensure cleanup
+            console.log('[Player] Player guessed right - resetting lists');
+            // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
 
           case 'player-buzzed-notification':
@@ -267,8 +389,8 @@ export function joinGame(
 }
 
 function handlePlayerJoinedForPlayer(gameContext: GameContextType, msg: WebSocketMessage) {
-  const playerId = msg.payload.playerId;
-  const playerName = msg.payload.name;
+  const playerId = msg.payload?.playerId;
+  const playerName = msg.payload?.name;
 
   if (!playerId || !playerName) {
     console.error('Invalid player data: missing playerId or name', msg.payload);

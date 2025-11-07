@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
-import { markPlayerGuessedRight, markPlayerGuessedWrong } from '../../game/host';
+import {
+  markPlayerGuessedRight,
+  markPlayerGuessedWrong,
+  resetAllPlayersForNewRound,
+} from '../../game/host';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
@@ -58,6 +62,7 @@ interface SpotifyPlayer {
 
 interface SpotifyPlaybackState {
   paused: boolean;
+  position: number; // Current playback position in milliseconds
   track_window: {
     current_track: {
       id: string;
@@ -109,6 +114,8 @@ export default function Game() {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
     return stored ? parseFloat(stored) : 0.5;
   });
+  const [currentPosition, setCurrentPosition] = useState<number>(0); // Current playback position in milliseconds
+  const positionUpdateIntervalRef = useRef<number | null>(null);
 
   // Transfer playback to this device using Spotify Web API
   const transferPlaybackToDevice = useCallback(
@@ -146,6 +153,7 @@ export default function Game() {
                   setActive(true);
                   setPaused(state.paused);
                   setTrack(state.track_window.current_track);
+                  setCurrentPosition(state.position || 0);
                 }
               })
               .catch((error) => {
@@ -223,14 +231,17 @@ export default function Game() {
               console.log('[Spotify] Initial state:', {
                 paused: state.paused,
                 track: state.track_window.current_track.name,
+                position: state.position,
               });
               setActive(true);
               setPaused(state.paused);
               setTrack(state.track_window.current_track);
+              setCurrentPosition(state.position || 0);
               hasAttemptedTransferRef.current = true;
             } else {
               console.log('[Spotify] No initial playback state');
               setActive(false);
+              setCurrentPosition(0);
               if (!hasAttemptedTransferRef.current) {
                 console.log('[Spotify] Attempting to transfer playback');
                 hasAttemptedTransferRef.current = true;
@@ -271,6 +282,9 @@ export default function Game() {
         );
       });
 
+      // Use ref to track previous track ID to detect track changes
+      const previousTrackIdRefFirst = { current: '' };
+
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
           console.log(
@@ -278,16 +292,28 @@ export default function Game() {
           );
           setActive(false);
           setTrack(track);
+          setCurrentPosition(0);
+          previousTrackIdRefFirst.current = '';
           return;
         }
 
         console.log('[Spotify] Player state changed:', {
           paused: state.paused,
           track: state.track_window.current_track.name,
+          position: state.position,
         });
+
+        // Reset position when track changes
+        const newTrackId = state.track_window.current_track.id;
+        if (previousTrackIdRefFirst.current && previousTrackIdRefFirst.current !== newTrackId) {
+          console.log('[Spotify] Track changed, resetting position');
+          setCurrentPosition(0);
+        }
+        previousTrackIdRefFirst.current = newTrackId;
 
         setTrack(state.track_window.current_track);
         setPaused(state.paused);
+        setCurrentPosition(state.position || 0);
         setActive(true);
       });
 
@@ -332,14 +358,17 @@ export default function Game() {
               console.log('[Spotify] Initial state:', {
                 paused: state.paused,
                 track: state.track_window.current_track.name,
+                position: state.position,
               });
               setActive(true);
               setPaused(state.paused);
               setTrack(state.track_window.current_track);
+              setCurrentPosition(state.position || 0);
               hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
             } else {
               console.log('[Spotify] No initial playback state');
               setActive(false);
+              setCurrentPosition(0);
               // Only attempt transfer once
               if (!hasAttemptedTransferRef.current) {
                 console.log('[Spotify] Attempting to transfer playback');
@@ -385,6 +414,9 @@ export default function Game() {
         );
       });
 
+      // Use ref to track previous track ID to detect track changes
+      const previousTrackIdRef = { current: '' };
+
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
           console.log(
@@ -393,16 +425,28 @@ export default function Game() {
           setActive(false);
           // Clear track info when state is null
           setTrack(track);
+          setCurrentPosition(0);
+          previousTrackIdRef.current = '';
           return;
         }
 
         console.log('[Spotify] Player state changed:', {
           paused: state.paused,
           track: state.track_window.current_track.name,
+          position: state.position,
         });
+
+        // Reset position when track changes
+        const newTrackId = state.track_window.current_track.id;
+        if (previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId) {
+          console.log('[Spotify] Track changed, resetting position');
+          setCurrentPosition(0);
+        }
+        previousTrackIdRef.current = newTrackId;
 
         setTrack(state.track_window.current_track);
         setPaused(state.paused);
+        setCurrentPosition(state.position || 0);
         setActive(true); // If we have state, we're active
         // Don't call getCurrentState() here - it can cause loops and we already have the state
       });
@@ -431,7 +475,6 @@ export default function Game() {
     if (player) {
       try {
         await player.setVolume(newVolume);
-        console.log('[Spotify] Volume set to:', newVolume);
       } catch (error) {
         console.error('[Spotify] Error setting volume:', error);
       }
@@ -441,8 +484,51 @@ export default function Game() {
   // Determine if song should be visible
   const shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0;
 
-  // Determine layout class for track display section
-  const trackDisplayClass = current_track.name && shouldShowSong ? 'flex items-center gap-4' : '';
+  // Format time from milliseconds to mm:ss
+  const formatTime = (ms: number): string => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Update position periodically when playing
+  useEffect(() => {
+    if (!is_active || !player || is_paused) {
+      // Clear interval if paused or inactive
+      if (positionUpdateIntervalRef.current) {
+        clearInterval(positionUpdateIntervalRef.current);
+        positionUpdateIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Update position every second
+    positionUpdateIntervalRef.current = window.setInterval(async () => {
+      const currentPlayer = playerInstanceRef.current || player;
+      if (currentPlayer) {
+        try {
+          const state = await currentPlayer.getCurrentState();
+          if (state && !state.paused) {
+            setCurrentPosition(state.position || 0);
+          }
+        } catch (error) {
+          console.error('[Host Game] Error updating position:', error);
+        }
+      }
+    }, 1000);
+
+    return () => {
+      if (positionUpdateIntervalRef.current) {
+        clearInterval(positionUpdateIntervalRef.current);
+        positionUpdateIntervalRef.current = null;
+      }
+    };
+  }, [is_active, player, is_paused]);
+
+  // Determine layout class for track display section - always center
+  const trackDisplayClass =
+    current_track.name && shouldShowSong ? 'flex items-center justify-center gap-4' : '';
 
   // Get current guessing player (first in waiting list)
   const currentGuessingPlayer =
@@ -577,7 +663,7 @@ export default function Game() {
                     alt={current_track.name}
                     className="w-16 h-16 rounded-xl shadow-lg"
                   />
-                  <div className="text-left">
+                  <div className="text-center">
                     <div className="font-bold text-lg">{current_track.name}</div>
                     <div className="text-sm text-base-content/70">
                       {current_track.artists[0]?.name || ''}
@@ -595,9 +681,21 @@ export default function Game() {
                 </div>
               )
             ) : (
-              <div className="w-full text-sm text-base-content/60">No track playing</div>
+              <div className="w-full text-sm text-base-content/60 text-center">
+                No track playing
+              </div>
             )}
           </div>
+
+          {/* Timer - always visible when track is playing */}
+          {current_track.name && is_active && (
+            <div className="text-center">
+              <div className="text-2xl font-mono font-bold text-base-content">
+                {formatTime(currentPosition)}
+              </div>
+            </div>
+          )}
+
           <div className="divider my-0"></div>
           <label className="label cursor-pointer">
             <span className="label-text">Hide song until player guesses</span>
@@ -747,8 +845,20 @@ export default function Game() {
                 <button
                   type="button"
                   className="btn btn-outline flex-1"
-                  onClick={() => {
-                    player?.nextTrack();
+                  onClick={async () => {
+                    // Reset all players to default list before going to next song
+                    console.log('[Host Game] Next button clicked - resetting all players');
+                    resetAllPlayersForNewRound(gameContext);
+
+                    // Go to next track
+                    if (player) {
+                      try {
+                        await player.nextTrack();
+                        console.log('[Host Game] Next track started');
+                      } catch (error) {
+                        console.error('[Host Game] Error going to next track:', error);
+                      }
+                    }
                   }}
                   disabled={!player}
                 >
