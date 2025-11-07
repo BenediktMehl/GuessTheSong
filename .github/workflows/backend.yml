@@ -37,13 +37,45 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           fingerprint: ${{ secrets.PI_FINGERPRINT }}
           passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
-          envs: SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET
           env: |
             SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
             SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
           script: |
             cd /home/${{ secrets.SSH_USERNAME }}/guessthesong-backend
+            
+            # Export environment variables explicitly before any docker compose commands
+            # This ensures they're available when docker compose parses the YAML files
+            export SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID"
+            export SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET"
+            
+            # Verify environment variables are set (without exposing values)
+            if [ -z "$SPOTIFY_CLIENT_ID" ]; then
+              echo "ERROR: SPOTIFY_CLIENT_ID is not set"
+              exit 1
+            fi
+            if [ -z "$SPOTIFY_CLIENT_SECRET" ]; then
+              echo "ERROR: SPOTIFY_CLIENT_SECRET is not set"
+              exit 1
+            fi
+            echo "✓ Spotify credentials are configured in shell environment"
+            
+            # Stop existing containers (variables are now in environment, so no warnings)
             docker compose -f docker-compose.yml -f docker-compose.tls.yml down
-            SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID" SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET" docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+            
+            # Start containers with environment variables available
+            # Variables are already exported, so docker compose can read them from environment
+            docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+            
+            # Show container status
             docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
+            
+            # Verify environment variables are set in the running container
+            echo "Verifying environment variables in container..."
+            if docker compose -f docker-compose.yml -f docker-compose.tls.yml exec -T backend sh -c 'test -n "$SPOTIFY_CLIENT_ID" && test -n "$SPOTIFY_CLIENT_SECRET" && echo "✓ Spotify credentials are set in container" || echo "✗ ERROR: Spotify credentials missing in container"'; then
+              echo "✓ Container environment verification passed"
+            else
+              echo "✗ WARNING: Could not verify container environment (container may still be starting)"
+            fi
+            
+            # Show recent logs
             docker compose -f docker-compose.yml -f docker-compose.tls.yml logs --tail=50
