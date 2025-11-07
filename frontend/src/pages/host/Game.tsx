@@ -8,6 +8,12 @@ import {
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
 } from '../../game/host';
+import {
+  getPlaylistTracks,
+  getSelectedPlaylistId,
+  playRandomPlaylistTrack,
+  type SpotifyTrack,
+} from '../../services/spotify/api';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
@@ -122,6 +128,15 @@ export default function Game() {
   const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
   const positionUpdateIntervalRef = useRef<number | null>(null);
 
+  // Playlist-related state
+  const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
+  const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
+  const [playedTrackIds, setPlayedTrackIds] = useState<Set<string>>(new Set());
+  const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(false);
+  const playlistTracksLoadedRef = useRef(false);
+  const gameStartedRef = useRef(false);
+  const firstTrackPlayedRef = useRef(false);
+
   // Enable repeat mode for track (loop single track)
   const enableRepeatMode = useCallback(async (_trackId?: string) => {
     const accessToken = localStorage.getItem('access_token');
@@ -148,6 +163,167 @@ export default function Game() {
       console.error('[Spotify] Error enabling repeat mode:', error);
     }
   }, []);
+
+  // Load playlist tracks
+  const loadPlaylistTracks = useCallback(
+    async (selectedPlaylistId: string): Promise<SpotifyTrack[]> => {
+      if (playlistTracksLoadedRef.current && playlistTracks.length > 0) {
+        console.log('[Spotify] Playlist tracks already loaded');
+        return playlistTracks;
+      }
+
+      setIsLoadingPlaylist(true);
+      try {
+        console.log('[Spotify] Loading tracks from playlist:', selectedPlaylistId);
+        const tracks = await getPlaylistTracks(selectedPlaylistId);
+        if (tracks.length === 0) {
+          console.warn('[Spotify] Playlist has no tracks');
+          setSpotifyError('Selected playlist has no tracks. Please select a different playlist.');
+          setIsLoadingPlaylist(false);
+          return [];
+        }
+        console.log(`[Spotify] Loaded ${tracks.length} tracks from playlist`);
+        setPlaylistTracks(tracks);
+        playlistTracksLoadedRef.current = true;
+        setPlayedTrackIds(new Set()); // Reset played tracks when loading new playlist
+        setIsLoadingPlaylist(false);
+        return tracks;
+      } catch (error) {
+        console.error('[Spotify] Error loading playlist tracks:', error);
+        setSpotifyError(
+          `Failed to load playlist tracks: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+        setIsLoadingPlaylist(false);
+        return [];
+      }
+    },
+    [playlistTracks]
+  );
+
+  // Play next track from playlist
+  const playNextPlaylistTrack = useCallback(async () => {
+    if (!deviceId || !playlistId) {
+      console.error('[Spotify] No device ID or playlist ID available');
+      return;
+    }
+
+    // Ensure playlist tracks are loaded
+    let tracksToUse = playlistTracks;
+    if (tracksToUse.length === 0) {
+      tracksToUse = await loadPlaylistTracks(playlistId);
+    }
+
+    if (tracksToUse.length === 0) {
+      console.error('[Spotify] No tracks available to play');
+      return;
+    }
+
+    try {
+      const excludeIds = Array.from(playedTrackIds);
+      const playedTrack = await playRandomPlaylistTrack(
+        deviceId,
+        playlistId,
+        tracksToUse,
+        excludeIds
+      );
+      console.log('[Spotify] Playing track from playlist:', playedTrack.name);
+
+      // Add to played tracks
+      setPlayedTrackIds((prev) => new Set([...prev, playedTrack.id]));
+
+      // Enable repeat mode for the track
+      await enableRepeatMode(playedTrack.id);
+    } catch (error) {
+      console.error('[Spotify] Error playing playlist track:', error);
+      setSpotifyError(
+        `Failed to play track: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }, [deviceId, playlistId, playlistTracks, playedTrackIds, loadPlaylistTracks, enableRepeatMode]);
+
+  // Reset track history when starting a new game
+  useEffect(() => {
+    const currentStatus = gameContext.status;
+    if (currentStatus === 'waiting' && !gameStartedRef.current) {
+      // Game just started
+      gameStartedRef.current = true;
+      firstTrackPlayedRef.current = false;
+      setPlayedTrackIds(new Set());
+      // Reload playlist ID in case it changed
+      const currentPlaylistId = getSelectedPlaylistId();
+      if (currentPlaylistId !== playlistId) {
+        setPlaylistId(currentPlaylistId);
+        playlistTracksLoadedRef.current = false;
+        setPlaylistTracks([]);
+      }
+    } else if (currentStatus === 'notStarted' || currentStatus === 'finished') {
+      // Game ended or not started, reset flags
+      gameStartedRef.current = false;
+      firstTrackPlayedRef.current = false;
+    }
+  }, [gameContext.status, playlistId]);
+
+  // Load playlist ID from localStorage on mount and when it changes
+  useEffect(() => {
+    const currentPlaylistId = getSelectedPlaylistId();
+    if (currentPlaylistId !== playlistId) {
+      setPlaylistId(currentPlaylistId);
+      playlistTracksLoadedRef.current = false;
+      setPlaylistTracks([]);
+      setPlayedTrackIds(new Set());
+    }
+  }, [playlistId]);
+
+  // Play first track when device is ready and game has started
+  useEffect(() => {
+    const playFirstTrack = async () => {
+      // Only play if:
+      // 1. Device is ready
+      // 2. Game has started (status is 'waiting')
+      // 3. We haven't attempted to play the first track yet
+      // 4. We're not currently loading the playlist
+      if (
+        deviceId &&
+        playlistId &&
+        gameContext.status === 'waiting' &&
+        gameStartedRef.current &&
+        !firstTrackPlayedRef.current &&
+        !isLoadingPlaylist
+      ) {
+        firstTrackPlayedRef.current = true; // Mark as attempted to prevent retries
+        console.log('[Spotify] Game started, playing first track from playlist');
+        try {
+          // Load tracks if not already loaded
+          let tracksToUse = playlistTracks;
+          if (tracksToUse.length === 0) {
+            tracksToUse = await loadPlaylistTracks(playlistId);
+          }
+
+          // Play first track if we have tracks
+          if (tracksToUse.length > 0) {
+            await playNextPlaylistTrack();
+          } else {
+            // No tracks available, reset flag so we can try again
+            firstTrackPlayedRef.current = false;
+          }
+        } catch (error) {
+          console.error('[Spotify] Error playing first track:', error);
+          // Reset flag on error so we can retry
+          firstTrackPlayedRef.current = false;
+        }
+      }
+    };
+
+    playFirstTrack();
+  }, [
+    deviceId,
+    playlistId,
+    gameContext.status,
+    isLoadingPlaylist,
+    playlistTracks,
+    loadPlaylistTracks,
+    playNextPlaylistTrack,
+  ]);
 
   // Transfer playback to this device using Spotify Web API
   const transferPlaybackToDevice = useCallback(
@@ -748,17 +924,15 @@ export default function Game() {
     if (!currentGuessingPlayer) return;
 
     markPlayerGuessedRight(gameContext, async () => {
-      // Play next song
-      if (player) {
-        try {
-          await player.nextTrack();
-          console.log('[Host] Playing next song after correct guess');
-        } catch (error) {
-          console.error('[Host] Error playing next song:', error);
-        }
+      // Play next song from playlist
+      try {
+        await playNextPlaylistTrack();
+        console.log('[Host] Playing next song from playlist after correct guess');
+      } catch (error) {
+        console.error('[Host] Error playing next song:', error);
       }
     });
-  }, [currentGuessingPlayer, player, gameContext]);
+  }, [currentGuessingPlayer, gameContext, playNextPlaylistTrack]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
@@ -778,18 +952,16 @@ export default function Game() {
         }
       },
       async () => {
-        // Play next song if no more players can guess
-        if (player) {
-          try {
-            await player.nextTrack();
-            console.log('[Host] Playing next song - no more players can guess');
-          } catch (error) {
-            console.error('[Host] Error playing next song:', error);
-          }
+        // Play next song from playlist if no more players can guess
+        try {
+          await playNextPlaylistTrack();
+          console.log('[Host] Playing next song from playlist - no more players can guess');
+        } catch (error) {
+          console.error('[Host] Error playing next song:', error);
         }
       }
     );
-  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+  }, [currentGuessingPlayer, player, is_paused, gameContext, playNextPlaylistTrack]);
 
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
@@ -1110,17 +1282,15 @@ export default function Game() {
                     console.log('[Host Game] Next button clicked - resetting all players');
                     resetAllPlayersForNewRound(gameContext);
 
-                    // Go to next track
-                    if (player) {
-                      try {
-                        await player.nextTrack();
-                        console.log('[Host Game] Next track started');
-                      } catch (error) {
-                        console.error('[Host Game] Error going to next track:', error);
-                      }
+                    // Go to next track from playlist
+                    try {
+                      await playNextPlaylistTrack();
+                      console.log('[Host Game] Next track from playlist started');
+                    } catch (error) {
+                      console.error('[Host Game] Error going to next track:', error);
                     }
                   }}
-                  disabled={!player}
+                  disabled={!deviceId || !playlistId}
                 >
                   Next
                 </button>

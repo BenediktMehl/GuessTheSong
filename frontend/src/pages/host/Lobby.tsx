@@ -5,13 +5,26 @@ import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
+import {
+  getSelectedPlaylistId,
+  getUserPlaylists,
+  type SpotifyPlaylist,
+  setSelectedPlaylistId,
+} from '../../services/spotify/api';
 import { handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
+import { DEFAULT_PLAYLIST_ID, DEFAULT_PLAYLISTS } from '../../services/spotify/playlists';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showCopyError, setShowCopyError] = useState(false);
   const [spotifyLoginLoading, setSpotifyLoginLoading] = useState(false);
   const [isLoggedInSpotify, setIsLoggedInSpotify] = useState(spotifyIsLoggedIn());
+  const [selectedPlaylistId, setSelectedPlaylistIdState] = useState<string>(
+    getSelectedPlaylistId()
+  );
+  const [availablePlaylists, setAvailablePlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [playlistsError, setPlaylistsError] = useState<string | null>(null);
   const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
   const navigate = useNavigate();
   const gameContext = useGameContext();
@@ -30,6 +43,35 @@ export default function Lobby() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch user playlists when Spotify is connected
+  useEffect(() => {
+    if (isLoggedInSpotify && sessionId) {
+      const fetchPlaylists = async () => {
+        setPlaylistsLoading(true);
+        setPlaylistsError(null);
+        try {
+          const playlists = await getUserPlaylists();
+          setAvailablePlaylists(playlists);
+        } catch (error) {
+          console.error('Error fetching playlists:', error);
+          setPlaylistsError(error instanceof Error ? error.message : 'Failed to fetch playlists');
+        } finally {
+          setPlaylistsLoading(false);
+        }
+      };
+
+      fetchPlaylists();
+    } else {
+      setAvailablePlaylists([]);
+    }
+  }, [isLoggedInSpotify, sessionId]);
+
+  // Handle playlist selection change
+  const handlePlaylistChange = (playlistId: string) => {
+    setSelectedPlaylistIdState(playlistId);
+    setSelectedPlaylistId(playlistId);
+  };
 
   const handleSpotifyLoginClick = async () => {
     setSpotifyLoginLoading(true);
@@ -135,26 +177,71 @@ export default function Lobby() {
         </div>
       ) : sessionId ? (
         <>
-          <PlayersLobby
-            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
-            minPlayers={2}
-          />
-
           {/* Spotify Integration */}
           <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
             {isLoggedInSpotify ? (
-              <div className="flex items-center gap-3 w-full justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-success">✓</span>
-                  <span className="font-medium">Connected to Spotify</span>
+              <div className="w-full flex flex-col gap-3">
+                <div className="flex items-center gap-3 w-full justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-success">✓</span>
+                    <span className="font-medium">Connected to Spotify</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-error btn-sm"
+                    onClick={handleSpotifyLogout}
+                  >
+                    Logout
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-error btn-sm"
-                  onClick={handleSpotifyLogout}
-                >
-                  Logout
-                </button>
+
+                {/* Playlist Selection */}
+                <div className="w-full flex flex-col gap-2">
+                  <label htmlFor="playlist-select" className="label">
+                    <span className="label-text font-medium">Select Playlist</span>
+                  </label>
+                  {playlistsLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                      <span className="loading loading-spinner loading-sm"></span>
+                      <span>Loading playlists...</span>
+                    </div>
+                  ) : playlistsError ? (
+                    <div className="alert alert-warning py-2">
+                      <span className="text-sm">{playlistsError}</span>
+                    </div>
+                  ) : (
+                    <select
+                      id="playlist-select"
+                      className="select select-bordered w-full"
+                      value={selectedPlaylistId}
+                      onChange={(e) => handlePlaylistChange(e.target.value)}
+                    >
+                      {/* Default playlists first */}
+                      {DEFAULT_PLAYLISTS.map((playlist) => (
+                        <option key={playlist.id} value={playlist.id}>
+                          {playlist.name} (Default)
+                        </option>
+                      ))}
+                      {/* User playlists */}
+                      {availablePlaylists
+                        .filter((p) => !DEFAULT_PLAYLISTS.some((dp) => dp.id === p.id))
+                        .map((playlist) => (
+                          <option key={playlist.id} value={playlist.id}>
+                            {playlist.name}
+                          </option>
+                        ))}
+                      {/* Show selected playlist even if not in lists yet (in case it's the default) */}
+                      {!availablePlaylists.some((p) => p.id === selectedPlaylistId) &&
+                        !DEFAULT_PLAYLISTS.some((dp) => dp.id === selectedPlaylistId) && (
+                          <option value={selectedPlaylistId}>
+                            {selectedPlaylistId === DEFAULT_PLAYLIST_ID
+                              ? 'Erkennst du den Song? (Default)'
+                              : `Playlist ${selectedPlaylistId}`}
+                          </option>
+                        )}
+                    </select>
+                  )}
+                </div>
               </div>
             ) : (
               <button
@@ -173,6 +260,11 @@ export default function Lobby() {
             showCopyLink={true}
             onCopy={handleCopyLink}
             onCopyError={handleCopyError}
+          />
+
+          <PlayersLobby
+            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
+            minPlayers={2}
           />
 
           {showCopiedToast && (
