@@ -15,11 +15,7 @@ export default function Game() {
     .sort((a, b) => b.points - a.points);
 
   // Find currentPlayer object from currentPlayerId
-  const allPlayers = [
-    ...(players || []),
-    ...(waitingPlayers || []),
-    ...(guessedPlayers || []),
-  ];
+  const allPlayers = [...(players || []), ...(waitingPlayers || []), ...(guessedPlayers || [])];
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;

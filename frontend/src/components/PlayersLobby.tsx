@@ -34,9 +34,7 @@ function PlayerItem({
         )}
         <span className="font-medium text-sm">
           {player.name}
-          {isCurrentPlayer && (
-            <span className="ml-2 text-success text-xs font-bold">(You)</span>
-          )}
+          {isCurrentPlayer && <span className="ml-2 text-success text-xs font-bold">(You)</span>}
         </span>
       </div>
       <span className="badge badge-primary badge-sm bg-opacity-90">{player.points}</span>
@@ -69,7 +67,7 @@ function PlayerSection({
         </div>
       )}
       {players.map((player) => {
-        const isCurrentPlayer = currentPlayer && player.id === currentPlayer.id;
+        const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
         const showTrophy = player.id === highestScorerId;
         return (
           <PlayerItem
@@ -92,18 +90,12 @@ export default function PlayersLobby({
   minPlayers = 2,
 }: PlayersLobbyProps) {
   // Collect all players to find highest scorer
-  const allPlayers = [
-    ...notGuessedPlayers,
-    ...waitingPlayers,
-    ...guessedPlayers,
-  ];
+  const allPlayers = [...notGuessedPlayers, ...waitingPlayers, ...guessedPlayers];
 
   // Find the highest scoring player across all players
   const highestScorer =
     allPlayers.length > 0
-      ? allPlayers.reduce((highest, player) =>
-          player.points > highest.points ? player : highest
-        )
+      ? allPlayers.reduce((highest, player) => (player.points > highest.points ? player : highest))
       : null;
   const highestScorerId = highestScorer?.id || null;
 
@@ -171,7 +163,7 @@ export default function PlayersLobby({
           ) : (
             // When no active guessing, show all players without headers/dividers
             notGuessedPlayers.map((player) => {
-              const isCurrentPlayer = currentPlayer && player.id === currentPlayer.id;
+              const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
               const showTrophy = player.id === highestScorerId;
               return (
                 <PlayerItem

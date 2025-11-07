@@ -82,9 +82,7 @@ export default function PlayerLobby() {
             notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
             minPlayers={2}
             currentPlayer={
-              currentPlayerId
-                ? (players || []).find((p) => p.id === currentPlayerId)
-                : undefined
+              currentPlayerId ? (players || []).find((p) => p.id === currentPlayerId) : undefined
             }
           />
 
