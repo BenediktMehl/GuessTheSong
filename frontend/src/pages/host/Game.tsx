@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
-import { useGameContext } from '../../game/context';
+import { setGlobalPausePlayer, useGameContext } from '../../game/context';
+import { markPlayerGuessedRight, markPlayerGuessedWrong } from '../../game/host';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
@@ -73,6 +74,7 @@ interface SpotifyPlaybackState {
 }
 
 export default function Game() {
+  const gameContext = useGameContext();
   const {
     players,
     waitingPlayers,
@@ -80,7 +82,7 @@ export default function Game() {
     buzzerNotification,
     setBuzzerNotification,
     setPausePlayerCallback,
-  } = useGameContext();
+  } = gameContext;
   const navigate = useNavigate();
 
   // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
@@ -442,27 +444,105 @@ export default function Game() {
   // Determine layout class for track display section
   const trackDisplayClass = current_track.name && shouldShowSong ? 'flex items-center gap-4' : '';
 
-  // Register pause callback when player is available
-  useEffect(() => {
-    if (player && is_active) {
-      setPausePlayerCallback(async () => {
-        if (player && !is_paused) {
-          console.log('[Host Game] Pausing playback via callback');
+  // Get current guessing player (first in waiting list)
+  const currentGuessingPlayer =
+    waitingPlayers && waitingPlayers.length > 0 ? waitingPlayers[0] : null;
+
+  // Handle right guess
+  const handleRightGuess = useCallback(async () => {
+    if (!currentGuessingPlayer) return;
+
+    markPlayerGuessedRight(gameContext, async () => {
+      // Play next song
+      if (player) {
+        try {
+          await player.nextTrack();
+          console.log('[Host] Playing next song after correct guess');
+        } catch (error) {
+          console.error('[Host] Error playing next song:', error);
+        }
+      }
+    });
+  }, [currentGuessingPlayer, player, gameContext]);
+
+  // Handle wrong guess
+  const handleWrongGuess = useCallback(async () => {
+    if (!currentGuessingPlayer) return;
+
+    markPlayerGuessedWrong(
+      gameContext,
+      async () => {
+        // Resume current song
+        if (player && is_paused) {
           try {
             await player.togglePlay();
-            console.log('[Host Game] Playback paused successfully');
+            console.log('[Host] Resuming song for next player');
           } catch (error) {
-            console.error('[Host Game] Error pausing playback:', error);
+            console.error('[Host] Error resuming song:', error);
           }
         }
-      });
+      },
+      async () => {
+        // Play next song if no more players can guess
+        if (player) {
+          try {
+            await player.nextTrack();
+            console.log('[Host] Playing next song - no more players can guess');
+          } catch (error) {
+            console.error('[Host] Error playing next song:', error);
+          }
+        }
+      }
+    );
+  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+
+  // Create pause function that can be called from anywhere
+  const pausePlayerFunction = useCallback(async () => {
+    const currentPlayer = playerInstanceRef.current || player;
+    console.log('[Host Game] Pause function called', {
+      hasPlayer: !!currentPlayer,
+      playerFromRef: !!playerInstanceRef.current,
+    });
+
+    if (currentPlayer) {
+      try {
+        // Get current state to check if we need to pause
+        const currentState = await currentPlayer.getCurrentState();
+        console.log('[Host Game] Current playback state:', currentState);
+
+        if (currentState && !currentState.paused) {
+          console.log('[Host Game] Pausing playback');
+          await currentPlayer.togglePlay();
+          console.log('[Host Game] Playback paused successfully');
+          // Update local state
+          setPaused(true);
+        } else {
+          console.log('[Host Game] Playback is already paused or no state');
+        }
+      } catch (error) {
+        console.error('[Host Game] Error pausing playback:', error);
+      }
     } else {
+      console.error('[Host Game] No player available in pause function');
+    }
+  }, [player]);
+
+  // Register pause callback in context and global
+  useEffect(() => {
+    if (player && is_active) {
+      console.log('[Host Game] Registering pause callback', { player, is_active });
+      setPausePlayerCallback(pausePlayerFunction);
+      setGlobalPausePlayer(pausePlayerFunction);
+    } else {
+      console.log('[Host Game] Clearing pause callback', { player, is_active });
       setPausePlayerCallback(null);
+      setGlobalPausePlayer(null);
     }
     return () => {
       setPausePlayerCallback(null);
+      setGlobalPausePlayer(null);
     };
-  }, [player, is_active, is_paused, setPausePlayerCallback]);
+  }, [player, is_active, pausePlayerFunction, setPausePlayerCallback]);
 
   // Auto-dismiss buzzer notification after 3 seconds
   useEffect(() => {
@@ -707,6 +787,31 @@ export default function Game() {
             </div>
           )}
         </Card>
+
+        {currentGuessingPlayer && (
+          <Card className="w-full" bodyClassName="flex flex-col gap-4 py-4">
+            <div className="text-center">
+              <h2 className="text-xl font-bold mb-2">{currentGuessingPlayer.name} rät gerade</h2>
+              <p className="text-base-content/70">War die Antwort richtig oder falsch?</p>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <button
+                type="button"
+                className="btn btn-success btn-lg flex-1"
+                onClick={handleRightGuess}
+              >
+                ✓ Richtig
+              </button>
+              <button
+                type="button"
+                className="btn btn-error btn-lg flex-1"
+                onClick={handleWrongGuess}
+              >
+                ✗ Falsch
+              </button>
+            </div>
+          </Card>
+        )}
 
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
