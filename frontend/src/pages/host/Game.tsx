@@ -4,6 +4,7 @@ import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
+const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
 
 // Track object structure as per tutorial
 const track = {
@@ -50,6 +51,7 @@ interface SpotifyPlayer {
   togglePlay(): Promise<void>;
   previousTrack(): Promise<void>;
   nextTrack(): Promise<void>;
+  setVolume(volume: number): Promise<void>;
 }
 
 interface SpotifyPlaybackState {
@@ -90,6 +92,10 @@ export default function Game() {
   const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
     const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
     return stored === 'true';
+  });
+  const [volume, setVolume] = useState<number>(() => {
+    const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
+    return stored ? parseFloat(stored) : 0.5;
   });
 
   // Transfer playback to this device using Spotify Web API
@@ -172,6 +178,8 @@ export default function Game() {
     if (existingScript && window.Spotify) {
       console.log('[Spotify] SDK script already loaded');
       // If SDK is already loaded, initialize player directly
+      const storedVolume = localStorage.getItem(SPOTIFY_VOLUME_KEY);
+      const initialVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
       const spotifyPlayer = new window.Spotify.Player({
         name: 'Guess The Song',
         getOAuthToken: (cb) => {
@@ -180,7 +188,7 @@ export default function Game() {
             cb(token);
           }
         },
-        volume: 0.5,
+        volume: initialVolume,
       });
 
       setPlayer(spotifyPlayer);
@@ -257,6 +265,8 @@ export default function Game() {
     document.body.appendChild(script);
 
     window.onSpotifyWebPlaybackSDKReady = () => {
+      const storedVolume = localStorage.getItem(SPOTIFY_VOLUME_KEY);
+      const initialVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
       const spotifyPlayer = new window.Spotify.Player({
         name: 'Guess The Song',
         getOAuthToken: (cb) => {
@@ -265,7 +275,7 @@ export default function Game() {
             cb(token);
           }
         },
-        volume: 0.5,
+        volume: initialVolume,
       });
 
       setPlayer(spotifyPlayer);
@@ -351,9 +361,36 @@ export default function Game() {
     };
   }, [transferPlaybackToDevice]); // Include transferPlaybackToDevice dependency
 
+  // Sync volume with player when player becomes available
+  useEffect(() => {
+    if (player) {
+      player
+        .setVolume(volume)
+        .then(() => {
+          console.log('[Spotify] Volume synced to:', volume);
+        })
+        .catch((error) => {
+          console.error('[Spotify] Error syncing volume:', error);
+        });
+    }
+  }, [player]); // Only run when player changes, not when volume changes (to avoid loops)
+
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
     localStorage.setItem(HIDE_SONG_UNTIL_BUZZED_KEY, checked.toString());
+  };
+
+  const handleVolumeChange = async (newVolume: number) => {
+    setVolume(newVolume);
+    localStorage.setItem(SPOTIFY_VOLUME_KEY, newVolume.toString());
+    if (player) {
+      try {
+        await player.setVolume(newVolume);
+        console.log('[Spotify] Volume set to:', newVolume);
+      } catch (error) {
+        console.error('[Spotify] Error setting volume:', error);
+      }
+    }
   };
 
   // Determine if song should be visible
@@ -448,77 +485,108 @@ export default function Game() {
               )}
             </div>
           ) : (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="btn btn-warning flex-1"
-                onClick={async () => {
-                  if (!player) {
-                    console.error('[Spotify] Player not available');
-                    return;
-                  }
-                  try {
-                    console.log('[Spotify] Toggling play, current paused state:', is_paused);
-                    console.log('[Spotify] Current track:', current_track.name || 'No track');
-                    console.log('[Spotify] Player active:', is_active);
-
-                    // Check current state before toggling
-                    const currentState = await player.getCurrentState();
-                    console.log('[Spotify] Current state before toggle:', {
-                      hasState: !!currentState,
-                      paused: currentState?.paused,
-                      track: currentState?.track_window.current_track.name,
-                    });
-
-                    if (!currentState) {
-                      console.warn(
-                        '[Spotify] No active playback state. Make sure playback is transferred to this device and a track is loaded.'
-                      );
-                      alert(
-                        'No active playback. Please transfer playback to "Guess The Song" from another Spotify client and ensure a track is loaded.'
-                      );
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-warning flex-1"
+                  onClick={async () => {
+                    if (!player) {
+                      console.error('[Spotify] Player not available');
                       return;
                     }
+                    try {
+                      console.log('[Spotify] Toggling play, current paused state:', is_paused);
+                      console.log('[Spotify] Current track:', current_track.name || 'No track');
+                      console.log('[Spotify] Player active:', is_active);
 
-                    await player.togglePlay();
-                    console.log('[Spotify] togglePlay() called successfully');
-
-                    // Check state after a short delay
-                    setTimeout(async () => {
-                      const newState = await player.getCurrentState();
-                      console.log('[Spotify] State after toggle:', {
-                        hasState: !!newState,
-                        paused: newState?.paused,
-                        track: newState?.track_window.current_track.name,
+                      // Check current state before toggling
+                      const currentState = await player.getCurrentState();
+                      console.log('[Spotify] Current state before toggle:', {
+                        hasState: !!currentState,
+                        paused: currentState?.paused,
+                        track: currentState?.track_window.current_track.name,
                       });
 
-                      if (newState) {
-                        // Update local state to match
-                        setPaused(newState.paused);
-                        setTrack(newState.track_window.current_track);
+                      if (!currentState) {
+                        console.warn(
+                          '[Spotify] No active playback state. Make sure playback is transferred to this device and a track is loaded.'
+                        );
+                        alert(
+                          'No active playback. Please transfer playback to "Guess The Song" from another Spotify client and ensure a track is loaded.'
+                        );
+                        return;
                       }
-                    }, 500);
-                  } catch (error) {
-                    console.error('[Spotify] Error toggling play:', error);
-                    alert(
-                      `Error controlling playback: ${error instanceof Error ? error.message : 'Unknown error'}`
-                    );
-                  }
-                }}
-                disabled={!player || !is_active}
-              >
-                {is_paused ? 'PLAY' : 'PAUSE'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline flex-1"
-                onClick={() => {
-                  player?.nextTrack();
-                }}
-                disabled={!player}
-              >
-                Next
-              </button>
+
+                      await player.togglePlay();
+                      console.log('[Spotify] togglePlay() called successfully');
+
+                      // Check state after a short delay
+                      setTimeout(async () => {
+                        const newState = await player.getCurrentState();
+                        console.log('[Spotify] State after toggle:', {
+                          hasState: !!newState,
+                          paused: newState?.paused,
+                          track: newState?.track_window.current_track.name,
+                        });
+
+                        if (newState) {
+                          // Update local state to match
+                          setPaused(newState.paused);
+                          setTrack(newState.track_window.current_track);
+                        }
+                      }, 500);
+                    } catch (error) {
+                      console.error('[Spotify] Error toggling play:', error);
+                      alert(
+                        `Error controlling playback: ${error instanceof Error ? error.message : 'Unknown error'}`
+                      );
+                    }
+                  }}
+                  disabled={!player || !is_active}
+                >
+                  {is_paused ? 'PLAY' : 'PAUSE'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline flex-1"
+                  onClick={() => {
+                    player?.nextTrack();
+                  }}
+                  disabled={!player}
+                >
+                  Next
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-5 h-5 shrink-0"
+                >
+                  <title>Volume icon</title>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+                  />
+                </svg>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="range range-primary flex-1"
+                />
+                <span className="text-sm font-medium w-12 text-right shrink-0">
+                  {Math.round(volume * 100)}%
+                </span>
+              </div>
             </div>
           )}
         </Card>
