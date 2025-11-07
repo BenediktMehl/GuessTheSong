@@ -29,6 +29,9 @@ jobs:
           rm: true
           
       - name: "Deploy with Docker Compose"
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ vars.URL }}
@@ -37,9 +40,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           fingerprint: ${{ secrets.PI_FINGERPRINT }}
           passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
-          env: |
-            SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
-            SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          envs: SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET
           script: |
             cd /home/${{ secrets.SSH_USERNAME }}/guessthesong-backend
             
