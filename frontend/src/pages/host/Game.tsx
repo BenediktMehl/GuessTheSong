@@ -73,7 +73,14 @@ interface SpotifyPlaybackState {
 }
 
 export default function Game() {
-  const { players, waitingPlayers, guessedPlayers } = useGameContext();
+  const {
+    players,
+    waitingPlayers,
+    guessedPlayers,
+    buzzerNotification,
+    setBuzzerNotification,
+    setPausePlayerCallback,
+  } = useGameContext();
   const navigate = useNavigate();
 
   // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
@@ -435,8 +442,50 @@ export default function Game() {
   // Determine layout class for track display section
   const trackDisplayClass = current_track.name && shouldShowSong ? 'flex items-center gap-4' : '';
 
+  // Register pause callback when player is available
+  useEffect(() => {
+    if (player && is_active) {
+      setPausePlayerCallback(async () => {
+        if (player && !is_paused) {
+          console.log('[Host Game] Pausing playback via callback');
+          try {
+            await player.togglePlay();
+            console.log('[Host Game] Playback paused successfully');
+          } catch (error) {
+            console.error('[Host Game] Error pausing playback:', error);
+          }
+        }
+      });
+    } else {
+      setPausePlayerCallback(null);
+    }
+    return () => {
+      setPausePlayerCallback(null);
+    };
+  }, [player, is_active, is_paused, setPausePlayerCallback]);
+
+  // Auto-dismiss buzzer notification after 3 seconds
+  useEffect(() => {
+    if (buzzerNotification) {
+      const timer = setTimeout(() => {
+        setBuzzerNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [buzzerNotification, setBuzzerNotification]);
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+      {buzzerNotification && (
+        <div className="toast toast-top toast-center z-50">
+          <div className="alert alert-info shadow-2xl">
+            <span>
+              <strong>{buzzerNotification.playerName}</strong> hat den Buzzer gedrückt!
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md flex flex-col gap-6">
         <Card className="w-full" bodyClassName="flex flex-col gap-4">
           <div className={trackDisplayClass}>
