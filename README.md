@@ -49,6 +49,30 @@ Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify
 - Cards across the UI (game code, lobbies, Spotify login, etc.) share the `Card` component in `frontend/src/components/Card.tsx` for consistent styling.
 - The UI enforces the light theme regardless of the system preference to preserve contrast and readability on all devices.
 
+### PlayersLobby Component
+
+The `PlayersLobby` component displays players organized into four sections based on their guessing state. The component expects pre-sorted arrays from the parent - it does not perform any sorting internally.
+
+**Props:**
+- `notGuessedPlayers: Player[]` - Players who haven't guessed yet, pre-sorted by points (highest first)
+- `waitingPlayers?: Player[]` - Players in the guessing queue, pre-sorted (first player is "now guessing", rest are "next guessing")
+- `guessedPlayers?: Player[]` - Players who have already guessed, pre-sorted by points (highest first)
+- `currentPlayer?: Player` - The current player object (for highlighting)
+- `minPlayers?: number` - Minimum number of players required (default: 2)
+
+**Display Sections:**
+1. **"Now guessing"** - The first player in `waitingPlayers` array
+2. **"Next guessing"** - Remaining players in `waitingPlayers` array (maintains order)
+3. **"Not guessing"** - Players in `notGuessedPlayers` array (pre-sorted by points)
+4. **"Already guessed"** - Players in `guessedPlayers` array (pre-sorted by points)
+
+**Visual Features:**
+- Each section has a grey divider line and header label (only shown when the section contains players)
+- The player with the highest points across all players displays a trophy icon (🏆) next to their name
+- When no players are in active guessing states (no waiting or guessed players), all players are displayed in a simple list without headers or dividers
+- The current player is highlighted with a green border and "(You)" label
+- All arrays must be pre-sorted by the parent component in the order they should be displayed
+
 ## Linting and Formatting
 
 The project uses [Biome](https://biomejs.dev/) for linting and formatting. Biome automatically runs on pre-commit and pre-push via Husky and lint-staged, and also in CI via GitHub Actions.
