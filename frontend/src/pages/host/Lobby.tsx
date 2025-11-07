@@ -48,7 +48,7 @@ export default function Lobby() {
     }
   };
 
-  // Wenn jemand auf /settings kommt, ist er der Host
+  // If someone comes to /settings, they are the host
   useEffect(() => {
     if (!isHost) {
       setIsHost(true);
@@ -90,9 +90,9 @@ export default function Lobby() {
         <div className="alert alert-warning max-w-md flex flex-col gap-2">
           <div>
             <span className="loading loading-spinner loading-sm mr-2"></span>
-            <span className="font-semibold">Stelle Verbindung her...</span>
+            <span className="font-semibold">Establishing connection...</span>
           </div>
-          <p className="text-sm">Bitte warten, während die Verbindung zum Server aufgebaut wird.</p>
+          <p className="text-sm">Please wait while the connection to the server is being established.</p>
         </div>
       ) : wsStatus === 'failed' ? (
         <div className="alert alert-error max-w-md flex flex-col gap-3">
@@ -113,23 +113,23 @@ export default function Lobby() {
                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-semibold">Verbindung konnte nicht aufgebaut werden.</span>
+            <span className="font-semibold">Connection could not be established.</span>
           </div>
-          <p className="text-sm">Bitte lade die Seite neu oder versuche es später nochmal.</p>
+          <p className="text-sm">Please reload the page or try again later.</p>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             <button
               type="button"
               onClick={() => window.location.reload()}
               className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
             >
-              🔄 Neu laden
+              🔄 Reload
             </button>
             <button
               type="button"
               onClick={() => navigate('/')}
               className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
             >
-              ← Zurück
+              ← Back
             </button>
           </div>
         </div>

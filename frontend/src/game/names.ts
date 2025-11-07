@@ -1,4 +1,4 @@
-// Lustige zufällige Namen für Spieler
+// Funny random names for players
 const funnyNames = [
   'Biggy Buggy',
   'Funky Monkey',
