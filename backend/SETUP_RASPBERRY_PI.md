@@ -61,24 +61,86 @@ If you see warnings, check that the secrets are correctly set in GitHub.
 
 ### Credentials not loading
 
-1. **Check GitHub secrets are set:**
+1. **Verify GitHub secrets are set:**
    - Go to Settings → Secrets and variables → Actions
    - Verify `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` exist
+   - Ensure they are set in the correct environment (Production) if using environment protection
+   - Check that secret names match exactly (case-sensitive)
 
 2. **Check workflow logs:**
    - Go to Actions tab in GitHub
    - Check the latest workflow run for errors
+   - Look for "ERROR: SPOTIFY_CLIENT_ID is not set" or "ERROR: SPOTIFY_CLIENT_SECRET is not set"
+   - Verify the workflow shows "✓ Spotify credentials are configured" message
 
 3. **Check container logs:**
    ```bash
-   docker compose logs backend
+   docker compose logs backend | grep -i spotify
    ```
+   - If you see "Missing: SPOTIFY_CLIENT_ID" or "Missing: SPOTIFY_CLIENT_SECRET", the environment variables are not being passed to the container
+
+4. **Verify environment variables in container:**
+   ```bash
+   docker compose exec backend sh -c 'echo "CLIENT_ID: ${SPOTIFY_CLIENT_ID:+SET}" && echo "CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:+SET}"'
+   ```
+   - This will show if the variables are set without exposing their values
 
 ### Container won't start
 
 1. Check if port 8080 is already in use: `sudo lsof -i :8080`
 2. Check Docker logs: `docker compose logs backend`
 3. Verify the workflow completed successfully in GitHub Actions
+
+### Manual Deployment (if workflow fails)
+
+If the GitHub Actions workflow fails or you need to deploy manually:
+
+1. **SSH into your Raspberry Pi:**
+   ```bash
+   ssh <SSH_USERNAME>@your-pi-ip
+   ```
+
+2. **Navigate to the backend directory:**
+   ```bash
+   cd /home/<SSH_USERNAME>/guessthesong-backend
+   ```
+
+3. **Export environment variables and deploy:**
+   ```bash
+   # Export environment variables (they will be available to docker compose)
+   export SPOTIFY_CLIENT_ID="your-actual-client-id-here"
+   export SPOTIFY_CLIENT_SECRET="your-actual-client-secret-here"
+   
+   # Verify they're set
+   [ -n "$SPOTIFY_CLIENT_ID" ] && [ -n "$SPOTIFY_CLIENT_SECRET" ] && echo "✓ Variables are set" || echo "✗ Variables missing"
+   
+   # Create temporary .env file to prevent Docker Compose warnings
+   # This file is deleted immediately after use, so credentials don't persist on disk
+   TEMP_ENV=$(mktemp)
+   echo "SPOTIFY_CLIENT_ID=$SPOTIFY_CLIENT_ID" > "$TEMP_ENV"
+   echo "SPOTIFY_CLIENT_SECRET=$SPOTIFY_CLIENT_SECRET" >> "$TEMP_ENV"
+   chmod 600 "$TEMP_ENV"
+   
+   # Deploy with Docker Compose (using temp env file)
+   docker compose --env-file "$TEMP_ENV" -f docker-compose.yml -f docker-compose.tls.yml down
+   docker compose --env-file "$TEMP_ENV" -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+   
+   # Immediately delete the temporary file
+   rm -f "$TEMP_ENV"
+   echo "✓ Temporary credentials file deleted"
+   ```
+   
+   **Note:** The temporary file is created in `/tmp` (which is often a tmpfs in-memory filesystem) and deleted immediately after use, so credentials never persist on disk.
+
+4. **Verify deployment:**
+   ```bash
+   docker compose logs backend | grep -i spotify
+   ```
+
+   You should see:
+   ```
+   Spotify credentials loaded (Client ID configured)
+   ```
 
 ## Security Best Practices
 
