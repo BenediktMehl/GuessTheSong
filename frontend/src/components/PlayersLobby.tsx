@@ -2,56 +2,183 @@ import type { Player } from '../game/context';
 import { Card } from './Card';
 
 interface PlayersLobbyProps {
-  players: Player[];
+  notGuessedPlayers: Player[];
+  waitingPlayers?: Player[];
+  guessedPlayers?: Player[];
+  currentPlayer?: Player;
   minPlayers?: number;
-  currentPlayerId?: string;
+}
+
+function PlayerItem({
+  player,
+  isCurrentPlayer,
+  showTrophy,
+}: {
+  player: Player;
+  isCurrentPlayer: boolean;
+  showTrophy: boolean;
+}) {
+  return (
+    <li
+      className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
+        isCurrentPlayer
+          ? 'bg-success/25 border-2 border-success/60 shadow-lg'
+          : 'bg-white/60 hover:bg-white/80 shadow-md'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {showTrophy && (
+          <span className="text-lg" role="img" aria-label="Trophy">
+            🏆
+          </span>
+        )}
+        <span className="font-medium text-sm">
+          {player.name}
+          {isCurrentPlayer && <span className="ml-2 text-success text-xs font-bold">(You)</span>}
+        </span>
+      </div>
+      <span className="badge badge-primary badge-sm bg-opacity-90">{player.points}</span>
+    </li>
+  );
+}
+
+function PlayerSection({
+  title,
+  players,
+  currentPlayer,
+  highestScorerId,
+  showDivider,
+}: {
+  title: string;
+  players: Player[];
+  currentPlayer?: Player;
+  highestScorerId: string | null;
+  showDivider: boolean;
+}) {
+  if (players.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {showDivider && (
+        <div className="border-t border-gray-300 pt-2 mt-2">
+          <h4 className="text-xs font-semibold text-base-content/70 mb-1.5">{title}</h4>
+        </div>
+      )}
+      {players.map((player) => {
+        const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
+        const showTrophy = player.id === highestScorerId;
+        return (
+          <PlayerItem
+            key={player.id}
+            player={player}
+            isCurrentPlayer={isCurrentPlayer}
+            showTrophy={showTrophy}
+          />
+        );
+      })}
+    </>
+  );
 }
 
 export default function PlayersLobby({
-  players,
+  notGuessedPlayers,
+  waitingPlayers = [],
+  guessedPlayers = [],
+  currentPlayer,
   minPlayers = 2,
-  currentPlayerId,
 }: PlayersLobbyProps) {
+  // Collect all players to find highest scorer
+  const allPlayers = [...notGuessedPlayers, ...waitingPlayers, ...guessedPlayers];
+
+  // Find the highest scoring player across all players
+  const highestScorer =
+    allPlayers.length > 0
+      ? allPlayers.reduce((highest, player) => (player.points > highest.points ? player : highest))
+      : null;
+  const highestScorerId = highestScorer?.id || null;
+
+  // Calculate sections (arrays come pre-sorted from parent)
+  const nowGuessing = waitingPlayers.length > 0 ? [waitingPlayers[0]] : [];
+  const nextGuessing = waitingPlayers.length > 1 ? waitingPlayers.slice(1) : [];
+
+  // Check if we should show headers (if any players are in waiting or guessed states)
+  const hasActiveGuessing = waitingPlayers.length > 0 || guessedPlayers.length > 0;
+
+  // Total player count for empty state and min players check
+  const totalPlayers = allPlayers.length;
+
   return (
     <Card
       className="w-full max-w-md max-h-[60vh] flex flex-col"
       bodyClassName="flex flex-col flex-1 gap-3 overflow-hidden"
     >
-      {players.length === 0 ? (
+      {totalPlayers === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-3">
           <div className="text-3xl mb-2">👥</div>
           <p className="text-xs text-base-content/60">Waiting for players...</p>
         </div>
       ) : (
         <ul className="space-y-1.5 overflow-y-auto flex-1 min-h-0 pr-1">
-          {players.map((player, index) => {
-            const isCurrentPlayer = currentPlayerId && player.id === currentPlayerId;
-            return (
-              <li
-                key={player.id}
-                className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
-                  isCurrentPlayer
-                    ? 'bg-success/25 border-2 border-success/60 shadow-lg'
-                    : 'bg-white/60 hover:bg-white/80 shadow-md'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-primary">#{index + 1}</span>
-                  <span className="font-medium text-sm">
-                    {player.name}
-                    {isCurrentPlayer && (
-                      <span className="ml-2 text-success text-xs font-bold">(You)</span>
-                    )}
-                  </span>
-                </div>
-                <span className="badge badge-primary badge-sm bg-opacity-90">{player.points}</span>
-              </li>
-            );
-          })}
+          {hasActiveGuessing ? (
+            <>
+              {nowGuessing.length > 0 && (
+                <PlayerSection
+                  title="Now guessing"
+                  players={nowGuessing}
+                  currentPlayer={currentPlayer}
+                  highestScorerId={highestScorerId}
+                  showDivider={true}
+                />
+              )}
+              {nextGuessing.length > 0 && (
+                <PlayerSection
+                  title="Next guessing"
+                  players={nextGuessing}
+                  currentPlayer={currentPlayer}
+                  highestScorerId={highestScorerId}
+                  showDivider={true}
+                />
+              )}
+              {notGuessedPlayers.length > 0 && (
+                <PlayerSection
+                  title="Not guessing"
+                  players={notGuessedPlayers}
+                  currentPlayer={currentPlayer}
+                  highestScorerId={highestScorerId}
+                  showDivider={true}
+                />
+              )}
+              {guessedPlayers.length > 0 && (
+                <PlayerSection
+                  title="Already guessed"
+                  players={guessedPlayers}
+                  currentPlayer={currentPlayer}
+                  highestScorerId={highestScorerId}
+                  showDivider={true}
+                />
+              )}
+            </>
+          ) : (
+            // When no active guessing, show all players without headers/dividers
+            notGuessedPlayers.map((player) => {
+              const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
+              const showTrophy = player.id === highestScorerId;
+              return (
+                <PlayerItem
+                  key={player.id}
+                  player={player}
+                  isCurrentPlayer={isCurrentPlayer}
+                  showTrophy={showTrophy}
+                />
+              );
+            })
+          )}
         </ul>
       )}
 
-      {players.length < minPlayers && (
+      {totalPlayers < minPlayers && (
         <div className="alert alert-warning bg-opacity-80 py-2 shadow-lg">
           <svg
             xmlns="http://www.w3.org/2000/svg"

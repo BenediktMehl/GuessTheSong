@@ -85,8 +85,6 @@ export default function Lobby() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-      <h2 className="text-4xl font-bold text-primary mb-2">Host Settings</h2>
-
       {/* ...existing connection status UI... */}
       {wsStatus === 'connecting' || wsStatus === 'closed' ? (
         <div className="alert alert-warning max-w-md flex flex-col gap-2">
@@ -160,7 +158,10 @@ export default function Lobby() {
             </div>
           )}
 
-          <PlayersLobby players={players} minPlayers={2} />
+          <PlayersLobby
+            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
+            minPlayers={2}
+          />
 
           {/* Spotify Integration */}
           <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
