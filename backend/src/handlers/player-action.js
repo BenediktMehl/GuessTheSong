@@ -42,9 +42,9 @@ function handlePlayerAction(ws, serverPayload) {
       try {
         hostWs.send(JSON.stringify(payloadWithPlayerId));
         console.log('[Backend] Message forwarded to host successfully');
-      } catch (sendError) {
-        console.error('[Backend] Error sending to host:', sendError);
-        throw sendError;
+      } catch (sendErr) {
+        console.error('[Backend] Error sending to host:', sendErr);
+        throw sendErr;
       }
     } catch (error) {
       console.error('[Backend] Failed to send to host:', error);
