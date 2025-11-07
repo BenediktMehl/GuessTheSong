@@ -160,7 +160,10 @@ export default function Lobby() {
             </div>
           )}
 
-          <PlayersLobby players={players} minPlayers={2} />
+          <PlayersLobby
+            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
+            minPlayers={2}
+          />
 
           {/* Spotify Integration */}
           <Card className="w-full max-w-md" bodyClassName="items-center gap-3">

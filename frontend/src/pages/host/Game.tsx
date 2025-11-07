@@ -70,7 +70,14 @@ interface SpotifyPlaybackState {
 }
 
 export default function Game() {
-  const { players, waitingPlayers } = useGameContext();
+  const { players, waitingPlayers, guessedPlayers } = useGameContext();
+
+  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
+  const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const notGuessedPlayers = (players || [])
+    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .sort((a, b) => b.points - a.points);
   const [player, setPlayer] = useState<SpotifyPlayer | undefined>(undefined);
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
   const [is_paused, setPaused] = useState(false);
@@ -531,7 +538,11 @@ export default function Game() {
           )}
         </Card>
 
-        <PlayersLobby players={players} />
+        <PlayersLobby
+          notGuessedPlayers={notGuessedPlayers}
+          waitingPlayers={waitingPlayers}
+          guessedPlayers={guessedPlayers}
+        />
       </div>
     </main>
   );

@@ -78,7 +78,15 @@ export default function PlayerLobby() {
         <>
           {sessionId && <GameCode sessionId={sessionId} showCopyLink={false} />}
 
-          <PlayersLobby players={players} minPlayers={2} currentPlayerId={currentPlayerId} />
+          <PlayersLobby
+            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
+            minPlayers={2}
+            currentPlayer={
+              currentPlayerId
+                ? (players || []).find((p) => p.id === currentPlayerId)
+                : undefined
+            }
+          />
 
           <Card className="w-full max-w-md text-center" bodyClassName="items-center gap-2">
             <div className="text-3xl animate-bounce">⏳</div>

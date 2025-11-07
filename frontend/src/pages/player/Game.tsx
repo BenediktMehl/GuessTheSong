@@ -5,7 +5,24 @@ import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 
 export default function Game() {
-  const { players, currentPlayerId } = useGameContext();
+  const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
+
+  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
+  const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const notGuessedPlayers = (players || [])
+    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .sort((a, b) => b.points - a.points);
+
+  // Find currentPlayer object from currentPlayerId
+  const allPlayers = [
+    ...(players || []),
+    ...(waitingPlayers || []),
+    ...(guessedPlayers || []),
+  ];
+  const currentPlayer = currentPlayerId
+    ? allPlayers.find((p) => p.id === currentPlayerId)
+    : undefined;
   const [position, setPosition] = useState<number>(-1);
   const [guesser, setGuesser] = useState<string | null>(null);
   const [showJoinedToast, setShowJoinedToast] = useState(true);
@@ -104,7 +121,12 @@ export default function Game() {
           </button>
         </Card>
 
-        <PlayersLobby players={players} currentPlayerId={currentPlayerId} />
+        <PlayersLobby
+          notGuessedPlayers={notGuessedPlayers}
+          waitingPlayers={waitingPlayers}
+          guessedPlayers={guessedPlayers}
+          currentPlayer={currentPlayer}
+        />
       </div>
     </main>
   );
