@@ -106,6 +106,9 @@ export default function Game() {
   const hasAttemptedTransferRef = useRef(false);
   const playerInitializedRef = useRef(false);
   const playerInstanceRef = useRef<SpotifyPlayer | undefined>(undefined);
+  const previousTrackIdRef = useRef<string>(''); // Track previous track ID to detect loops
+  const hasLoopedRef = useRef(false); // Track if the song has looped once
+  const previousPositionRef = useRef<number>(0); // Track previous position to detect loops
   const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
     const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
     return stored === 'true';
@@ -118,6 +121,33 @@ export default function Game() {
   const [trackDuration, setTrackDuration] = useState<number>(0); // Track duration in milliseconds
   const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
   const positionUpdateIntervalRef = useRef<number | null>(null);
+
+  // Enable repeat mode for track (loop single track)
+  const enableRepeatMode = useCallback(async (_trackId?: string) => {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) {
+      console.error('[Spotify] No access token available for repeat mode');
+      return;
+    }
+
+    try {
+      // Set repeat mode to 'track' (loop current track)
+      const response = await fetch('https://api.spotify.com/v1/me/player/repeat?state=track', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.status === 204) {
+        console.log('[Spotify] Repeat mode enabled (track loop)');
+      } else {
+        console.warn('[Spotify] Failed to enable repeat mode:', response.status);
+      }
+    } catch (error) {
+      console.error('[Spotify] Error enabling repeat mode:', error);
+    }
+  }, []);
 
   // Transfer playback to this device using Spotify Web API
   const transferPlaybackToDevice = useCallback(
@@ -154,9 +184,16 @@ export default function Game() {
                 if (state) {
                   setActive(true);
                   setPaused(state.paused);
-                  setTrack(state.track_window.current_track);
-                  setCurrentPosition(state.position || 0);
-                  setTrackDuration(state.track_window.current_track.duration_ms || 0);
+                  const trackState = state.track_window.current_track;
+                  setTrack(trackState);
+                  const initialPosition = state.position || 0;
+                  setCurrentPosition(initialPosition);
+                  setTrackDuration(trackState.duration_ms || 0);
+                  previousTrackIdRef.current = trackState.id;
+                  previousPositionRef.current = initialPosition;
+                  hasLoopedRef.current = false;
+                  // Enable repeat mode for the track
+                  enableRepeatMode(trackState.id);
                 }
               })
               .catch((error) => {
@@ -176,7 +213,7 @@ export default function Game() {
         setIsTransferring(false);
       }
     },
-    [player]
+    [player, enableRepeatMode]
   );
 
   // Initialize player following the tutorial exactly
@@ -287,9 +324,6 @@ export default function Game() {
         );
       });
 
-      // Use ref to track previous track ID to detect track changes
-      const previousTrackIdRefFirst = { current: '' };
-
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
           console.log(
@@ -299,7 +333,8 @@ export default function Game() {
           setTrack(track);
           setCurrentPosition(0);
           setTrackDuration(0);
-          previousTrackIdRefFirst.current = '';
+          previousTrackIdRef.current = '';
+          hasLoopedRef.current = false;
           return;
         }
 
@@ -309,18 +344,57 @@ export default function Game() {
           position: state.position,
         });
 
-        // Reset position when track changes
         const newTrackId = state.track_window.current_track.id;
-        if (previousTrackIdRefFirst.current && previousTrackIdRefFirst.current !== newTrackId) {
-          console.log('[Spotify] Track changed, resetting position');
-          setCurrentPosition(0);
-        }
-        previousTrackIdRefFirst.current = newTrackId;
+        const position = state.position || 0;
+        const duration = state.track_window.current_track.duration_ms || 0;
+        const previousPosition = previousPositionRef.current;
 
+        // Check if track changed (different track)
+        const trackChanged =
+          previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
+
+        if (trackChanged) {
+          // New track started - enable repeat mode and reset loop tracking
+          console.log('[Spotify] New track started, enabling repeat mode');
+          previousTrackIdRef.current = newTrackId;
+          hasLoopedRef.current = false;
+          enableRepeatMode(newTrackId);
+        } else if (previousTrackIdRef.current === '') {
+          // First time we see this track - enable repeat mode
+          previousTrackIdRef.current = newTrackId;
+          hasLoopedRef.current = false;
+          enableRepeatMode(newTrackId);
+        } else {
+          // Same track - check if it looped (position jumped from near end to near start)
+          if (
+            duration > 0 &&
+            previousPosition > duration * 0.8 && // Was near the end (>80%)
+            position < duration * 0.1 && // Now near the start (<10%)
+            !hasLoopedRef.current // Haven't detected loop yet
+          ) {
+            // Song looped - pause it
+            console.log('[Spotify] Song looped (second time started), pausing');
+            hasLoopedRef.current = true;
+            if (!state.paused) {
+              const currentPlayer = playerInstanceRef.current;
+              if (currentPlayer) {
+                currentPlayer.togglePlay().catch((error) => {
+                  console.error('[Host Game] Error pausing after loop:', error);
+                });
+              }
+            }
+            // Show full duration
+            setCurrentPosition(Math.ceil(duration / 1000) * 1000);
+            setPaused(true);
+            return; // Don't update position normally
+          }
+        }
+
+        // Update state normally
         setTrack(state.track_window.current_track);
+        setCurrentPosition(position);
+        setTrackDuration(duration);
         setPaused(state.paused);
-        setCurrentPosition(state.position || 0);
-        setTrackDuration(state.track_window.current_track.duration_ms || 0);
         setActive(true);
       });
 
@@ -437,6 +511,7 @@ export default function Game() {
           setCurrentPosition(0);
           setTrackDuration(0);
           previousTrackIdRef.current = '';
+          hasLoopedRef.current = false;
           return;
         }
 
@@ -446,19 +521,67 @@ export default function Game() {
           position: state.position,
         });
 
-        // Reset position when track changes
         const newTrackId = state.track_window.current_track.id;
-        if (previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId) {
-          console.log('[Spotify] Track changed, resetting position');
-          setCurrentPosition(0);
-        }
-        previousTrackIdRef.current = newTrackId;
+        const position = state.position || 0;
+        const duration = state.track_window.current_track.duration_ms || 0;
+        const previousPosition = previousPositionRef.current;
 
+        // Check if track changed (different track)
+        const trackChanged =
+          previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
+
+        if (trackChanged) {
+          // New track started - enable repeat mode and reset loop tracking
+          console.log('[Spotify] New track started, enabling repeat mode');
+          previousTrackIdRef.current = newTrackId;
+          previousPositionRef.current = position;
+          hasLoopedRef.current = false;
+          enableRepeatMode(newTrackId);
+        } else if (previousTrackIdRef.current === '') {
+          // First time we see this track - enable repeat mode
+          previousTrackIdRef.current = newTrackId;
+          previousPositionRef.current = position;
+          hasLoopedRef.current = false;
+          enableRepeatMode(newTrackId);
+        } else {
+          // Same track - check if it looped (position jumped from near end to near start)
+          if (
+            duration > 0 &&
+            previousPosition > duration * 0.8 && // Was near the end (>80%)
+            position < duration * 0.1 && // Now near the start (<10%)
+            !hasLoopedRef.current // Haven't detected loop yet
+          ) {
+            // Song looped - pause it
+            console.log('[Spotify] Song looped (second time started), pausing');
+            hasLoopedRef.current = true;
+            if (!state.paused) {
+              const currentPlayer = playerInstanceRef.current;
+              if (currentPlayer) {
+                currentPlayer.togglePlay().catch((error) => {
+                  console.error('[Host Game] Error pausing after loop:', error);
+                });
+              }
+            }
+            // Show full duration
+            const roundedDuration = Math.ceil(duration / 1000) * 1000;
+            setCurrentPosition(roundedDuration);
+            previousPositionRef.current = roundedDuration;
+            setPaused(true);
+            setTrack(state.track_window.current_track);
+            setTrackDuration(duration);
+            setActive(true);
+            return; // Don't update position normally
+          }
+        }
+
+        // Update state normally
         setTrack(state.track_window.current_track);
+        setCurrentPosition(position);
+        setTrackDuration(duration);
         setPaused(state.paused);
-        setCurrentPosition(state.position || 0);
-        setTrackDuration(state.track_window.current_track.duration_ms || 0);
-        setActive(true); // If we have state, we're active
+        setActive(true);
+        // Update previous position ref
+        previousPositionRef.current = position;
         // Don't call getCurrentState() here - it can cause loops and we already have the state
       });
 
@@ -473,7 +596,7 @@ export default function Game() {
         playerInstanceRef.current = undefined;
       }
     };
-  }, [transferPlaybackToDevice]); // Include transferPlaybackToDevice dependency
+  }, [transferPlaybackToDevice, enableRepeatMode]);
 
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
@@ -565,20 +688,44 @@ export default function Game() {
       return;
     }
 
-    // Update position every second
+    // Update position periodically (every 500ms)
     positionUpdateIntervalRef.current = window.setInterval(async () => {
       const currentPlayer = playerInstanceRef.current || player;
       if (currentPlayer && !isSeeking) {
         try {
           const state = await currentPlayer.getCurrentState();
           if (state && !state.paused) {
-            setCurrentPosition(state.position || 0);
+            const newPosition = state.position || 0;
+            const currentDuration = state.track_window.current_track.duration_ms || trackDuration;
+            const currentTrackId = state.track_window.current_track.id;
+            const prevPos = previousPositionRef.current;
+
+            // Check if song looped (position jumped from near end to near start)
+            if (
+              currentDuration > 0 &&
+              previousTrackIdRef.current === currentTrackId &&
+              prevPos > currentDuration * 0.8 && // Was near the end (>80%)
+              newPosition < currentDuration * 0.1 && // Now near the start (<10%)
+              !hasLoopedRef.current // Haven't detected loop yet
+            ) {
+              // Song looped - pause it
+              console.log('[Host Game] Song looped (detected in interval), pausing');
+              hasLoopedRef.current = true;
+              await currentPlayer.togglePlay();
+              setPaused(true);
+              // Show full duration
+              setCurrentPosition(Math.ceil(currentDuration / 1000) * 1000);
+            } else {
+              // Update position normally
+              setCurrentPosition(newPosition);
+              previousPositionRef.current = newPosition;
+            }
           }
         } catch (error) {
           console.error('[Host Game] Error updating position:', error);
         }
       }
-    }, 1000);
+    }, 500); // Check every 500ms
 
     return () => {
       if (positionUpdateIntervalRef.current) {
@@ -586,7 +733,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [is_active, player, is_paused, isSeeking]);
+  }, [is_active, player, is_paused, isSeeking, trackDuration]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =
@@ -829,8 +976,8 @@ export default function Game() {
                   <input
                     type="range"
                     min="0"
-                    max={trackDuration}
-                    value={currentPosition}
+                    max={Math.ceil(trackDuration / 1000) * 1000}
+                    value={Math.min(currentPosition, Math.ceil(trackDuration / 1000) * 1000)}
                     onChange={handleTimelineChange}
                     onMouseUp={handleTimelineMouseUp}
                     onTouchEnd={handleTimelineTouchEnd}
@@ -838,8 +985,14 @@ export default function Game() {
                     step="1000"
                   />
                   <div className="flex justify-between text-xs text-base-content/70">
-                    <span className="font-mono">{formatTime(currentPosition)}</span>
-                    <span className="font-mono">{formatTime(trackDuration)}</span>
+                    <span className="font-mono">
+                      {formatTime(
+                        Math.min(currentPosition, Math.ceil(trackDuration / 1000) * 1000)
+                      )}
+                    </span>
+                    <span className="font-mono">
+                      {formatTime(Math.ceil(trackDuration / 1000) * 1000)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -870,6 +1023,7 @@ export default function Game() {
                       console.log('[Spotify] Toggling play, current paused state:', is_paused);
                       console.log('[Spotify] Current track:', current_track.name || 'No track');
                       console.log('[Spotify] Player active:', is_active);
+                      console.log('[Spotify] Has looped:', hasLoopedRef.current);
 
                       // Check current state before toggling
                       const currentState = await player.getCurrentState();
@@ -887,6 +1041,30 @@ export default function Game() {
                           'No active playback. Please transfer playback to "Guess The Song" from another Spotify client and ensure a track is loaded.'
                         );
                         return;
+                      }
+
+                      // If song has looped and is paused, jump to start (0:00) and reset loop tracking
+                      if (hasLoopedRef.current && is_paused) {
+                        console.log(
+                          '[Spotify] Song has looped, jumping to start (0:00) before playing'
+                        );
+                        const accessToken = localStorage.getItem('access_token');
+                        if (accessToken) {
+                          try {
+                            // Use Spotify Web API to seek to position 0
+                            await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=0`, {
+                              method: 'PUT',
+                              headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                              },
+                            });
+                            setCurrentPosition(0);
+                            hasLoopedRef.current = false;
+                            console.log('[Spotify] Jumped to start successfully');
+                          } catch (seekError) {
+                            console.error('[Spotify] Error seeking to start:', seekError);
+                          }
+                        }
                       }
 
                       await player.togglePlay();
@@ -907,6 +1085,10 @@ export default function Game() {
                           setTrack(newState.track_window.current_track);
                           setCurrentPosition(newState.position || 0);
                           setTrackDuration(newState.track_window.current_track.duration_ms || 0);
+                          // Reset loop tracking if we're playing from start
+                          if (newState.position === 0 || newState.position < 1000) {
+                            hasLoopedRef.current = false;
+                          }
                         }
                       }, 500);
                     } catch (error) {
