@@ -29,9 +29,6 @@ jobs:
           rm: true
           
       - name: "Deploy with Docker Compose"
-        env:
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
-          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ vars.URL }}
@@ -41,6 +38,9 @@ jobs:
           fingerprint: ${{ secrets.PI_FINGERPRINT }}
           passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
           envs: SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET
+          env: |
+            SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
+            SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
           script: |
             cd /home/${{ secrets.SSH_USERNAME }}/guessthesong-backend
             
@@ -57,14 +57,25 @@ jobs:
               echo "ERROR: SPOTIFY_CLIENT_SECRET is not set"
               exit 1
             fi
-            echo "✓ Spotify credentials are configured in shell environment"
+            echo "✓ Spotify credentials are configured"
             
-            # Stop existing containers (variables are now in environment, so no warnings)
-            docker compose -f docker-compose.yml -f docker-compose.tls.yml down
+            # Create temporary .env file in /tmp (tmpfs, not persisted to disk)
+            # This prevents Docker Compose warnings while keeping credentials secure
+            # The file is deleted immediately after docker compose reads it
+            TEMP_ENV=$(mktemp)
+            echo "SPOTIFY_CLIENT_ID=$SPOTIFY_CLIENT_ID" > "$TEMP_ENV"
+            echo "SPOTIFY_CLIENT_SECRET=$SPOTIFY_CLIENT_SECRET" >> "$TEMP_ENV"
+            chmod 600 "$TEMP_ENV"
             
-            # Start containers with environment variables available
-            # Variables are already exported, so docker compose can read them from environment
-            docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+            # Stop existing containers (using temp env file to prevent warnings)
+            docker compose --env-file "$TEMP_ENV" -f docker-compose.yml -f docker-compose.tls.yml down
+            
+            # Start containers (using temp env file)
+            docker compose --env-file "$TEMP_ENV" -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+            
+            # Immediately delete the temporary file
+            rm -f "$TEMP_ENV"
+            echo "✓ Temporary credentials file deleted"
             
             # Show container status
             docker compose -f docker-compose.yml -f docker-compose.tls.yml ps

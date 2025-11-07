@@ -105,13 +105,32 @@ If the GitHub Actions workflow fails or you need to deploy manually:
    cd /home/<SSH_USERNAME>/guessthesong-backend
    ```
 
-3. **Set environment variables and deploy:**
+3. **Export environment variables and deploy:**
    ```bash
-   export SPOTIFY_CLIENT_ID="your-client-id-here"
-   export SPOTIFY_CLIENT_SECRET="your-client-secret-here"
-   docker compose -f docker-compose.yml -f docker-compose.tls.yml down
-   SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID" SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET" docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+   # Export environment variables (they will be available to docker compose)
+   export SPOTIFY_CLIENT_ID="your-actual-client-id-here"
+   export SPOTIFY_CLIENT_SECRET="your-actual-client-secret-here"
+   
+   # Verify they're set
+   [ -n "$SPOTIFY_CLIENT_ID" ] && [ -n "$SPOTIFY_CLIENT_SECRET" ] && echo "✓ Variables are set" || echo "✗ Variables missing"
+   
+   # Create temporary .env file to prevent Docker Compose warnings
+   # This file is deleted immediately after use, so credentials don't persist on disk
+   TEMP_ENV=$(mktemp)
+   echo "SPOTIFY_CLIENT_ID=$SPOTIFY_CLIENT_ID" > "$TEMP_ENV"
+   echo "SPOTIFY_CLIENT_SECRET=$SPOTIFY_CLIENT_SECRET" >> "$TEMP_ENV"
+   chmod 600 "$TEMP_ENV"
+   
+   # Deploy with Docker Compose (using temp env file)
+   docker compose --env-file "$TEMP_ENV" -f docker-compose.yml -f docker-compose.tls.yml down
+   docker compose --env-file "$TEMP_ENV" -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+   
+   # Immediately delete the temporary file
+   rm -f "$TEMP_ENV"
+   echo "✓ Temporary credentials file deleted"
    ```
+   
+   **Note:** The temporary file is created in `/tmp` (which is often a tmpfs in-memory filesystem) and deleted immediately after use, so credentials never persist on disk.
 
 4. **Verify deployment:**
    ```bash
@@ -122,8 +141,6 @@ If the GitHub Actions workflow fails or you need to deploy manually:
    ```
    Spotify credentials loaded (Client ID configured)
    ```
-
-**Note:** For security, avoid hardcoding credentials in scripts. Use environment variables or a `.env` file (not tracked in git) for manual deployments.
 
 ## Security Best Practices
 
