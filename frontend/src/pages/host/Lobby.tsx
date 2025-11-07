@@ -92,7 +92,9 @@ export default function Lobby() {
             <span className="loading loading-spinner loading-sm mr-2"></span>
             <span className="font-semibold">Establishing connection...</span>
           </div>
-          <p className="text-sm">Please wait while the connection to the server is being established.</p>
+          <p className="text-sm">
+            Please wait while the connection to the server is being established.
+          </p>
         </div>
       ) : wsStatus === 'failed' ? (
         <div className="alert alert-error max-w-md flex flex-col gap-3">
