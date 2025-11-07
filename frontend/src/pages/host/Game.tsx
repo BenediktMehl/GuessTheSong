@@ -8,6 +8,7 @@ import {
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
 } from '../../game/host';
+import logger from '../../utils/logger';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
@@ -126,7 +127,7 @@ export default function Game() {
   const enableRepeatMode = useCallback(async (_trackId?: string) => {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
-      console.error('[Spotify] No access token available for repeat mode');
+      logger.error('[Spotify] No access token available for repeat mode');
       return;
     }
 
@@ -140,12 +141,12 @@ export default function Game() {
       });
 
       if (response.status === 204) {
-        console.log('[Spotify] Repeat mode enabled (track loop)');
+        logger.debug('[Spotify] Repeat mode enabled (track loop)');
       } else {
-        console.warn('[Spotify] Failed to enable repeat mode:', response.status);
+        logger.warn('[Spotify] Failed to enable repeat mode:', response.status);
       }
     } catch (error) {
-      console.error('[Spotify] Error enabling repeat mode:', error);
+      logger.error('[Spotify] Error enabling repeat mode:', error);
     }
   }, []);
 
@@ -154,13 +155,13 @@ export default function Game() {
     async (targetDeviceId: string, spotifyPlayerInstance?: SpotifyPlayer) => {
       const accessToken = localStorage.getItem('access_token');
       if (!accessToken) {
-        console.error('[Spotify] No access token available for transfer');
+        logger.error('[Spotify] No access token available for transfer');
         return;
       }
 
       setIsTransferring(true);
       try {
-        console.log('[Spotify] Transferring playback to device:', targetDeviceId);
+        logger.debug('[Spotify] Transferring playback to device:', targetDeviceId);
         const response = await fetch('https://api.spotify.com/v1/me/player', {
           method: 'PUT',
           headers: {
@@ -174,7 +175,7 @@ export default function Game() {
         });
 
         if (response.status === 204) {
-          console.log('[Spotify] Playback transferred successfully');
+          logger.debug('[Spotify] Playback transferred successfully');
           // Wait a bit for the state to update
           setTimeout(() => {
             const playerToCheck = spotifyPlayerInstance || player;
@@ -197,18 +198,18 @@ export default function Game() {
                 }
               })
               .catch((error) => {
-                console.error('[Spotify] Error getting state after transfer:', error);
+                logger.error('[Spotify] Error getting state after transfer:', error);
               });
           }, 1000);
         } else if (response.status === 404) {
-          console.warn('[Spotify] No active device found to transfer from');
+          logger.warn('[Spotify] No active device found to transfer from');
           // This is okay - user needs to start playback on another device first
         } else {
           const errorData = await response.json().catch(() => ({}));
-          console.error('[Spotify] Failed to transfer playback:', response.status, errorData);
+          logger.error('[Spotify] Failed to transfer playback:', response.status, errorData);
         }
       } catch (error) {
-        console.error('[Spotify] Error transferring playback:', error);
+        logger.error('[Spotify] Error transferring playback:', error);
       } finally {
         setIsTransferring(false);
       }
@@ -220,7 +221,7 @@ export default function Game() {
   useEffect(() => {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
-      console.log('No access token available');
+      logger.debug('No access token available');
       setSpotifyError(
         'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
       );
@@ -229,7 +230,7 @@ export default function Game() {
 
     // Prevent multiple initializations
     if (playerInitializedRef.current) {
-      console.log('[Spotify] Player already initialized');
+      logger.debug('[Spotify] Player already initialized');
       return;
     }
     playerInitializedRef.current = true;
@@ -239,7 +240,7 @@ export default function Game() {
       'script[src="https://sdk.scdn.co/spotify-player.js"]'
     );
     if (existingScript && window.Spotify) {
-      console.log('[Spotify] SDK script already loaded');
+      logger.debug('[Spotify] SDK script already loaded');
       // If SDK is already loaded, initialize player directly
       const storedVolume = localStorage.getItem(SPOTIFY_VOLUME_KEY);
       const initialVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
@@ -259,7 +260,7 @@ export default function Game() {
       playerInstanceRef.current = spotifyPlayer;
 
       spotifyPlayer.addListener('ready', ({ device_id }) => {
-        console.log('[Spotify] Ready with Device ID', device_id);
+        logger.debug('[Spotify] Ready with Device ID', device_id);
         setDeviceId(device_id);
         setSpotifyError(null); // Clear error on successful connection
 
@@ -268,7 +269,7 @@ export default function Game() {
           .getCurrentState()
           .then((state) => {
             if (state) {
-              console.log('[Spotify] Initial state:', {
+              logger.debug('[Spotify] Initial state:', {
                 paused: state.paused,
                 track: state.track_window.current_track.name,
                 position: state.position,
@@ -280,12 +281,12 @@ export default function Game() {
               setTrackDuration(state.track_window.current_track.duration_ms || 0);
               hasAttemptedTransferRef.current = true;
             } else {
-              console.log('[Spotify] No initial playback state');
+              logger.debug('[Spotify] No initial playback state');
               setActive(false);
               setCurrentPosition(0);
               setTrackDuration(0);
               if (!hasAttemptedTransferRef.current) {
-                console.log('[Spotify] Attempting to transfer playback');
+                logger.debug('[Spotify] Attempting to transfer playback');
                 hasAttemptedTransferRef.current = true;
                 setTimeout(() => {
                   transferPlaybackToDevice(device_id, spotifyPlayer);
@@ -294,31 +295,31 @@ export default function Game() {
             }
           })
           .catch((error) => {
-            console.error('[Spotify] Error getting initial state:', error);
+            logger.error('[Spotify] Error getting initial state:', error);
           });
       });
 
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
-        console.log('[Spotify] Device ID has gone offline', device_id);
+        logger.debug('[Spotify] Device ID has gone offline', device_id);
         setActive(false);
       });
 
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
-        console.error('[Spotify] Authentication error:', message);
+        logger.error('[Spotify] Authentication error:', message);
         setSpotifyError(
           'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
         );
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
-        console.error('[Spotify] Initialization error:', message);
+        logger.error('[Spotify] Initialization error:', message);
         setSpotifyError(
           'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
         );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
-        console.error('[Spotify] Account error:', message);
+        logger.error('[Spotify] Account error:', message);
         setSpotifyError(
           'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
         );
@@ -326,7 +327,7 @@ export default function Game() {
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
-          console.log(
+          logger.debug(
             '[Spotify] Player state changed: null state - playback may have been transferred away'
           );
           setActive(false);
@@ -338,7 +339,7 @@ export default function Game() {
           return;
         }
 
-        console.log('[Spotify] Player state changed:', {
+        logger.debug('[Spotify] Player state changed:', {
           paused: state.paused,
           track: state.track_window.current_track.name,
           position: state.position,
@@ -355,7 +356,7 @@ export default function Game() {
 
         if (trackChanged) {
           // New track started - enable repeat mode and reset loop tracking
-          console.log('[Spotify] New track started, enabling repeat mode');
+          logger.debug('[Spotify] New track started, enabling repeat mode');
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
           enableRepeatMode(newTrackId);
@@ -373,13 +374,13 @@ export default function Game() {
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
             // Song looped - pause it
-            console.log('[Spotify] Song looped (second time started), pausing');
+            logger.debug('[Spotify] Song looped (second time started), pausing');
             hasLoopedRef.current = true;
             if (!state.paused) {
               const currentPlayer = playerInstanceRef.current;
               if (currentPlayer) {
                 currentPlayer.togglePlay().catch((error) => {
-                  console.error('[Host Game] Error pausing after loop:', error);
+                  logger.error('[Host Game] Error pausing after loop:', error);
                 });
               }
             }
@@ -427,7 +428,7 @@ export default function Game() {
       playerInstanceRef.current = spotifyPlayer;
 
       spotifyPlayer.addListener('ready', ({ device_id }) => {
-        console.log('[Spotify] Ready with Device ID', device_id);
+        logger.debug('[Spotify] Ready with Device ID', device_id);
         setDeviceId(device_id);
         setSpotifyError(null); // Clear error on successful connection
 
@@ -436,7 +437,7 @@ export default function Game() {
           .getCurrentState()
           .then((state) => {
             if (state) {
-              console.log('[Spotify] Initial state:', {
+              logger.debug('[Spotify] Initial state:', {
                 paused: state.paused,
                 track: state.track_window.current_track.name,
                 position: state.position,
@@ -448,13 +449,13 @@ export default function Game() {
               setTrackDuration(state.track_window.current_track.duration_ms || 0);
               hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
             } else {
-              console.log('[Spotify] No initial playback state');
+              logger.debug('[Spotify] No initial playback state');
               setActive(false);
               setCurrentPosition(0);
               setTrackDuration(0);
               // Only attempt transfer once
               if (!hasAttemptedTransferRef.current) {
-                console.log('[Spotify] Attempting to transfer playback');
+                logger.debug('[Spotify] Attempting to transfer playback');
                 hasAttemptedTransferRef.current = true;
                 // Use setTimeout to avoid calling during listener setup
                 // Pass spotifyPlayer instance directly to avoid dependency issues
@@ -462,36 +463,36 @@ export default function Game() {
                   transferPlaybackToDevice(device_id, spotifyPlayer);
                 }, 1500);
               } else {
-                console.log('[Spotify] Transfer already attempted, skipping');
+                logger.debug('[Spotify] Transfer already attempted, skipping');
               }
             }
           })
           .catch((error) => {
-            console.error('[Spotify] Error getting initial state:', error);
+            logger.error('[Spotify] Error getting initial state:', error);
           });
       });
 
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
-        console.log('[Spotify] Device ID has gone offline', device_id);
+        logger.debug('[Spotify] Device ID has gone offline', device_id);
         setActive(false);
       });
 
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
-        console.error('[Spotify] Authentication error:', message);
+        logger.error('[Spotify] Authentication error:', message);
         setSpotifyError(
           'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
         );
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
-        console.error('[Spotify] Initialization error:', message);
+        logger.error('[Spotify] Initialization error:', message);
         setSpotifyError(
           'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
         );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
-        console.error('[Spotify] Account error:', message);
+        logger.error('[Spotify] Account error:', message);
         setSpotifyError(
           'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
         );
@@ -502,7 +503,7 @@ export default function Game() {
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
-          console.log(
+          logger.debug(
             '[Spotify] Player state changed: null state - playback may have been transferred away'
           );
           setActive(false);
@@ -515,7 +516,7 @@ export default function Game() {
           return;
         }
 
-        console.log('[Spotify] Player state changed:', {
+        logger.debug('[Spotify] Player state changed:', {
           paused: state.paused,
           track: state.track_window.current_track.name,
           position: state.position,
@@ -532,7 +533,7 @@ export default function Game() {
 
         if (trackChanged) {
           // New track started - enable repeat mode and reset loop tracking
-          console.log('[Spotify] New track started, enabling repeat mode');
+          logger.debug('[Spotify] New track started, enabling repeat mode');
           previousTrackIdRef.current = newTrackId;
           previousPositionRef.current = position;
           hasLoopedRef.current = false;
@@ -552,13 +553,13 @@ export default function Game() {
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
             // Song looped - pause it
-            console.log('[Spotify] Song looped (second time started), pausing');
+            logger.debug('[Spotify] Song looped (second time started), pausing');
             hasLoopedRef.current = true;
             if (!state.paused) {
               const currentPlayer = playerInstanceRef.current;
               if (currentPlayer) {
                 currentPlayer.togglePlay().catch((error) => {
-                  console.error('[Host Game] Error pausing after loop:', error);
+                  logger.error('[Host Game] Error pausing after loop:', error);
                 });
               }
             }
@@ -610,7 +611,7 @@ export default function Game() {
       try {
         await player.setVolume(newVolume);
       } catch (error) {
-        console.error('[Spotify] Error setting volume:', error);
+        logger.error('[Spotify] Error setting volume:', error);
       }
     }
   };
@@ -630,7 +631,7 @@ export default function Game() {
   const handleSeek = async (positionMs: number) => {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken || !deviceId) {
-      console.error('[Spotify] No access token or device ID available for seek');
+      logger.error('[Spotify] No access token or device ID available for seek');
       return;
     }
 
@@ -646,13 +647,13 @@ export default function Game() {
       );
 
       if (response.status === 204) {
-        console.log('[Spotify] Seeked to position:', positionMs);
+        logger.debug('[Spotify] Seeked to position:', positionMs);
         setCurrentPosition(positionMs);
       } else {
-        console.error('[Spotify] Failed to seek:', response.status);
+        logger.error('[Spotify] Failed to seek:', response.status);
       }
     } catch (error) {
-      console.error('[Spotify] Error seeking:', error);
+      logger.error('[Spotify] Error seeking:', error);
     }
   };
 
@@ -709,7 +710,7 @@ export default function Game() {
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
               // Song looped - pause it
-              console.log('[Host Game] Song looped (detected in interval), pausing');
+              logger.debug('[Host Game] Song looped (detected in interval), pausing');
               hasLoopedRef.current = true;
               await currentPlayer.togglePlay();
               setPaused(true);
@@ -722,7 +723,7 @@ export default function Game() {
             }
           }
         } catch (error) {
-          console.error('[Host Game] Error updating position:', error);
+          logger.error('[Host Game] Error updating position:', error);
         }
       }
     }, 500); // Check every 500ms
@@ -752,9 +753,9 @@ export default function Game() {
       if (player) {
         try {
           await player.nextTrack();
-          console.log('[Host] Playing next song after correct guess');
+          logger.debug('[Host] Playing next song after correct guess');
         } catch (error) {
-          console.error('[Host] Error playing next song:', error);
+          logger.error('[Host] Error playing next song:', error);
         }
       }
     });
@@ -771,9 +772,9 @@ export default function Game() {
         if (player && is_paused) {
           try {
             await player.togglePlay();
-            console.log('[Host] Resuming song for next player');
+            logger.debug('[Host] Resuming song for next player');
           } catch (error) {
-            console.error('[Host] Error resuming song:', error);
+            logger.error('[Host] Error resuming song:', error);
           }
         }
       },
@@ -782,9 +783,9 @@ export default function Game() {
         if (player) {
           try {
             await player.nextTrack();
-            console.log('[Host] Playing next song - no more players can guess');
+            logger.debug('[Host] Playing next song - no more players can guess');
           } catch (error) {
-            console.error('[Host] Error playing next song:', error);
+            logger.error('[Host] Error playing next song:', error);
           }
         }
       }
@@ -794,7 +795,7 @@ export default function Game() {
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
     const currentPlayer = playerInstanceRef.current || player;
-    console.log('[Host Game] Pause function called', {
+    logger.debug('[Host Game] Pause function called', {
       hasPlayer: !!currentPlayer,
       playerFromRef: !!playerInstanceRef.current,
     });
@@ -803,33 +804,33 @@ export default function Game() {
       try {
         // Get current state to check if we need to pause
         const currentState = await currentPlayer.getCurrentState();
-        console.log('[Host Game] Current playback state:', currentState);
+        logger.debug('[Host Game] Current playback state:', currentState);
 
         if (currentState && !currentState.paused) {
-          console.log('[Host Game] Pausing playback');
+          logger.debug('[Host Game] Pausing playback');
           await currentPlayer.togglePlay();
-          console.log('[Host Game] Playback paused successfully');
+          logger.debug('[Host Game] Playback paused successfully');
           // Update local state
           setPaused(true);
         } else {
-          console.log('[Host Game] Playback is already paused or no state');
+          logger.debug('[Host Game] Playback is already paused or no state');
         }
       } catch (error) {
-        console.error('[Host Game] Error pausing playback:', error);
+        logger.error('[Host Game] Error pausing playback:', error);
       }
     } else {
-      console.error('[Host Game] No player available in pause function');
+      logger.error('[Host Game] No player available in pause function');
     }
   }, [player]);
 
   // Register pause callback in context and global
   useEffect(() => {
     if (player && is_active) {
-      console.log('[Host Game] Registering pause callback', { player, is_active });
+      logger.debug('[Host Game] Registering pause callback', { player, is_active });
       setPausePlayerCallback(pausePlayerFunction);
       setGlobalPausePlayer(pausePlayerFunction);
     } else {
-      console.log('[Host Game] Clearing pause callback', { player, is_active });
+      logger.debug('[Host Game] Clearing pause callback', { player, is_active });
       setPausePlayerCallback(null);
       setGlobalPausePlayer(null);
     }
@@ -1016,25 +1017,25 @@ export default function Game() {
                   className="btn btn-warning flex-1"
                   onClick={async () => {
                     if (!player) {
-                      console.error('[Spotify] Player not available');
+                      logger.error('[Spotify] Player not available');
                       return;
                     }
                     try {
-                      console.log('[Spotify] Toggling play, current paused state:', is_paused);
-                      console.log('[Spotify] Current track:', current_track.name || 'No track');
-                      console.log('[Spotify] Player active:', is_active);
-                      console.log('[Spotify] Has looped:', hasLoopedRef.current);
+                      logger.debug('[Spotify] Toggling play, current paused state:', is_paused);
+                      logger.debug('[Spotify] Current track:', current_track.name || 'No track');
+                      logger.debug('[Spotify] Player active:', is_active);
+                      logger.debug('[Spotify] Has looped:', hasLoopedRef.current);
 
                       // Check current state before toggling
                       const currentState = await player.getCurrentState();
-                      console.log('[Spotify] Current state before toggle:', {
+                      logger.debug('[Spotify] Current state before toggle:', {
                         hasState: !!currentState,
                         paused: currentState?.paused,
                         track: currentState?.track_window.current_track.name,
                       });
 
                       if (!currentState) {
-                        console.warn(
+                        logger.warn(
                           '[Spotify] No active playback state. Make sure playback is transferred to this device and a track is loaded.'
                         );
                         alert(
@@ -1045,7 +1046,7 @@ export default function Game() {
 
                       // If song has looped and is paused, jump to start (0:00) and reset loop tracking
                       if (hasLoopedRef.current && is_paused) {
-                        console.log(
+                        logger.debug(
                           '[Spotify] Song has looped, jumping to start (0:00) before playing'
                         );
                         const accessToken = localStorage.getItem('access_token');
@@ -1060,20 +1061,20 @@ export default function Game() {
                             });
                             setCurrentPosition(0);
                             hasLoopedRef.current = false;
-                            console.log('[Spotify] Jumped to start successfully');
+                            logger.debug('[Spotify] Jumped to start successfully');
                           } catch (seekError) {
-                            console.error('[Spotify] Error seeking to start:', seekError);
+                            logger.error('[Spotify] Error seeking to start:', seekError);
                           }
                         }
                       }
 
                       await player.togglePlay();
-                      console.log('[Spotify] togglePlay() called successfully');
+                      logger.debug('[Spotify] togglePlay() called successfully');
 
                       // Check state after a short delay
                       setTimeout(async () => {
                         const newState = await player.getCurrentState();
-                        console.log('[Spotify] State after toggle:', {
+                        logger.debug('[Spotify] State after toggle:', {
                           hasState: !!newState,
                           paused: newState?.paused,
                           track: newState?.track_window.current_track.name,
@@ -1092,7 +1093,7 @@ export default function Game() {
                         }
                       }, 500);
                     } catch (error) {
-                      console.error('[Spotify] Error toggling play:', error);
+                      logger.error('[Spotify] Error toggling play:', error);
                       alert(
                         `Error controlling playback: ${error instanceof Error ? error.message : 'Unknown error'}`
                       );
@@ -1107,16 +1108,16 @@ export default function Game() {
                   className="btn btn-outline flex-1"
                   onClick={async () => {
                     // Reset all players to default list before going to next song
-                    console.log('[Host Game] Next button clicked - resetting all players');
+                    logger.debug('[Host Game] Next button clicked - resetting all players');
                     resetAllPlayersForNewRound(gameContext);
 
                     // Go to next track
                     if (player) {
                       try {
                         await player.nextTrack();
-                        console.log('[Host Game] Next track started');
+                        logger.debug('[Host Game] Next track started');
                       } catch (error) {
-                        console.error('[Host Game] Error going to next track:', error);
+                        logger.error('[Host Game] Error going to next track:', error);
                       }
                     }
                   }}

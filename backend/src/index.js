@@ -2,14 +2,15 @@
 // Look for the file at the repository root (two levels up from backend/src/)
 const fs = require('node:fs');
 const path = require('node:path');
+const logger = require('./logger');
 
 const envLocalPath = path.join(__dirname, '../../', '.env.local');
 
 if (fs.existsSync(envLocalPath)) {
   require('dotenv').config({ path: envLocalPath });
-  console.log('Loaded environment variables from .env.local');
+  logger.info('Loaded environment variables from .env.local');
 } else {
-  console.warn('Warning: .env.local not found at repository root. Some features may not work.');
+  logger.warn('Warning: .env.local not found at repository root. Some features may not work.');
 }
 
 const { httpServer, ws } = require('./server');
@@ -27,40 +28,40 @@ ws.on('connection', (ws) => {
     let data;
     try {
       data = JSON.parse(msg);
-      console.log('[Backend] Received raw message:', data);
+      logger.debug({ msg: data }, 'Received raw message');
     } catch (_e) {
-      console.error('[Backend] Failed to parse JSON:', _e);
+      logger.error({ err: _e }, 'Failed to parse JSON');
       sendError(ws, 'Could not interpret the command (invalid JSON).');
       return;
     }
 
     const { serverAction, serverPayload } = data;
-    console.log('[Backend] Parsed message:', { serverAction, serverPayload });
+    logger.debug({ serverAction, serverPayload }, 'Parsed message');
 
     try {
       switch (serverAction) {
         case 'join':
-          console.log('[Backend] Handling join');
+          logger.debug('Handling join');
           handleJoin(ws, serverPayload);
           break;
         case 'create':
-          console.log('[Backend] Handling create');
+          logger.debug('Handling create');
           handleCreate(ws);
           break;
         case 'player-action':
-          console.log('[Backend] Handling player-action');
+          logger.debug('Handling player-action');
           handlePlayerAction(ws, serverPayload);
           break;
         case 'broadcast':
-          console.log('[Backend] Handling broadcast');
+          logger.debug('Handling broadcast');
           handleBroadcast(ws, serverPayload);
           break;
         default:
-          console.error('[Backend] Unknown serverAction:', serverAction);
+          logger.error({ serverAction }, 'Unknown serverAction');
           sendError(ws, `Unknown serverAction: ${serverAction}`);
       }
     } catch (error) {
-      console.error('[Backend] Handler error:', error);
+      logger.error({ err: error }, 'Handler error');
       sendError(ws, 'Internal server error.');
     }
   });
@@ -74,7 +75,7 @@ ws.on('connection', (ws) => {
 if (process.env.NODE_ENV !== 'test') {
   httpServer.listen(PORT, HOST, () => {
     const protocol = USE_TLS ? 'wss' : 'ws';
-    console.log(`GuessTheSong backend listening on ${protocol}://${HOST}:${PORT}`);
+    logger.info(`GuessTheSong backend listening on ${protocol}://${HOST}:${PORT}`);
   });
 }
 
