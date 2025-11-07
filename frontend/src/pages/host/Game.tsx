@@ -353,8 +353,7 @@ export default function Game() {
   const shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0;
 
   // Determine layout class for track display section
-  const trackDisplayClass =
-    current_track.name && shouldShowSong ? 'flex items-center gap-4' : '';
+  const trackDisplayClass = current_track.name && shouldShowSong ? 'flex items-center gap-4' : '';
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
