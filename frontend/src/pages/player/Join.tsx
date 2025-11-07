@@ -41,9 +41,18 @@ export default function Join() {
     const sessionId = room.trim().toUpperCase();
 
     if (sessionId) {
-      joinGame(gameContext, playerName, sessionId).then((success) => {
-        if (success) {
-          navigate('/lobby'); // React Router Navigation statt window.location.href
+      joinGame(gameContext, playerName, sessionId).then((result) => {
+        if (result.success) {
+          // Check if game is already running - if so, navigate directly to play screen
+          if (
+            result.status === 'waiting' ||
+            result.status === 'listening' ||
+            result.status === 'guessing'
+          ) {
+            navigate('/play');
+          } else {
+            navigate('/lobby');
+          }
         } else {
           setJoinFailed(true);
           setTimeout(() => setJoinFailed(false), 2000);
