@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
+import { BACKEND_HTTP_URL } from '../../config';
+import { getRedirectUri } from '../../services/spotify/auth';
 
 export default function SpotifyCallback() {
   const navigate = useNavigate();
@@ -85,10 +87,8 @@ export default function SpotifyCallback() {
 
       // Exchange code for token via backend (keeps client secret secure)
       try {
-        // Get backend URL from environment or use default
-        // Use 127.0.0.1 to match the frontend origin
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8080';
-        const response = await fetch(`${backendUrl}/api/spotify/token`, {
+        const redirectUri = getRedirectUri();
+        const response = await fetch(`${BACKEND_HTTP_URL}/api/spotify/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ export default function SpotifyCallback() {
           body: JSON.stringify({
             code: code,
             code_verifier: codeVerifier,
-            redirect_uri: 'http://127.0.0.1:5173/spotifycallback',
+            redirect_uri: redirectUri,
           }),
         });
 
