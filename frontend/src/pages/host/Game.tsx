@@ -365,7 +365,7 @@ export default function Game() {
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
           enableRepeatMode(newTrackId);
-          
+
           // If autoplay is OFF and we have a pending pause, pause the track
           if (pendingPauseRef.current && !state.paused) {
             console.log('[Spotify] Autoplay is OFF, pausing new track');
@@ -563,7 +563,7 @@ export default function Game() {
           previousPositionRef.current = position;
           hasLoopedRef.current = false;
           enableRepeatMode(newTrackId);
-          
+
           // If autoplay is OFF and we have a pending pause, pause the track
           if (pendingPauseRef.current && !state.paused) {
             console.log('[Spotify] Autoplay is OFF, pausing new track');
@@ -808,7 +808,7 @@ export default function Game() {
           }
           await player.nextTrack();
           console.log('[Host] Playing next song after correct guess', { autoplay });
-          
+
           // If autoplay is OFF, pause immediately after a short delay
           if (!autoplay) {
             setTimeout(async () => {
@@ -861,7 +861,7 @@ export default function Game() {
             }
             await player.nextTrack();
             console.log('[Host] Playing next song - no more players can guess', { autoplay });
-            
+
             // If autoplay is OFF, pause immediately after a short delay
             if (!autoplay) {
               setTimeout(async () => {
@@ -1120,11 +1120,7 @@ export default function Game() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className={`flex-1 ${
-                    !autoplay && is_paused
-                      ? 'btn btn-success animate-pulse'
-                      : 'btn btn-warning'
-                  }`}
+                  className={`flex-1 ${!autoplay && is_paused ? 'btn btn-success animate-pulse' : 'btn btn-warning'}`}
                   onClick={async () => {
                     if (!player) {
                       console.error('[Spotify] Player not available');
@@ -1230,7 +1226,7 @@ export default function Game() {
                         }
                         await player.nextTrack();
                         console.log('[Host Game] Next track started', { autoplay });
-                        
+
                         // If autoplay is OFF, pause immediately after a short delay
                         if (!autoplay) {
                           setTimeout(async () => {
