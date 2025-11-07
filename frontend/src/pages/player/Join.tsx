@@ -54,10 +54,8 @@ export default function Join() {
 
   return (
     <main className="h-screen flex flex-col items-center justify-start p-2 gap-2 overflow-y-auto">
-      <h1 className="text-2xl md:text-3xl font-bold text-success">Join Game</h1>
-      <p className="text-sm text-base-content">Enter the game code!</p>
-
       <Card className="w-full max-w-md" bodyClassName="gap-4">
+        <p className="text-sm text-base-content text-center">Enter the game code to join a game</p>
         <form onSubmit={handleJoin} className="flex flex-col gap-4">
           <div className="form-control">
             <label htmlFor="game-code" className="label justify-center py-1">
@@ -96,7 +94,11 @@ export default function Join() {
             />
           </div>
 
-          <button type="submit" className="btn btn-success btn-md text-base mt-2 shadow-xl">
+          <button
+            type="submit"
+            className="btn btn-success btn-md text-base mt-2 shadow-xl"
+            disabled={room.length !== 4}
+          >
             🎮 Join Game
           </button>
         </form>

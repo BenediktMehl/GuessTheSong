@@ -87,6 +87,15 @@ async function handleTokenExchange(req, res) {
         return;
       }
 
+      if (!redirect_uri) {
+        console.warn(
+          'Token exchange request missing redirect_uri. This should be provided by the frontend.'
+        );
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing redirect_uri' }));
+        return;
+      }
+
       if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
         res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Spotify credentials not configured on server' }));
@@ -103,7 +112,7 @@ async function handleTokenExchange(req, res) {
         body: new URLSearchParams({
           grant_type: 'authorization_code',
           code: code,
-          redirect_uri: redirect_uri || 'http://127.0.0.1:5173/spotifycallback',
+          redirect_uri: redirect_uri,
           code_verifier: code_verifier,
         }),
       });

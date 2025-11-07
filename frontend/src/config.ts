@@ -49,3 +49,29 @@ const getWsUrl = (): string => {
 };
 
 export const WS_URL = getWsUrl();
+
+// Derive HTTP/HTTPS URL from WebSocket URL
+// Note: Frontend and backend may be on different domains (e.g., frontend on guess-my-song.de,
+// backend on guess-the-song.duckdns.org). The backend HTTP URL is derived from the WebSocket URL
+// which points to the backend domain, not the frontend domain.
+const getBackendHttpUrl = (): string => {
+  // Allow explicit override via environment variable
+  const envBackendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
+  if (envBackendUrl) {
+    return envBackendUrl;
+  }
+
+  // Otherwise derive from WebSocket URL (which points to backend domain)
+  const wsUrl = getWsUrl();
+  // Convert ws:// to http:// and wss:// to https://
+  if (wsUrl.startsWith('wss://')) {
+    return wsUrl.replace('wss://', 'https://');
+  }
+  if (wsUrl.startsWith('ws://')) {
+    return wsUrl.replace('ws://', 'http://');
+  }
+  // Fallback if URL doesn't match expected pattern
+  return wsUrl;
+};
+
+export const BACKEND_HTTP_URL = getBackendHttpUrl();
