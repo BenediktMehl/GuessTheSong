@@ -43,12 +43,15 @@ vi.mock('../../../components/Card', () => ({
     bodyClassName,
     ...props
   }: {
-    title: string;
+    title?: string;
     children: React.ReactNode;
     bodyClassName?: string;
   }) => (
-    <div data-testid={`card-${title.toLowerCase().replace(/\s+/g, '-')}`} {...props}>
-      <h3>{title}</h3>
+    <div
+      data-testid={title ? `card-${title.toLowerCase().replace(/\s+/g, '-')}` : 'card'}
+      {...props}
+    >
+      {title && <h3>{title}</h3>}
       <div className={bodyClassName}>{children}</div>
     </div>
   ),
@@ -568,12 +571,12 @@ describe('Spotify SDK Integration', () => {
     }
 
     await waitFor(() => {
-      const nextButton = screen.getByText('>>');
+      const nextButton = screen.getByText('Next');
       expect(nextButton).toBeInTheDocument();
       expect(nextButton).not.toBeDisabled();
     });
 
-    const nextButton = screen.getByText('>>');
+    const nextButton = screen.getByText('Next');
     nextButton.click();
 
     // Assert
@@ -582,7 +585,7 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
-  it('should call previousTrack when previous button is clicked', async () => {
+  it('should not show previous track button (removed from UI)', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
     const mockState = {
@@ -618,18 +621,10 @@ describe('Spotify SDK Integration', () => {
       stateChangeCallback(mockState);
     }
 
+    // Assert - previous button should not exist
     await waitFor(() => {
-      const prevButton = screen.getByText('<<');
-      expect(prevButton).toBeInTheDocument();
-      expect(prevButton).not.toBeDisabled();
-    });
-
-    const prevButton = screen.getByText('<<');
-    prevButton.click();
-
-    // Assert
-    await waitFor(() => {
-      expect(mockPlayer.previousTrack).toHaveBeenCalled();
+      const prevButton = screen.queryByText('<<');
+      expect(prevButton).not.toBeInTheDocument();
     });
   });
 

@@ -37,11 +37,16 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           fingerprint: ${{ secrets.PI_FINGERPRINT }}
           passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
+          envs: SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET
           env: |
             SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
             SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
           script: |
             cd /home/${{ secrets.SSH_USERNAME }}/guessthesong-backend
+            
+            # Export environment variables explicitly
+            export SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID"
+            export SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET"
             
             # Verify environment variables are set (without exposing values)
             if [ -z "$SPOTIFY_CLIENT_ID" ]; then
@@ -53,11 +58,6 @@ jobs:
               exit 1
             fi
             echo "✓ Spotify credentials are configured"
-            
-            # Export environment variables explicitly to ensure they're available
-            # when docker compose parses the YAML files (prevents warnings)
-            export SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID"
-            export SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET"
             
             # Create temporary .env file in /tmp (tmpfs, not persisted to disk)
             # This prevents Docker Compose warnings while keeping credentials secure
