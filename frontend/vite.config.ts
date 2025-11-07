@@ -14,13 +14,17 @@ const appConfigAlias = resolve(repoRoot, 'app-config/index.mjs');
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  // This also checks process.env, so it works in CI/CD where env vars are set directly.
   const env = loadEnv(mode, repoRoot, '');
 
   return {
     envDir: repoRoot,
     define: {
       // Make SPOTIFY_CLIENT_ID available in frontend code (Vite only exposes VITE_* vars by default)
-      'import.meta.env.SPOTIFY_CLIENT_ID': JSON.stringify(env.SPOTIFY_CLIENT_ID || ''),
+      // This replaces import.meta.env.SPOTIFY_CLIENT_ID at build time with the actual value
+      'import.meta.env.SPOTIFY_CLIENT_ID': JSON.stringify(
+        env.SPOTIFY_CLIENT_ID || process.env.SPOTIFY_CLIENT_ID || ''
+      ),
     },
     server: {
       host: '127.0.0.1',
