@@ -361,20 +361,6 @@ export default function Game() {
     };
   }, [transferPlaybackToDevice]); // Include transferPlaybackToDevice dependency
 
-  // Sync volume with player when player becomes available
-  useEffect(() => {
-    if (player) {
-      player
-        .setVolume(volume)
-        .then(() => {
-          console.log('[Spotify] Volume synced to:', volume);
-        })
-        .catch((error) => {
-          console.error('[Spotify] Error syncing volume:', error);
-        });
-    }
-  }, [player]); // Only run when player changes, not when volume changes (to avoid loops)
-
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
     localStorage.setItem(HIDE_SONG_UNTIL_BUZZED_KEY, checked.toString());
