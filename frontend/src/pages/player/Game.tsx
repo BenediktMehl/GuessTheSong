@@ -4,6 +4,7 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
+import { playBuzzerSound } from '../../utils/buzzerSound';
 
 export default function Game() {
   const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
@@ -49,9 +50,12 @@ export default function Game() {
     }
   }, [showJoinedToast]);
 
-  // Auto-dismiss buzzer notification after 3 seconds
+  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
   useEffect(() => {
     if (buzzerNotification) {
+      // Play buzzer sound when notification appears
+      playBuzzerSound();
+
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
