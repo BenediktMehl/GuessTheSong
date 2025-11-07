@@ -158,7 +158,9 @@ export default function Game() {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
       console.log('No access token available');
-      setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+      setSpotifyError(
+        'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+      );
       return;
     }
 
@@ -233,17 +235,23 @@ export default function Game() {
 
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
         console.error('[Spotify] Authentication error:', message);
-        setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         console.error('[Spotify] Initialization error:', message);
-        setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
         console.error('[Spotify] Account error:', message);
-        setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
@@ -339,17 +347,23 @@ export default function Game() {
 
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
         console.error('[Spotify] Authentication error:', message);
-        setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         console.error('[Spotify] Initialization error:', message);
-        setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
         console.error('[Spotify] Account error:', message);
-        setSpotifyError('Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.');
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
