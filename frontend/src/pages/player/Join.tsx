@@ -25,7 +25,7 @@ export default function Join() {
     const value = e.target.value.toUpperCase();
     setRoom(value);
 
-    // Auto-focus auf Name wenn 4 Zeichen eingegeben sind
+    // Auto-focus on name when 4 characters are entered
     if (value.length === 4) {
       setTimeout(() => {
         nameInputRef.current?.focus();
@@ -36,7 +36,7 @@ export default function Join() {
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Wenn kein Name eingegeben wurde, zufälligen Namen generieren
+    // If no name was entered, generate a random name
     const playerName = nickname.trim() || getRandomFunnyName();
     const sessionId = room.trim().toUpperCase();
 

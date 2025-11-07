@@ -4,7 +4,10 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
+import { playBuzzerSound } from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
+
+const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 export default function Game() {
   const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
@@ -25,6 +28,12 @@ export default function Game() {
   const [showJoinedToast, setShowJoinedToast] = useState(true);
   const [buzzerColor, setBuzzerColor] = useState<string>('');
 
+  // Buzzer sound enabled state (default to true, stored in localStorage)
+  const [buzzerSoundEnabled, setBuzzerSoundEnabled] = useState<boolean>(() => {
+    const stored = localStorage.getItem(BUZZER_SOUND_ENABLED_KEY);
+    return stored === null ? true : stored === 'true';
+  });
+
   // Generate a random color for the buzzer on mount
   useEffect(() => {
     const colors = [
@@ -41,6 +50,16 @@ export default function Game() {
     ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     setBuzzerColor(randomColor);
+  }, []);
+
+  // Persist buzzer sound preference to localStorage
+  useEffect(() => {
+    localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
+  }, [buzzerSoundEnabled]);
+
+  // Toggle buzzer sound
+  const toggleBuzzerSound = useCallback(() => {
+    setBuzzerSoundEnabled((prev) => !prev);
   }, []);
 
   useEffect(() => {
@@ -93,6 +112,11 @@ export default function Game() {
       return;
     }
 
+    // Play buzzer sound locally if enabled
+    if (buzzerSoundEnabled) {
+      playBuzzerSound();
+    }
+
     // Send buzz action to host
     logger.debug('[Buzzer] Sending buzz action...');
     const success = sendPlayerBuzzedAction();
@@ -101,7 +125,13 @@ export default function Game() {
     } else {
       logger.debug('[Buzzer] Buzz action sent successfully');
     }
-  }, [isBuzzerDisabled, isCurrentPlayerInQueue, hasCurrentPlayerGuessed, currentPlayerId]);
+  }, [
+    isBuzzerDisabled,
+    isCurrentPlayerInQueue,
+    hasCurrentPlayerGuessed,
+    currentPlayerId,
+    buzzerSoundEnabled,
+  ]);
 
   const getGameStateContent = (buzzerColorValue: string) => {
     if (isCurrentPlayerFirst) {
@@ -171,7 +201,60 @@ export default function Game() {
   const gameState = getGameStateContent(buzzerColor);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
+      {/* Buzzer sound toggle button in upper right corner */}
+      <button
+        type="button"
+        onClick={toggleBuzzerSound}
+        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-10"
+        aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+        title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+      >
+        {buzzerSoundEnabled ? (
+          // Speaker icon (sound enabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5"
+            aria-hidden="true"
+          >
+            <title>Speaker icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+          </svg>
+        ) : (
+          // Speaker muted icon (sound disabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5 opacity-60"
+            aria-hidden="true"
+          >
+            <title>Speaker muted icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 3l18 18"
+              style={{ opacity: 0.75 }}
+            />
+          </svg>
+        )}
+      </button>
+
       {showJoinedToast && (
         <div className="toast toast-top toast-center">
           <div className="alert alert-success">
@@ -184,7 +267,7 @@ export default function Game() {
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
             <span>
-              <strong>{buzzerNotification.playerName}</strong> hat den Buzzer gedrückt!
+              <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
             </span>
           </div>
         </div>
