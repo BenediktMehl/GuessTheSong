@@ -1,6 +1,11 @@
 import { useCallback } from 'react';
 import { WS_URL } from '../../config';
-import { type GameContextType, type Player, useGameContext } from '../context';
+import {
+  type GameContextType,
+  getGlobalPausePlayer,
+  type Player,
+  useGameContext,
+} from '../context';
 import { sendPlayerAction } from '../player';
 
 // WebSocket message types
@@ -310,11 +315,18 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
 
   console.log('[Host] Found/created player:', waitingPlayer);
 
-  // Pause the song if callback is available
-  if (gameContext.pausePlayerCallback) {
-    console.log('[Host] Pausing playback');
-    gameContext.pausePlayerCallback().catch((error) => {
+  // Pause the song - try both context callback and global function
+  const pauseFunction = gameContext.pausePlayerCallback || getGlobalPausePlayer();
+  if (pauseFunction) {
+    console.log('[Host] Pausing playback - function available');
+    pauseFunction().catch((error) => {
       console.error('[Host] Error pausing playback:', error);
+    });
+  } else {
+    console.warn('[Host] Pause function not available!', {
+      hasContextCallback: !!gameContext.pausePlayerCallback,
+      hasGlobalFunction: !!getGlobalPausePlayer(),
+      player: gameContext.players.length,
     });
   }
 
@@ -379,6 +391,85 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
   });
 
   gameContext.setGuessedPlayers([]);
+}
+
+// Export functions for the host UI to call
+export function markPlayerGuessedRight(
+  gameContext: GameContextType,
+  onNextSong?: () => void
+): boolean {
+  const firstWaitingPlayer = gameContext.waitingPlayers[0];
+  if (!firstWaitingPlayer) {
+    console.error('[Host] No player waiting to guess');
+    return false;
+  }
+
+  const success = sendHostAction({
+    action: 'player-guessed-right',
+    payload: {
+      playerId: firstWaitingPlayer.id,
+    },
+  });
+
+  if (success) {
+    handlePlayerGuessedRight(gameContext);
+    // Play next song
+    if (onNextSong) {
+      onNextSong();
+    }
+  }
+
+  return success;
+}
+
+export function markPlayerGuessedWrong(
+  gameContext: GameContextType,
+  onResumeSong?: () => void,
+  onNextSong?: () => void
+): boolean {
+  const firstWaitingPlayer = gameContext.waitingPlayers[0];
+  if (!firstWaitingPlayer) {
+    console.error('[Host] No player waiting to guess');
+    return false;
+  }
+
+  // Calculate state BEFORE update to determine what to do after
+  // After wrong guess: current player moves to guessed, next waiting player becomes first
+  const remainingWaitingAfterUpdate = gameContext.waitingPlayers.length - 1; // One less after moving first to guessed
+
+  // Calculate players who can still guess (excluding current waiting player and guessed players)
+  const currentWaitingPlayerIds = new Set(gameContext.waitingPlayers.map((p) => p.id));
+  const guessedPlayerIds = new Set(gameContext.guessedPlayers.map((p) => p.id));
+  const notGuessedPlayers = gameContext.players.filter(
+    (p) => !currentWaitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id)
+  );
+
+  const success = sendHostAction({
+    action: 'player-guessed-wrong',
+    payload: {
+      playerId: firstWaitingPlayer.id,
+    },
+  });
+
+  if (success) {
+    handlePlayerGuessedWrong(gameContext);
+
+    // Determine what to do: if there are more waiting players OR players who can still guess, resume
+    // Otherwise, play next song
+    if (remainingWaitingAfterUpdate > 0 || notGuessedPlayers.length > 0) {
+      // Resume song - next player can guess or more players can buzz
+      if (onResumeSong) {
+        onResumeSong();
+      }
+    } else {
+      // No more players can guess, play next song
+      if (onNextSong) {
+        onNextSong();
+      }
+    }
+  }
+
+  return success;
 }
 
 function handleLoggedInToSpotify(gameContext: GameContextType) {

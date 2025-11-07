@@ -24,6 +24,17 @@ export type BuzzerNotification = {
 
 export type PausePlayerCallback = () => void | Promise<void>;
 
+// Global reference to pause function (set by Host Game component)
+let globalPausePlayer: (() => Promise<void>) | null = null;
+
+export function setGlobalPausePlayer(callback: (() => Promise<void>) | null) {
+  globalPausePlayer = callback;
+}
+
+export function getGlobalPausePlayer(): (() => Promise<void>) | null {
+  return globalPausePlayer;
+}
+
 export interface GameContextType {
   isHost: boolean;
   players: Player[];
