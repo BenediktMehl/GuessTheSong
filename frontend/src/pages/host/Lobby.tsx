@@ -135,29 +135,6 @@ export default function Lobby() {
         </div>
       ) : sessionId ? (
         <>
-          <GameCode
-            sessionId={sessionId}
-            showCopyLink={true}
-            onCopy={handleCopyLink}
-            onCopyError={handleCopyError}
-          />
-
-          {showCopiedToast && (
-            <div className="toast toast-top toast-center">
-              <div className="alert alert-success">
-                <span>✓ Link copied!</span>
-              </div>
-            </div>
-          )}
-
-          {showCopyError && (
-            <div className="toast toast-top toast-center">
-              <div className="alert alert-error">
-                <span>❌ Copy not supported. Share the code with your friends!</span>
-              </div>
-            </div>
-          )}
-
           <PlayersLobby
             notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
             minPlayers={2}
@@ -191,12 +168,35 @@ export default function Lobby() {
             )}
           </Card>
 
+          <GameCode
+            sessionId={sessionId}
+            showCopyLink={true}
+            onCopy={handleCopyLink}
+            onCopyError={handleCopyError}
+          />
+
+          {showCopiedToast && (
+            <div className="toast toast-top toast-center">
+              <div className="alert alert-success">
+                <span>✓ Link copied!</span>
+              </div>
+            </div>
+          )}
+
+          {showCopyError && (
+            <div className="toast toast-top toast-center">
+              <div className="alert alert-error">
+                <span>❌ Copy not supported. Share the code with your friends!</span>
+              </div>
+            </div>
+          )}
+
           {/* Game control buttons */}
           <div className="w-full max-w-md flex flex-col gap-3 mt-4">
             <button
               type="button"
               onClick={() => {
-                if (players.length >= 2) {
+                if (players.length >= 2 && isLoggedInSpotify) {
                   if (!isGameRunning) {
                     // Start the game and broadcast to all players
                     const success = startGame(gameContext);
@@ -211,8 +211,8 @@ export default function Lobby() {
               }}
               className={`btn btn-lg w-full ${
                 isGameRunning ? 'btn-primary' : 'btn-success'
-              } ${players.length < 2 ? 'btn-disabled' : ''}`}
-              disabled={players.length < 2}
+              } ${players.length < 2 || !isLoggedInSpotify ? 'btn-disabled' : ''}`}
+              disabled={players.length < 2 || !isLoggedInSpotify}
             >
               {isGameRunning ? '💾 Save & Return' : '🎮 Start Game'}
             </button>
