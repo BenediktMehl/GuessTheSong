@@ -1,7 +1,7 @@
 // Simple Spotify OAuth client-side implementation
 // Note: In production, you should use a backend for token exchange
 
-const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
+const SPOTIFY_CLIENT_ID = import.meta.env.SPOTIFY_CLIENT_ID || '';
 
 // Get the redirect URI for Spotify OAuth
 // - Local development: Uses fixed port 5173 (http://127.0.0.1:5173/spotifycallback)
@@ -47,10 +47,10 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 export async function handleSpotifyLogin(): Promise<void> {
   if (!SPOTIFY_CLIENT_ID) {
     console.error(
-      'Spotify Client ID not configured. Please set VITE_SPOTIFY_CLIENT_ID in your .env file'
+      'Spotify Client ID not configured. Please set SPOTIFY_CLIENT_ID in your .env.local file'
     );
     alert(
-      'Spotify integration is not configured. Please set VITE_SPOTIFY_CLIENT_ID in your environment variables.'
+      'Spotify integration is not configured. Please set SPOTIFY_CLIENT_ID in your environment variables.'
     );
     return;
   }
