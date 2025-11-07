@@ -46,13 +46,13 @@ function PlayerSection({
   title,
   players,
   currentPlayer,
-  highestScorerId,
+  highestScorerIds,
   showDivider,
 }: {
   title: string;
   players: Player[];
   currentPlayer?: Player;
-  highestScorerId: string | null;
+  highestScorerIds: Set<string>;
   showDivider: boolean;
 }) {
   if (players.length === 0) {
@@ -68,7 +68,7 @@ function PlayerSection({
       )}
       {players.map((player) => {
         const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
-        const showTrophy = player.id === highestScorerId;
+        const showTrophy = highestScorerIds.has(player.id);
         return (
           <PlayerItem
             key={player.id}
@@ -92,12 +92,19 @@ export default function PlayersLobby({
   // Collect all players to find highest scorer
   const allPlayers = [...notGuessedPlayers, ...waitingPlayers, ...guessedPlayers];
 
-  // Find the highest scoring player across all players
-  const highestScorer =
-    allPlayers.length > 0
-      ? allPlayers.reduce((highest, player) => (player.points > highest.points ? player : highest))
-      : null;
-  const highestScorerId = highestScorer?.id || null;
+  // Find the highest points value across all players
+  const highestPoints =
+    allPlayers.length > 0 ? Math.max(...allPlayers.map((player) => player.points)) : 0;
+
+  // Find all players with the highest points (only if highestPoints > 0)
+  const highestScorerIds = new Set<string>();
+  if (highestPoints > 0) {
+    allPlayers.forEach((player) => {
+      if (player.points === highestPoints) {
+        highestScorerIds.add(player.id);
+      }
+    });
+  }
 
   // Calculate sections (arrays come pre-sorted from parent)
   const nowGuessing = waitingPlayers.length > 0 ? [waitingPlayers[0]] : [];
@@ -128,7 +135,7 @@ export default function PlayersLobby({
                   title="Now guessing"
                   players={nowGuessing}
                   currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
+                  highestScorerIds={highestScorerIds}
                   showDivider={true}
                 />
               )}
@@ -137,7 +144,7 @@ export default function PlayersLobby({
                   title="Next guessing"
                   players={nextGuessing}
                   currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
+                  highestScorerIds={highestScorerIds}
                   showDivider={true}
                 />
               )}
@@ -146,7 +153,7 @@ export default function PlayersLobby({
                   title="Not guessing"
                   players={notGuessedPlayers}
                   currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
+                  highestScorerIds={highestScorerIds}
                   showDivider={true}
                 />
               )}
@@ -155,7 +162,7 @@ export default function PlayersLobby({
                   title="Already guessed"
                   players={guessedPlayers}
                   currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
+                  highestScorerIds={highestScorerIds}
                   showDivider={true}
                 />
               )}
@@ -164,7 +171,7 @@ export default function PlayersLobby({
             // When no active guessing, show all players without headers/dividers
             notGuessedPlayers.map((player) => {
               const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
-              const showTrophy = player.id === highestScorerId;
+              const showTrophy = highestScorerIds.has(player.id);
               return (
                 <PlayerItem
                   key={player.id}

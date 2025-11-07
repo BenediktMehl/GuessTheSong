@@ -189,6 +189,27 @@ export function joinGame(
             gameContext.setStatus('waiting');
             break;
 
+          case 'playersChanged':
+            // Players list updated (points, etc.)
+            if (message.data?.players && Array.isArray(message.data.players)) {
+              gameContext.setPlayers(message.data.players);
+            }
+            break;
+
+          case 'waitingPlayersChanged':
+            // Waiting players queue updated
+            if (message.data?.buzzedPlayers && Array.isArray(message.data.buzzedPlayers)) {
+              gameContext.setWaitingPlayers(message.data.buzzedPlayers);
+            }
+            break;
+
+          case 'guessedPlayersChanged':
+            // Guessed players list updated
+            if (message.data?.guessedPlayers && Array.isArray(message.data.guessedPlayers)) {
+              gameContext.setGuessedPlayers(message.data.guessedPlayers);
+            }
+            break;
+
           case 'join-failed':
             console.error('Failed to join game:', message.payload.reason);
             resolve(false);

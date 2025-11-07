@@ -1,8 +1,9 @@
 import appConfig from '@app-config';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
+import { sendPlayerBuzzedAction } from '../../game/player';
 
 export default function Game() {
   const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
@@ -19,9 +20,26 @@ export default function Game() {
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;
-  const [position, setPosition] = useState<number>(-1);
-  const [guesser, setGuesser] = useState<string | null>(null);
   const [showJoinedToast, setShowJoinedToast] = useState(true);
+  const [buzzerColor, setBuzzerColor] = useState<string>('');
+
+  // Generate a random color for the buzzer on mount
+  useEffect(() => {
+    const colors = [
+      '#FF1744', // Bright Red
+      '#00E676', // Bright Green
+      '#00B0FF', // Bright Blue
+      '#FFD600', // Bright Yellow
+      '#D500F9', // Bright Purple
+      '#FF6D00', // Bright Orange
+      '#00E5FF', // Bright Cyan
+      '#FF4081', // Bright Pink
+      '#64FFDA', // Bright Turquoise
+      '#FFEA00', // Bright Lemon
+    ];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    setBuzzerColor(randomColor);
+  }, []);
 
   useEffect(() => {
     if (showJoinedToast) {
@@ -30,70 +48,98 @@ export default function Game() {
     }
   }, [showJoinedToast]);
 
-  const guessSong = () => {
-    // Random position between -1 and 2
-    const randomPosition = Math.floor(Math.random() * 4) - 1;
-    // Random 3-digit string
-    const randomPlayerName = Math.floor(100 + Math.random() * 900).toString();
-    setPosition(randomPosition);
-    setGuesser(randomPlayerName);
-    console.log(randomPosition, randomPlayerName);
-  };
+  // Check if current player is in the waiting queue
+  const currentPlayerInQueue = currentPlayerId
+    ? (waitingPlayers || []).findIndex((p) => p.id === currentPlayerId)
+    : -1;
+  const isCurrentPlayerFirst = currentPlayerInQueue === 0;
+  const isCurrentPlayerInQueue = currentPlayerInQueue >= 0;
+  const queuePosition = currentPlayerInQueue >= 0 ? currentPlayerInQueue + 1 : null;
 
-  const getGameStateContent = () => {
-    if (position === 0) {
+  // Check if current player has already guessed
+  const hasCurrentPlayerGuessed = currentPlayerId
+    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId)
+    : false;
+
+  const handleBuzz = useCallback(() => {
+    // Don't allow buzzing if already in queue or already guessed
+    if (isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId) {
+      return;
+    }
+
+    // Send buzz action to host
+    const success = sendPlayerBuzzedAction();
+    if (!success) {
+      console.error('Failed to send buzz action');
+    }
+  }, [isCurrentPlayerInQueue, hasCurrentPlayerGuessed, currentPlayerId]);
+
+  const getGameStateContent = (buzzerColorValue: string) => {
+    if (isCurrentPlayerFirst) {
       return {
         title: 'Your Turn!',
         content: (
-          <>
-            <p className="text-lg font-semibold text-primary">It is now your turn to</p>
-            <p className="text-3xl font-bold text-primary">{appConfig.displayName}</p>
-          </>
+          <p className="text-lg text-base-content/80">
+            It is now your turn to{' '}
+            <span className="font-bold" style={{ color: buzzerColorValue || '#FF6B6B' }}>
+              {appConfig.displayName}
+            </span>
+          </p>
         ),
       };
     }
 
-    if (guesser) {
-      if (position > 0) {
-        return {
-          title: 'Waiting for Your Turn',
-          content: (
-            <>
-              <p className="text-lg font-semibold text-base-content/80">
-                It is {guesser}'s turn to
-              </p>
-              <p className="text-2xl font-bold text-primary">{appConfig.displayName}</p>
-              <p className="text-sm text-base-content/70 mt-2">
-                It is your turn after {position > 1 ? `${position} players` : 'him/her'}!
-              </p>
-            </>
-          ),
-        };
-      }
+    if (isCurrentPlayerInQueue && queuePosition !== null && queuePosition > 1) {
+      const playersAhead = queuePosition - 1;
+      const currentGuesser = (waitingPlayers || [])[0];
       return {
         title: 'Waiting for Your Turn',
         content: (
-          <>
-            <p className="text-lg font-semibold text-base-content/80">It is {guesser}'s turn to</p>
-            <p className="text-2xl font-bold text-primary">{appConfig.displayName}</p>
-            <p className="text-sm text-base-content/70 mt-2">Press the screen to guess next!</p>
-          </>
+          <p className="text-lg text-base-content/80">
+            It is {currentGuesser?.name || 'someone'}'s turn to {appConfig.displayName}. It is your
+            turn after {playersAhead > 1 ? `${playersAhead} players` : 'him/her'}!
+          </p>
+        ),
+      };
+    }
+
+    if (hasCurrentPlayerGuessed) {
+      const currentGuesser = (waitingPlayers || [])[0];
+      return {
+        title: 'Already Guessed',
+        content: (
+          <p className="text-lg text-base-content/80">
+            {currentGuesser
+              ? `It is ${currentGuesser.name}'s turn to ${appConfig.displayName}.`
+              : `Waiting for next player to ${appConfig.displayName}.`}{' '}
+            You have already guessed this round.
+          </p>
         ),
       };
     }
 
     return {
-      title: 'Ready to Play',
+      title: 'Ready to Guess',
       content: (
-        <>
-          <p className="text-lg font-semibold text-base-content/80">Press the screen to</p>
-          <p className="text-3xl font-bold text-primary">{appConfig.displayName}</p>
-        </>
+        <p className="text-lg text-base-content/80">
+          Press the{' '}
+          <span
+            className="font-bold text-2xl"
+            style={{
+              color: buzzerColorValue || '#FF1744',
+              textShadow:
+                '0 0 2px rgba(128, 128, 128, 0.8), 0 0 4px rgba(128, 128, 128, 0.6), 0 0 6px rgba(128, 128, 128, 0.4)',
+            }}
+          >
+            buzzer
+          </span>{' '}
+          to guess the current song
+        </p>
       ),
     };
   };
 
-  const gameState = getGameStateContent();
+  const gameState = getGameStateContent(buzzerColor);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
@@ -105,24 +151,72 @@ export default function Game() {
         </div>
       )}
 
-      <div className="w-full max-w-md flex flex-col gap-6">
-        <Card className="w-full" bodyClassName="items-center text-center gap-2">
-          <button
-            type="button"
-            onClick={guessSong}
-            className="cursor-pointer w-full text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded bg-white"
-            aria-label={gameState.title}
-          >
-            {gameState.content}
-          </button>
-        </Card>
-
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: This div only stops event propagation, not interactive */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: This div only stops event propagation, not interactive */}
+      <div
+        className="w-full max-w-md flex flex-col gap-6"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
           currentPlayer={currentPlayer}
         />
+
+        <Card className="w-full cursor-pointer" bodyClassName="items-center text-center gap-4 py-4">
+          <button
+            type="button"
+            className="w-full flex flex-col items-center gap-4 bg-transparent border-none p-0 cursor-pointer"
+            onClick={handleBuzz}
+            onTouchStart={handleBuzz}
+            aria-label="Press to buzz and guess the current song"
+          >
+            <div className="w-full">{gameState.content}</div>
+            <button
+              type="button"
+              className="relative w-44 h-44 rounded-full transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-offset-2"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              style={{
+                background: `radial-gradient(circle at 30% 30%, ${buzzerColor || '#FF1744'}ff, ${buzzerColor || '#FF1744'} 50%, ${buzzerColor || '#FF1744'}dd)`,
+                boxShadow: `
+                  0 20px 40px -5px rgba(0, 0, 0, 0.5),
+                  0 0 0 4px rgba(0, 0, 0, 0.15),
+                  inset 0 -10px 20px -5px rgba(0, 0, 0, 0.4),
+                  inset 0 10px 25px -5px rgba(255, 255, 255, 0.4),
+                  inset 0 0 30px rgba(255, 255, 255, 0.2)
+                `,
+              }}
+              aria-label="Buzzer button"
+            >
+              {/* Outer ring */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  border: `5px solid ${buzzerColor || '#FF1744'}`,
+                  boxShadow: 'inset 0 3px 6px rgba(0, 0, 0, 0.3)',
+                }}
+              />
+              {/* Shiny dome effect */}
+              <div
+                className="absolute inset-3 rounded-full"
+                style={{
+                  background: `radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2) 40%, transparent 70%)`,
+                  boxShadow: 'inset 0 -5px 15px rgba(0, 0, 0, 0.2)',
+                }}
+              />
+              {/* Additional shine highlight */}
+              <div
+                className="absolute top-4 left-6 w-12 h-12 rounded-full opacity-60"
+                style={{
+                  background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent)',
+                }}
+              />
+            </button>
+          </button>
+        </Card>
       </div>
     </main>
   );
