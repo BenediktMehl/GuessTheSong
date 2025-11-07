@@ -352,49 +352,44 @@ export default function Game() {
   // Determine if song should be visible
   const shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0;
 
-  // Determine body class based on track and visibility
-  const nowPlayingBodyClass =
-    current_track.name && shouldShowSong
-      ? 'flex items-center gap-4'
-      : 'items-center text-center gap-2';
+  // Determine layout class for track display section
+  const trackDisplayClass = current_track.name && shouldShowSong ? 'flex items-center gap-4' : '';
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
-      <h2 className="text-4xl font-bold text-primary mb-2">Host Game</h2>
-
       <div className="w-full max-w-md flex flex-col gap-6">
-        <Card title="Now Playing" className="w-full" bodyClassName={nowPlayingBodyClass}>
-          {current_track.name ? (
-            shouldShowSong ? (
-              <>
-                <img
-                  src={current_track.album.images[0]?.url}
-                  alt={current_track.name}
-                  className="w-16 h-16 rounded-xl shadow-lg"
-                />
-                <div className="text-left">
-                  <div className="font-bold text-lg">{current_track.name}</div>
-                  <div className="text-sm text-base-content/70">
-                    {current_track.artists[0]?.name || ''}
+        <Card className="w-full" bodyClassName="flex flex-col gap-4">
+          <div className={trackDisplayClass}>
+            {current_track.name ? (
+              shouldShowSong ? (
+                <>
+                  <img
+                    src={current_track.album.images[0]?.url}
+                    alt={current_track.name}
+                    className="w-16 h-16 rounded-xl shadow-lg"
+                  />
+                  <div className="text-left">
+                    <div className="font-bold text-lg">{current_track.name}</div>
+                    <div className="text-sm text-base-content/70">
+                      {current_track.artists[0]?.name || ''}
+                    </div>
+                    <div className="text-xs text-base-content/60">
+                      {'name' in current_track.album && typeof current_track.album.name === 'string'
+                        ? current_track.album.name
+                        : ''}
+                    </div>
                   </div>
-                  <div className="text-xs text-base-content/60">
-                    {'name' in current_track.album && typeof current_track.album.name === 'string'
-                      ? current_track.album.name
-                      : ''}
-                  </div>
+                </>
+              ) : (
+                <div className="w-full text-sm text-base-content/60 text-center">
+                  Song hidden - waiting for player guess...
                 </div>
-              </>
+              )
             ) : (
-              <div className="w-full text-sm text-base-content/60 text-center">
-                Song hidden - waiting for player guess...
-              </div>
-            )
-          ) : (
-            <div className="w-full text-sm text-base-content/60">No track playing</div>
-          )}
-        </Card>
-
-        <Card title="Settings" className="w-full" bodyClassName="flex flex-col gap-2">
+              <div className="w-full text-sm text-base-content/60">No track playing</div>
+            )}
+          </div>
+          <div className="divider my-0"></div>
           <label className="label cursor-pointer">
             <span className="label-text">Hide song until player guesses</span>
             <input
@@ -406,7 +401,7 @@ export default function Game() {
           </label>
         </Card>
 
-        <Card title="Spotify Player" className="w-full" bodyClassName="flex flex-col gap-3">
+        <Card className="w-full" bodyClassName="flex flex-col gap-3">
           {!is_active ? (
             <div className="flex flex-col gap-3">
               <div className="alert alert-info">
@@ -447,16 +442,6 @@ export default function Game() {
             </div>
           ) : (
             <div className="flex gap-2">
-              <button
-                type="button"
-                className="btn btn-outline flex-1"
-                onClick={() => {
-                  player?.previousTrack();
-                }}
-                disabled={!player}
-              >
-                &lt;&lt;
-              </button>
               <button
                 type="button"
                 className="btn btn-warning flex-1"
@@ -525,7 +510,7 @@ export default function Game() {
                 }}
                 disabled={!player}
               >
-                &gt;&gt;
+                Next
               </button>
             </div>
           )}
