@@ -222,7 +222,7 @@ export default function Game() {
     if (!accessToken) {
       console.log('No access token available');
       setSpotifyError(
-        'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
       );
       return;
     }
@@ -306,21 +306,21 @@ export default function Game() {
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
         console.error('[Spotify] Authentication error:', message);
         setSpotifyError(
-          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
         );
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         console.error('[Spotify] Initialization error:', message);
         setSpotifyError(
-          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
         );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
         console.error('[Spotify] Account error:', message);
         setSpotifyError(
-          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
         );
       });
 
@@ -479,21 +479,21 @@ export default function Game() {
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
         console.error('[Spotify] Authentication error:', message);
         setSpotifyError(
-          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
         );
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         console.error('[Spotify] Initialization error:', message);
         setSpotifyError(
-          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
         );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
         console.error('[Spotify] Account error:', message);
         setSpotifyError(
-          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
         );
       });
 
@@ -855,7 +855,7 @@ export default function Game() {
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
             <span>
-              <strong>{buzzerNotification.playerName}</strong> hat den Buzzer gedrückt!
+              <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
             </span>
           </div>
         </div>
@@ -918,7 +918,7 @@ export default function Game() {
                   />
                 </svg>
                 <div>
-                  <h3 className="font-bold">Spotify-Verbindungsfehler</h3>
+                  <h3 className="font-bold">Spotify Connection Error</h3>
                   <div className="text-sm">{spotifyError}</div>
                 </div>
               </div>
@@ -927,7 +927,7 @@ export default function Game() {
                 className="btn btn-primary"
                 onClick={() => navigate('/settings')}
               >
-                Zurück zur Lobby
+                Back to Lobby
               </button>
             </div>
           ) : !is_active ? (
@@ -1161,8 +1161,8 @@ export default function Game() {
         {currentGuessingPlayer && (
           <Card className="w-full" bodyClassName="flex flex-col gap-4 py-4">
             <div className="text-center">
-              <h2 className="text-xl font-bold mb-2">{currentGuessingPlayer.name} rät gerade</h2>
-              <p className="text-base-content/70">War die Antwort richtig oder falsch?</p>
+              <h2 className="text-xl font-bold mb-2">{currentGuessingPlayer.name} is guessing</h2>
+              <p className="text-base-content/70">Was the answer correct or wrong?</p>
             </div>
             <div className="flex gap-4 justify-center">
               <button
@@ -1170,14 +1170,14 @@ export default function Game() {
                 className="btn btn-success btn-lg flex-1"
                 onClick={handleRightGuess}
               >
-                ✓ Richtig
+                ✓ Correct
               </button>
               <button
                 type="button"
                 className="btn btn-error btn-lg flex-1"
                 onClick={handleWrongGuess}
               >
-                ✗ Falsch
+                ✗ Wrong
               </button>
             </div>
           </Card>

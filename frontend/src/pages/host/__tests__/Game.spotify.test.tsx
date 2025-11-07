@@ -241,7 +241,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
 
@@ -881,7 +881,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
   });
@@ -925,7 +925,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
   });
@@ -969,7 +969,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
   });

@@ -183,7 +183,7 @@ export default function Game() {
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
             <span>
-              <strong>{buzzerNotification.playerName}</strong> hat den Buzzer gedrückt!
+              <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
             </span>
           </div>
         </div>
