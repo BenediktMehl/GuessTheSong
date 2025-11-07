@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
@@ -71,6 +72,7 @@ interface SpotifyPlaybackState {
 
 export default function Game() {
   const { players, waitingPlayers, guessedPlayers } = useGameContext();
+  const navigate = useNavigate();
 
   // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
@@ -84,6 +86,7 @@ export default function Game() {
   const [is_active, setActive] = useState(false);
   const [current_track, setTrack] = useState(track);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [spotifyError, setSpotifyError] = useState<string | null>(null);
   const hasAttemptedTransferRef = useRef(false);
   const playerInitializedRef = useRef(false);
   const playerInstanceRef = useRef<SpotifyPlayer | undefined>(undefined);
@@ -155,6 +158,9 @@ export default function Game() {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
       console.log('No access token available');
+      setSpotifyError(
+        'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+      );
       return;
     }
 
@@ -190,6 +196,7 @@ export default function Game() {
       spotifyPlayer.addListener('ready', ({ device_id }) => {
         console.log('[Spotify] Ready with Device ID', device_id);
         setDeviceId(device_id);
+        setSpotifyError(null); // Clear error on successful connection
 
         // Check initial state when ready
         spotifyPlayer
@@ -224,6 +231,27 @@ export default function Game() {
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
         console.log('[Spotify] Device ID has gone offline', device_id);
         setActive(false);
+      });
+
+      spotifyPlayer.addListener('authentication_error', ({ message }) => {
+        console.error('[Spotify] Authentication error:', message);
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
+      });
+
+      spotifyPlayer.addListener('initialization_error', ({ message }) => {
+        console.error('[Spotify] Initialization error:', message);
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
+      });
+
+      spotifyPlayer.addListener('account_error', ({ message }) => {
+        console.error('[Spotify] Account error:', message);
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
@@ -275,6 +303,7 @@ export default function Game() {
       spotifyPlayer.addListener('ready', ({ device_id }) => {
         console.log('[Spotify] Ready with Device ID', device_id);
         setDeviceId(device_id);
+        setSpotifyError(null); // Clear error on successful connection
 
         // Check initial state when ready
         spotifyPlayer
@@ -314,6 +343,27 @@ export default function Game() {
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
         console.log('[Spotify] Device ID has gone offline', device_id);
         setActive(false);
+      });
+
+      spotifyPlayer.addListener('authentication_error', ({ message }) => {
+        console.error('[Spotify] Authentication error:', message);
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
+      });
+
+      spotifyPlayer.addListener('initialization_error', ({ message }) => {
+        console.error('[Spotify] Initialization error:', message);
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
+      });
+
+      spotifyPlayer.addListener('account_error', ({ message }) => {
+        console.error('[Spotify] Account error:', message);
+        setSpotifyError(
+          'Etwas ist mit der Spotify-Verbindung schiefgelaufen. Bitte verbinde dich erneut. Gehe zurück zur Lobby und starte neu.'
+        );
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
@@ -409,7 +459,39 @@ export default function Game() {
         </Card>
 
         <Card className="w-full" bodyClassName="flex flex-col gap-3">
-          {!is_active ? (
+          {spotifyError ? (
+            <div className="flex flex-col gap-3">
+              <div className="alert alert-error">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="stroke-current shrink-0 h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  role="img"
+                  aria-label="Error icon"
+                >
+                  <title>Error icon</title>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="font-bold">Spotify-Verbindungsfehler</h3>
+                  <div className="text-sm">{spotifyError}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate('/settings')}
+              >
+                Zurück zur Lobby
+              </button>
+            </div>
+          ) : !is_active ? (
             <div className="flex flex-col gap-3">
               <div className="alert alert-info">
                 <svg
