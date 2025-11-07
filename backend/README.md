@@ -14,11 +14,16 @@ This Node.js WebSocket server powers the multiplayer music quiz experience. The 
    ```
    npm install
    ```
-2. Start the server:
+2. Create `.env.local` at the repository root (not in the `backend/` folder) by copying `.env.example`:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Then edit `.env.local` with your actual values.
+3. Start the server:
    ```
    npm start
    ```
-3. Run tests:
+4. Run tests:
    ```
    npm test
    ```
@@ -77,9 +82,23 @@ Change referee:
 {"action": "refereeChanged", "payload": {"refereeId": "player-456"}}
 ```
 
+## Environment Variables
+
+All environment variables are loaded from `.env.local` at the repository root. The following variables are supported:
+
+- `SPOTIFY_CLIENT_ID` - Spotify Client ID for token exchange (required for Spotify integration)
+- `SPOTIFY_CLIENT_SECRET` - Spotify Client Secret for token exchange (required for Spotify integration)
+- `PORT` - Server port (default: `8080`)
+- `HOST` - Server host (default: `0.0.0.0`)
+- `WS_USE_TLS` - Enable TLS for WebSocket connections (default: `false`)
+- `WS_TLS_CERT_PATH` - Path to TLS certificate file (required if `WS_USE_TLS=true`)
+- `WS_TLS_KEY_PATH` - Path to TLS private key file (required if `WS_USE_TLS=true`)
+- `WS_ALLOWED_ORIGINS` - Comma-separated list of allowed CORS origins
+- `NODE_ENV` - Node environment (default: `development`)
+
 ## TLS Configuration
 
-Set the following environment variables when you want the backend to accept secure WebSocket connections directly:
+Set the following environment variables in your root `.env.local` when you want the backend to accept secure WebSocket connections directly:
 
 - `WS_USE_TLS=true`
 - `WS_TLS_CERT_PATH=/path/to/fullchain.pem`

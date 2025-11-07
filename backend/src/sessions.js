@@ -6,11 +6,17 @@ function getSession(sessionId) {
 }
 
 function createSession(sessionId, host) {
-  sessions[sessionId] = { host, players: new Set() };
+  sessions[sessionId] = { host, players: new Set(), status: 'notStarted' };
 }
 
 function deleteSession(sessionId) {
   delete sessions[sessionId];
+}
+
+function updateSessionStatus(sessionId, status) {
+  if (sessions[sessionId]) {
+    sessions[sessionId].status = status;
+  }
 }
 
 function cleanupForTests() {
@@ -34,5 +40,6 @@ module.exports = {
   getSession,
   createSession,
   deleteSession,
+  updateSessionStatus,
   cleanupForTests,
 };

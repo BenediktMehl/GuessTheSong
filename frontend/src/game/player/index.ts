@@ -9,6 +9,7 @@ type WebSocketMessage = {
     name?: string;
     players?: Array<{ id: string; name: string; points: number }>;
     reason?: string;
+    status?: string;
     [key: string]: unknown;
   };
 };
@@ -58,11 +59,11 @@ export function joinGame(
   playerName: string,
   sessionId: string,
   playerId?: string
-): Promise<boolean> {
+): Promise<{ success: boolean; status?: string }> {
   // Check if we've already permanently failed
   if (hasFailed) {
     gameContext.setWsStatus('failed');
-    return Promise.resolve(false);
+    return Promise.resolve({ success: false });
   }
 
   // Set status to connecting
@@ -85,7 +86,7 @@ export function joinGame(
       if (ws?.readyState !== WebSocket.OPEN) {
         gameContext.setWsStatus('closed');
         ws?.close(); // This will trigger onclose
-        resolve(false);
+        resolve({ success: false });
       }
     }, 5000);
 
@@ -110,7 +111,7 @@ export function joinGame(
         );
       } else {
         gameContext.setWsStatus('closed');
-        resolve(false);
+        resolve({ success: false });
       }
     };
 
@@ -143,7 +144,7 @@ export function joinGame(
     };
 
     ws.onerror = () => {
-      resolve(false);
+      resolve({ success: false });
     };
 
     ws.onmessage = (event) => {
@@ -152,7 +153,7 @@ export function joinGame(
         console.log('Received message:', message);
 
         switch (message.action) {
-          case 'join-success':
+          case 'join-success': {
             currentPlayerId = message.payload.playerId;
             reconnectAttempts = 0; // Reset on successful connection
             hasFailed = false; // Reset failed flag on success
@@ -170,8 +171,25 @@ export function joinGame(
               gameContext.setPlayers(message.payload.players);
             }
 
-            resolve(true);
+            // Set game status if provided (for players joining an active game)
+            const gameStatus = message.payload.status as
+              | 'notStarted'
+              | 'waiting'
+              | 'listening'
+              | 'guessing'
+              | 'finished'
+              | undefined;
+            if (gameStatus) {
+              console.log('Setting game status from join-success:', gameStatus);
+              gameContext.setStatus(gameStatus);
+            } else {
+              // Default to 'notStarted' if no status provided (backwards compatibility)
+              gameContext.setStatus('notStarted');
+            }
+
+            resolve({ success: true, status: gameStatus || 'notStarted' });
             break;
+          }
 
           case 'player-joined':
             // Another player joined the session
@@ -189,9 +207,30 @@ export function joinGame(
             gameContext.setStatus('waiting');
             break;
 
+          case 'playersChanged':
+            // Players list updated (points, etc.)
+            if (message.data?.players && Array.isArray(message.data.players)) {
+              gameContext.setPlayers(message.data.players);
+            }
+            break;
+
+          case 'waitingPlayersChanged':
+            // Waiting players queue updated
+            if (message.data?.buzzedPlayers && Array.isArray(message.data.buzzedPlayers)) {
+              gameContext.setWaitingPlayers(message.data.buzzedPlayers);
+            }
+            break;
+
+          case 'guessedPlayersChanged':
+            // Guessed players list updated
+            if (message.data?.guessedPlayers && Array.isArray(message.data.guessedPlayers)) {
+              gameContext.setGuessedPlayers(message.data.guessedPlayers);
+            }
+            break;
+
           case 'join-failed':
             console.error('Failed to join game:', message.payload.reason);
-            resolve(false);
+            resolve({ success: false });
             break;
 
           case 'session-closed':

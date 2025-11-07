@@ -22,8 +22,8 @@ function PlayerItem({
     <li
       className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
         isCurrentPlayer
-          ? 'bg-success/25 border-2 border-success/60 shadow-lg'
-          : 'bg-white/60 hover:bg-white/80 shadow-md'
+          ? 'bg-success/25 border-2 border-success/60 drop-shadow-[4px_4px_6px_rgba(0,0,0,0.4)]'
+          : 'bg-white/90 hover:bg-white drop-shadow-[2px_2px_4px_rgba(0,0,0,0.3)]'
       }`}
     >
       <div className="flex items-center gap-2">
@@ -46,13 +46,13 @@ function PlayerSection({
   title,
   players,
   currentPlayer,
-  highestScorerId,
+  highestScorerIds,
   showDivider,
 }: {
   title: string;
   players: Player[];
   currentPlayer?: Player;
-  highestScorerId: string | null;
+  highestScorerIds: Set<string>;
   showDivider: boolean;
 }) {
   if (players.length === 0) {
@@ -68,7 +68,7 @@ function PlayerSection({
       )}
       {players.map((player) => {
         const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
-        const showTrophy = player.id === highestScorerId;
+        const showTrophy = highestScorerIds.has(player.id);
         return (
           <PlayerItem
             key={player.id}
@@ -92,12 +92,19 @@ export default function PlayersLobby({
   // Collect all players to find highest scorer
   const allPlayers = [...notGuessedPlayers, ...waitingPlayers, ...guessedPlayers];
 
-  // Find the highest scoring player across all players
-  const highestScorer =
-    allPlayers.length > 0
-      ? allPlayers.reduce((highest, player) => (player.points > highest.points ? player : highest))
-      : null;
-  const highestScorerId = highestScorer?.id || null;
+  // Find the highest points value across all players
+  const highestPoints =
+    allPlayers.length > 0 ? Math.max(...allPlayers.map((player) => player.points)) : 0;
+
+  // Find all players with the highest points (only if highestPoints > 0)
+  const highestScorerIds = new Set<string>();
+  if (highestPoints > 0) {
+    allPlayers.forEach((player) => {
+      if (player.points === highestPoints) {
+        highestScorerIds.add(player.id);
+      }
+    });
+  }
 
   // Calculate sections (arrays come pre-sorted from parent)
   const nowGuessing = waitingPlayers.length > 0 ? [waitingPlayers[0]] : [];
@@ -120,62 +127,64 @@ export default function PlayersLobby({
           <p className="text-xs text-base-content/60">Waiting for players...</p>
         </div>
       ) : (
-        <ul className="space-y-1.5 overflow-y-auto flex-1 min-h-0 pr-1">
-          {hasActiveGuessing ? (
-            <>
-              {nowGuessing.length > 0 && (
-                <PlayerSection
-                  title="Now guessing"
-                  players={nowGuessing}
-                  currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
-                  showDivider={true}
-                />
-              )}
-              {nextGuessing.length > 0 && (
-                <PlayerSection
-                  title="Next guessing"
-                  players={nextGuessing}
-                  currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
-                  showDivider={true}
-                />
-              )}
-              {notGuessedPlayers.length > 0 && (
-                <PlayerSection
-                  title="Not guessing"
-                  players={notGuessedPlayers}
-                  currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
-                  showDivider={true}
-                />
-              )}
-              {guessedPlayers.length > 0 && (
-                <PlayerSection
-                  title="Already guessed"
-                  players={guessedPlayers}
-                  currentPlayer={currentPlayer}
-                  highestScorerId={highestScorerId}
-                  showDivider={true}
-                />
-              )}
-            </>
-          ) : (
-            // When no active guessing, show all players without headers/dividers
-            notGuessedPlayers.map((player) => {
-              const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
-              const showTrophy = player.id === highestScorerId;
-              return (
-                <PlayerItem
-                  key={player.id}
-                  player={player}
-                  isCurrentPlayer={isCurrentPlayer}
-                  showTrophy={showTrophy}
-                />
-              );
-            })
-          )}
-        </ul>
+        <div className="overflow-y-auto flex-1 min-h-0 p-4">
+          <ul className="space-y-1.5">
+            {hasActiveGuessing ? (
+              <>
+                {nowGuessing.length > 0 && (
+                  <PlayerSection
+                    title="Now guessing"
+                    players={nowGuessing}
+                    currentPlayer={currentPlayer}
+                    highestScorerIds={highestScorerIds}
+                    showDivider={true}
+                  />
+                )}
+                {nextGuessing.length > 0 && (
+                  <PlayerSection
+                    title="Next guessing"
+                    players={nextGuessing}
+                    currentPlayer={currentPlayer}
+                    highestScorerIds={highestScorerIds}
+                    showDivider={true}
+                  />
+                )}
+                {notGuessedPlayers.length > 0 && (
+                  <PlayerSection
+                    title="Not guessing"
+                    players={notGuessedPlayers}
+                    currentPlayer={currentPlayer}
+                    highestScorerIds={highestScorerIds}
+                    showDivider={true}
+                  />
+                )}
+                {guessedPlayers.length > 0 && (
+                  <PlayerSection
+                    title="Already guessed"
+                    players={guessedPlayers}
+                    currentPlayer={currentPlayer}
+                    highestScorerIds={highestScorerIds}
+                    showDivider={true}
+                  />
+                )}
+              </>
+            ) : (
+              // When no active guessing, show all players without headers/dividers
+              notGuessedPlayers.map((player) => {
+                const isCurrentPlayer = Boolean(currentPlayer && player.id === currentPlayer.id);
+                const showTrophy = highestScorerIds.has(player.id);
+                return (
+                  <PlayerItem
+                    key={player.id}
+                    player={player}
+                    isCurrentPlayer={isCurrentPlayer}
+                    showTrophy={showTrophy}
+                  />
+                );
+              })
+            )}
+          </ul>
+        </div>
       )}
 
       {totalPlayers < minPlayers && (

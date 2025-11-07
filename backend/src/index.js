@@ -1,17 +1,15 @@
-// Load environment variables from .env.local (for local testing) or .env
+// Load environment variables from .env.local at the repository root
+// Look for the file at the repository root (two levels up from backend/src/)
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Try .env.local first (for local testing), then fall back to .env
-const envLocalPath = path.join(__dirname, '..', '.env.local');
-const envPath = path.join(__dirname, '..', '.env');
+const envLocalPath = path.join(__dirname, '../../', '.env.local');
 
 if (fs.existsSync(envLocalPath)) {
   require('dotenv').config({ path: envLocalPath });
   console.log('Loaded environment variables from .env.local');
-} else if (fs.existsSync(envPath)) {
-  require('dotenv').config({ path: envPath });
-  console.log('Loaded environment variables from .env');
+} else {
+  console.warn('Warning: .env.local not found at repository root. Some features may not work.');
 }
 
 const { httpServer, ws } = require('./server');

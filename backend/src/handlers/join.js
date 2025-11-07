@@ -37,11 +37,16 @@ function handleJoin(ws, serverPayload) {
       ws.playerName = playerName;
       ws.playerId = reconnectPlayerId;
 
-      // Send reconnection success
+      // Send reconnection success with current game status
+      const session = sessions[normalizedSessionId];
       ws.send(
         JSON.stringify({
           action: 'join-success',
-          payload: { sessionId: normalizedSessionId, playerId: reconnectPlayerId },
+          payload: {
+            sessionId: normalizedSessionId,
+            playerId: reconnectPlayerId,
+            status: session.status || 'notStarted',
+          },
         })
       );
 
@@ -91,7 +96,11 @@ function handleJoin(ws, serverPayload) {
     points: 0, // Initial points
   }));
 
-  // Send join-success with playerId and all players to the new player
+  // Get current game status
+  const session = sessions[normalizedSessionId];
+  const currentStatus = session.status || 'notStarted';
+
+  // Send join-success with playerId, all players, and current game status to the new player
   ws.send(
     JSON.stringify({
       action: 'join-success',
@@ -99,6 +108,7 @@ function handleJoin(ws, serverPayload) {
         sessionId: normalizedSessionId,
         playerId: ws.playerId,
         players: allPlayers, // Send list of all players
+        status: currentStatus, // Send current game status
       },
     })
   );
