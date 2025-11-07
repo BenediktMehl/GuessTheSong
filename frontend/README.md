@@ -19,12 +19,13 @@ The dev server listens on `http://127.0.0.1:5173` so that the Spotify redirect U
 
 ## Environment Variables
 
-Create `.env.local` in this folder and add:
+Create `.env.local` at the repository root (not in the `frontend/` folder) by copying `.env.example`:
 
-```ini
-VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
-VITE_WS_URL=ws://localhost:8080        # optional override
+```bash
+cp .env.example .env.local
 ```
+
+Then edit `.env.local` with your actual values. See `.env.example` for all available environment variables.
 
 The backend HTTP URL is automatically derived from the WebSocket URL (converting `ws://` to `http://` and `wss://` to `https://`). This works correctly even when the frontend and backend are on different domains (e.g., frontend on `guess-my-song.de`, backend on `guess-the-song.duckdns.org`), since the WebSocket URL points to the backend domain. If you need to override the backend HTTP URL separately, you can set `VITE_BACKEND_URL`.
 

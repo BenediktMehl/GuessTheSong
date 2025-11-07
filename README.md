@@ -34,13 +34,23 @@ The frontend dev server is served from `http://127.0.0.1:5173` so the Spotify re
 
 During local development the backend listens on `ws://localhost:8080`. Production builds automatically switch to `wss://` to stay compatible with HTTPS hosting.
 
-## Spotify OAuth Configuration
+## Environment Variables
 
-The frontend expects a Spotify client ID via Vite. Create `frontend/.env.local` and add:
+Create `.env.local` at the repository root (not in `frontend/` or `backend/`) using the setup script:
 
-```ini
-VITE_SPOTIFY_CLIENT_ID=your_client_id
+```bash
+node setup-env.js <client-id> <client-secret>
 ```
+
+Or manually copy `.env.example` and edit it:
+
+```bash
+cp .env.example .env.local
+```
+
+Then edit `.env.local` and add your actual values. See `.env.example` for all available environment variables.
+
+## Spotify OAuth Configuration
 
 Register the redirect URI `http://127.0.0.1:5173/spotifycallback` in the Spotify Developer Dashboard. Hosts can now log in to Spotify directly from the Host Settings screen.
 
