@@ -29,6 +29,9 @@ jobs:
           rm: true
           
       - name: "Deploy with Docker Compose"
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
         uses: appleboy/ssh-action@master
         with:
           host: ${{ vars.URL }}
@@ -38,11 +41,24 @@ jobs:
           fingerprint: ${{ secrets.PI_FINGERPRINT }}
           passphrase: ${{ secrets.PRIVATE_SSH_KEY_PASSWORD }}
           envs: SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET
-          env: |
-            SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
-            SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
           script: |
             cd /home/${{ secrets.SSH_USERNAME }}/guessthesong-backend
+            
+            # Export environment variables explicitly
+            export SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID"
+            export SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET"
+            
+            # Verify environment variables are set (without exposing values)
+            if [ -z "$SPOTIFY_CLIENT_ID" ]; then
+              echo "ERROR: SPOTIFY_CLIENT_ID is not set"
+              exit 1
+            fi
+            if [ -z "$SPOTIFY_CLIENT_SECRET" ]; then
+              echo "ERROR: SPOTIFY_CLIENT_SECRET is not set"
+              exit 1
+            fi
+            echo "✓ Spotify credentials are configured"
+            
             docker compose -f docker-compose.yml -f docker-compose.tls.yml down
             SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID" SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET" docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
             docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
