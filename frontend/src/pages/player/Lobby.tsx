@@ -25,8 +25,6 @@ export default function PlayerLobby() {
 
   return (
     <main className="h-screen flex flex-col items-center justify-center p-4 gap-4 overflow-hidden">
-      <h1 className="text-2xl md:text-4xl font-bold text-primary">Lobby</h1>
-
       {wsStatus === 'connecting' || wsStatus === 'closed' ? (
         <div className="alert alert-warning max-w-md flex flex-col gap-2">
           <div>
@@ -89,7 +87,6 @@ export default function PlayerLobby() {
           <Card className="w-full max-w-md text-center" bodyClassName="items-center gap-2">
             <div className="text-3xl animate-bounce">⏳</div>
             <p className="text-sm font-semibold">Waiting for host to start the game...</p>
-            <p className="text-xs text-base-content/60">Share the game code!</p>
           </Card>
 
           <button
