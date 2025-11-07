@@ -8,6 +8,7 @@ import Game from '../Game';
 const mockGameContext = {
   players: [],
   waitingPlayers: [],
+  guessedPlayers: [],
   sessionId: 'test-session',
   status: 'waiting' as const,
   isHost: true,
@@ -20,6 +21,13 @@ const mockGameContext = {
   setGuessedPlayers: vi.fn(),
   musicHostLoggedIn: false,
   setMusicHostLoggedIn: vi.fn(),
+  buzzerNotification: null,
+  setBuzzerNotification: vi.fn(),
+  pausePlayerCallback: null,
+  setPausePlayerCallback: vi.fn(),
+  currentPlayerId: '',
+  setCurrentPlayerId: vi.fn(),
+  setStatus: vi.fn(),
 };
 
 // Mock GameProvider
@@ -513,6 +521,7 @@ describe('Spotify SDK Integration', () => {
 
     const mockState = {
       paused: false,
+      position: 0,
       track_window: {
         current_track: mockTrack,
       },
@@ -549,6 +558,7 @@ describe('Spotify SDK Integration', () => {
     localStorage.setItem('access_token', 'test-token-123');
     const mockState = {
       paused: true,
+      position: 0,
       track_window: {
         current_track: {
           id: 'track-123',
@@ -594,6 +604,7 @@ describe('Spotify SDK Integration', () => {
     localStorage.setItem('access_token', 'test-token-123');
     const mockState = {
       paused: false,
+      position: 0,
       track_window: {
         current_track: {
           id: 'track-123',
@@ -647,6 +658,7 @@ describe('Spotify SDK Integration', () => {
     localStorage.setItem('access_token', 'test-token-123');
     const mockState = {
       paused: false,
+      position: 0,
       track_window: {
         current_track: {
           id: 'track-123',
@@ -700,6 +712,7 @@ describe('Spotify SDK Integration', () => {
     localStorage.setItem('access_token', 'test-token-123');
     const mockState = {
       paused: false,
+      position: 0,
       track_window: {
         current_track: {
           id: 'track-123',
