@@ -7,12 +7,12 @@ function handlePlayerAction(ws, serverPayload) {
     try {
       // Add playerId to the payload so host knows which player sent the action
       const payloadWithPlayerId = {
-          ...serverPayload,
+        ...serverPayload,
         payload: {
           ...serverPayload.payload,
           playerId: ws.playerId,
         },
-          serverTimestamp: Date.now(),
+        serverTimestamp: Date.now(),
       };
       sessions[playerSessionId].host.send(JSON.stringify(payloadWithPlayerId));
     } catch (error) {
