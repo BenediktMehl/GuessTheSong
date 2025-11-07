@@ -686,26 +686,6 @@ export default function Game() {
               </div>
             )}
           </div>
-
-          {/* Timer - always visible when track is playing */}
-          {current_track.name && is_active && (
-            <div className="text-center">
-              <div className="text-2xl font-mono font-bold text-base-content">
-                {formatTime(currentPosition)}
-              </div>
-            </div>
-          )}
-
-          <div className="divider my-0"></div>
-          <label className="label cursor-pointer">
-            <span className="label-text">Hide song until player guesses</span>
-            <input
-              type="checkbox"
-              className="toggle toggle-primary"
-              checked={hideSongUntilBuzzed}
-              onChange={(e) => handleToggleHideSong(e.target.checked)}
-            />
-          </label>
         </Card>
 
         <Card className="w-full" bodyClassName="flex flex-col gap-3">
@@ -781,6 +761,28 @@ export default function Game() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
+              {/* Timer - always visible when track is playing */}
+              {current_track.name && is_active && (
+                <div className="text-center">
+                  <div className="text-2xl font-mono font-bold text-base-content">
+                    {formatTime(currentPosition)}
+                  </div>
+                </div>
+              )}
+
+              {/* Setting */}
+              <label className="label cursor-pointer">
+                <span className="label-text">Hide song until player guesses</span>
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary"
+                  checked={hideSongUntilBuzzed}
+                  onChange={(e) => handleToggleHideSong(e.target.checked)}
+                />
+              </label>
+
+              <div className="divider my-0"></div>
+
               <div className="flex gap-2">
                 <button
                   type="button"
