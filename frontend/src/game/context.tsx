@@ -17,6 +17,13 @@ export type WsStatus = 'connecting' | 'open' | 'closed' | 'error' | 'failed';
 
 export type GameStatus = 'notStarted' | 'waiting' | 'listening' | 'guessing' | 'finished';
 
+export type BuzzerNotification = {
+  playerId: string;
+  playerName: string;
+} | null;
+
+export type PausePlayerCallback = () => void | Promise<void>;
+
 export interface GameContextType {
   isHost: boolean;
   players: Player[];
@@ -27,6 +34,8 @@ export interface GameContextType {
   wsStatus: WsStatus;
   sessionId: string;
   currentPlayerId: string;
+  buzzerNotification: BuzzerNotification;
+  pausePlayerCallback: PausePlayerCallback | null;
   setIsHost: Dispatch<SetStateAction<boolean>>;
   setPlayers: Dispatch<SetStateAction<Player[]>>;
   setWaitingPlayers: Dispatch<SetStateAction<Player[]>>;
@@ -36,6 +45,8 @@ export interface GameContextType {
   setWsStatus: Dispatch<SetStateAction<WsStatus>>;
   setSessionId: Dispatch<SetStateAction<string>>;
   setCurrentPlayerId: Dispatch<SetStateAction<string>>;
+  setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
+  setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -50,6 +61,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [wsStatus, setWsStatus] = useState<WsStatus>('closed');
   const [sessionId, setSessionId] = useState('');
   const [currentPlayerId, setCurrentPlayerId] = useState('');
+  const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
+  const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
 
   return (
     <GameContext.Provider
@@ -63,6 +76,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         wsStatus,
         sessionId,
         currentPlayerId,
+        buzzerNotification,
+        pausePlayerCallback,
         setIsHost,
         setPlayers,
         setWaitingPlayers,
@@ -72,6 +87,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setWsStatus,
         setSessionId,
         setCurrentPlayerId,
+        setBuzzerNotification,
+        setPausePlayerCallback,
       }}
     >
       {children}

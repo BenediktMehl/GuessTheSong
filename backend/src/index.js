@@ -27,32 +27,40 @@ ws.on('connection', (ws) => {
     let data;
     try {
       data = JSON.parse(msg);
+      console.log('[Backend] Received raw message:', data);
     } catch (_e) {
+      console.error('[Backend] Failed to parse JSON:', _e);
       sendError(ws, 'Could not interpret the command (invalid JSON).');
       return;
     }
 
     const { serverAction, serverPayload } = data;
+    console.log('[Backend] Parsed message:', { serverAction, serverPayload });
 
     try {
       switch (serverAction) {
         case 'join':
+          console.log('[Backend] Handling join');
           handleJoin(ws, serverPayload);
           break;
         case 'create':
+          console.log('[Backend] Handling create');
           handleCreate(ws);
           break;
         case 'player-action':
+          console.log('[Backend] Handling player-action');
           handlePlayerAction(ws, serverPayload);
           break;
         case 'broadcast':
+          console.log('[Backend] Handling broadcast');
           handleBroadcast(ws, serverPayload);
           break;
         default:
+          console.error('[Backend] Unknown serverAction:', serverAction);
           sendError(ws, `Unknown serverAction: ${serverAction}`);
       }
     } catch (error) {
-      console.error('Handler error:', error);
+      console.error('[Backend] Handler error:', error);
       sendError(ws, 'Internal server error.');
     }
   });

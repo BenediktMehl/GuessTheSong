@@ -6,9 +6,14 @@ import { sendPlayerAction } from '../player';
 // WebSocket message types
 type WebSocketMessage = {
   action: string;
-  payload: {
+  payload?: {
     playerId?: string;
     name?: string;
+    [key: string]: unknown;
+  };
+  data?: {
+    playerId?: string;
+    playerName?: string;
     [key: string]: unknown;
   };
 };
@@ -57,12 +62,14 @@ export function useGameInitializer() {
     }, 5000);
 
     ws.onopen = () => {
+      console.log('[Host] WebSocket opened successfully');
       clearTimeout(connectionTimeout);
       gameContext.setWsStatus('open');
       reconnectAttempts = 0; // Reset on successful connection
       hasFailed = false; // Reset failed flag on success
 
       if (ws) {
+        console.log('[Host] Sending create action');
         ws.send(JSON.stringify({ serverAction: 'create' }));
       }
     };
@@ -70,7 +77,7 @@ export function useGameInitializer() {
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        console.log('Received message:', msg);
+        console.log('[Host] Received message:', msg);
 
         // Handle messages based on action rather than type
         switch (msg.action) {
@@ -80,10 +87,12 @@ export function useGameInitializer() {
             break;
 
           case 'player-joined':
+            console.log('[Host] Handling player-joined action:', msg);
             handlePlayerJoined(gameContext, msg);
             break;
 
           case 'player-buzzed':
+            console.log('[Host] Handling player-buzzed action:', msg);
             handlePlayerBuzzed(gameContext, msg);
             break;
 
@@ -112,6 +121,10 @@ export function useGameInitializer() {
             gameContext.setStatus('waiting');
             break;
 
+          case 'player-buzzed-notification':
+            handlePlayerBuzzedNotification(gameContext, msg);
+            break;
+
           case 'error':
             console.error('Server error:', msg.payload.message);
             break;
@@ -124,7 +137,12 @@ export function useGameInitializer() {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('[Host] WebSocket closed', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
       gameContext.setWsStatus('closed');
 
       // Increment attempt counter after failure
@@ -144,7 +162,8 @@ export function useGameInitializer() {
       }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (error) => {
+      console.error('[Host] WebSocket error:', error);
       // Don't change status here, onclose will be called next
     };
   }, [gameContext]);
@@ -208,11 +227,13 @@ export function playerJoined(gameContext: GameContextType, newPlayer: Player) {
 }
 
 function handlePlayerJoined(gameContext: GameContextType, msg: WebSocketMessage) {
-  const playerId = msg.payload.playerId;
-  const playerName = msg.payload.name;
+  console.log('[Host] handlePlayerJoined called', { msg, currentPlayers: gameContext.players });
+
+  const playerId = msg.payload?.playerId;
+  const playerName = msg.payload?.name;
 
   if (!playerId || !playerName) {
-    console.error('Invalid player data: missing playerId or name', msg.payload);
+    console.error('[Host] Invalid player data: missing playerId or name', msg.payload);
     return;
   }
 
@@ -221,16 +242,22 @@ function handlePlayerJoined(gameContext: GameContextType, msg: WebSocketMessage)
     name: playerName,
     points: 0,
   };
-  console.log('Adding new player:', newPlayer);
+  console.log('[Host] Adding new player:', newPlayer);
 
   // Use functional update to ensure we're working with the latest state
   gameContext.setPlayers((currentPlayers) => {
-    console.log('Current players in setState:', currentPlayers);
-    console.log('Current players length:', currentPlayers.length);
+    console.log('[Host] Current players in setState:', currentPlayers);
+    console.log('[Host] Current players length:', currentPlayers.length);
+
+    // Check if player already exists
+    if (currentPlayers.some((p) => p.id === newPlayer.id)) {
+      console.log('[Host] Player already exists, skipping');
+      return currentPlayers;
+    }
 
     const updatedPlayers = [...currentPlayers, newPlayer];
-    console.log('Updated players list:', updatedPlayers);
-    console.log('Updated players length:', updatedPlayers.length);
+    console.log('[Host] Updated players list:', updatedPlayers);
+    console.log('[Host] Updated players length:', updatedPlayers.length);
 
     // Send the update to other clients
     sendPlayersChangedAction(updatedPlayers);
@@ -240,15 +267,77 @@ function handlePlayerJoined(gameContext: GameContextType, msg: WebSocketMessage)
 }
 
 function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage) {
-  const waitingPlayerId = msg.payload.playerId;
-  const waitingPlayer = gameContext.players.find((player) => player.id === waitingPlayerId);
-  if (!waitingPlayer) {
-    console.error(`Player with ID ${waitingPlayerId} not found`);
+  console.log('[Host] handlePlayerBuzzed called', { msg, players: gameContext.players });
+
+  const waitingPlayerId = msg.payload?.playerId;
+  const waitingPlayerName = msg.payload?.playerName; // Player name is now included in the message
+  console.log('[Host] Waiting player ID:', waitingPlayerId, 'Name:', waitingPlayerName);
+
+  if (!waitingPlayerId) {
+    console.error('[Host] No playerId in message payload:', msg);
     return;
   }
 
+  // Try to find player in context first
+  let waitingPlayer = gameContext.players.find((player) => player.id === waitingPlayerId);
+
+  // If player not found in context, create a temporary player object from the message
+  if (!waitingPlayer) {
+    console.warn(
+      `[Host] Player with ID ${waitingPlayerId} not found in context. Creating from message.`
+    );
+    if (waitingPlayerName) {
+      waitingPlayer = {
+        id: waitingPlayerId,
+        name: waitingPlayerName,
+        points: 0,
+      };
+      // Also add to players list if we have the name
+      gameContext.setPlayers((currentPlayers) => {
+        if (currentPlayers.some((p) => p.id === waitingPlayerId)) {
+          return currentPlayers;
+        }
+        return [...currentPlayers, waitingPlayer!];
+      });
+    } else {
+      console.error(
+        `[Host] Cannot create player object - missing player name. Available players:`,
+        gameContext.players
+      );
+      return;
+    }
+  }
+
+  console.log('[Host] Found/created player:', waitingPlayer);
+
+  // Pause the song if callback is available
+  if (gameContext.pausePlayerCallback) {
+    console.log('[Host] Pausing playback');
+    gameContext.pausePlayerCallback().catch((error) => {
+      console.error('[Host] Error pausing playback:', error);
+    });
+  }
+
+  // Show notification for host
+  gameContext.setBuzzerNotification({
+    playerId: waitingPlayer.id,
+    playerName: waitingPlayer.name,
+  });
+  console.log('[Host] Notification set for host');
+
+  // Broadcast notification to all players
+  const broadcastSuccess = sendBuzzerNotificationAction(waitingPlayer.id, waitingPlayer.name);
+  console.log('[Host] Broadcast notification sent:', broadcastSuccess);
+
   gameContext.setWaitingPlayers((currentWaitingPlayers) => {
+    // Check if player is already in waiting list
+    if (currentWaitingPlayers.some((p) => p.id === waitingPlayer.id)) {
+      console.log('[Host] Player already in waiting list');
+      return currentWaitingPlayers;
+    }
+
     const newWaitingPlayers = [...currentWaitingPlayers, waitingPlayer];
+    console.log('[Host] Updating waiting players:', newWaitingPlayers);
     sendWaitingPlayersChangedAction(newWaitingPlayers);
     return newWaitingPlayers;
   });
@@ -305,6 +394,19 @@ function handleLoggedOutOfSpotify(gameContext: GameContextType) {
   if (gameContext.isHost && gameContext.musicHostLoggedIn) {
     gameContext.setMusicHostLoggedIn(false);
     console.log(`Host logged out of Spotify`);
+  }
+}
+
+function handlePlayerBuzzedNotification(gameContext: GameContextType, msg: WebSocketMessage) {
+  // Broadcast messages use 'data' instead of 'payload'
+  const playerId = msg.data?.playerId;
+  const playerName = msg.data?.playerName;
+
+  if (playerId && playerName) {
+    gameContext.setBuzzerNotification({
+      playerId,
+      playerName,
+    });
   }
 }
 
@@ -371,6 +473,16 @@ function sendGuessedPlayersChangedAction(guessedPlayers: Player[]) {
     action: 'guessedPlayersChanged',
     data: {
       guessedPlayers,
+    },
+  });
+}
+
+function sendBuzzerNotificationAction(playerId: string, playerName: string) {
+  return sendHostAction({
+    action: 'player-buzzed-notification',
+    data: {
+      playerId,
+      playerName,
     },
   });
 }

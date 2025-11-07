@@ -4,12 +4,20 @@ import type { GameContextType, Player } from '../context';
 // WebSocket message types
 type WebSocketMessage = {
   action: string;
-  payload: {
+  payload?: {
     playerId?: string;
     name?: string;
     players?: Array<{ id: string; name: string; points: number }>;
     reason?: string;
     status?: string;
+    [key: string]: unknown;
+  };
+  data?: {
+    playerId?: string;
+    playerName?: string;
+    players?: Array<{ id: string; name: string; points: number }>;
+    buzzedPlayers?: Array<{ id: string; name: string; points: number }>;
+    guessedPlayers?: Array<{ id: string; name: string; points: number }>;
     [key: string]: unknown;
   };
 };
@@ -150,7 +158,7 @@ export function joinGame(
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        console.log('Received message:', message);
+        console.log('[Player] Received message:', message);
 
         switch (message.action) {
           case 'join-success': {
@@ -228,6 +236,11 @@ export function joinGame(
             }
             break;
 
+          case 'player-buzzed-notification':
+            console.log('[Player] Handling player-buzzed-notification:', message);
+            handlePlayerBuzzedNotificationForPlayer(gameContext, message);
+            break;
+
           case 'join-failed':
             console.error('Failed to join game:', message.payload.reason);
             resolve({ success: false });
@@ -286,26 +299,49 @@ function handlePlayerLeftForPlayer(gameContext: GameContextType, playerId: strin
   );
 }
 
+function handlePlayerBuzzedNotificationForPlayer(
+  gameContext: GameContextType,
+  msg: WebSocketMessage
+) {
+  console.log('[Player] handlePlayerBuzzedNotificationForPlayer called', { msg });
+  // Broadcast messages use 'data' instead of 'payload'
+  const playerId = msg.data?.playerId;
+  const playerName = msg.data?.playerName;
+
+  console.log('[Player] Notification data:', { playerId, playerName });
+
+  if (playerId && playerName) {
+    console.log('[Player] Setting buzzer notification');
+    gameContext.setBuzzerNotification({
+      playerId,
+      playerName,
+    });
+  } else {
+    console.warn('[Player] Missing playerId or playerName in notification');
+  }
+}
+
 export function sendPlayerAction(action: string, payload?: Record<string, unknown>) {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    console.error('WebSocket is not connected');
+    console.error('[PlayerAction] WebSocket is not connected');
     return false;
   }
 
   try {
-    ws.send(
-      JSON.stringify({
-        action: 'player-action',
-        payload: {
-          action,
-          payload,
-          localTimestamp: Date.now(),
-        },
-      })
-    );
+    const message = {
+      serverAction: 'player-action',
+      serverPayload: {
+        action,
+        payload,
+        localTimestamp: Date.now(),
+      },
+    };
+    console.log('[PlayerAction] Sending message:', message);
+    ws.send(JSON.stringify(message));
+    console.log('[PlayerAction] Message sent successfully');
     return true;
   } catch (error) {
-    console.error('Error sending action:', error);
+    console.error('[PlayerAction] Error sending action:', error);
     return false;
   }
 }

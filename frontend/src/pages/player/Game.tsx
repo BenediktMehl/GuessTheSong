@@ -20,6 +20,7 @@ export default function Game() {
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;
+  const { buzzerNotification, setBuzzerNotification } = useGameContext();
   const [showJoinedToast, setShowJoinedToast] = useState(true);
   const [buzzerColor, setBuzzerColor] = useState<string>('');
 
@@ -48,6 +49,16 @@ export default function Game() {
     }
   }, [showJoinedToast]);
 
+  // Auto-dismiss buzzer notification after 3 seconds
+  useEffect(() => {
+    if (buzzerNotification) {
+      const timer = setTimeout(() => {
+        setBuzzerNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [buzzerNotification, setBuzzerNotification]);
+
   // Check if current player is in the waiting queue
   const currentPlayerInQueue = currentPlayerId
     ? (waitingPlayers || []).findIndex((p) => p.id === currentPlayerId)
@@ -62,15 +73,29 @@ export default function Game() {
     : false;
 
   const handleBuzz = useCallback(() => {
+    console.log('[Buzzer] handleBuzz called', {
+      isCurrentPlayerInQueue,
+      hasCurrentPlayerGuessed,
+      currentPlayerId,
+    });
+
     // Don't allow buzzing if already in queue or already guessed
     if (isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId) {
+      console.log('[Buzzer] Buzzer blocked:', {
+        isCurrentPlayerInQueue,
+        hasCurrentPlayerGuessed,
+        currentPlayerId,
+      });
       return;
     }
 
     // Send buzz action to host
+    console.log('[Buzzer] Sending buzz action...');
     const success = sendPlayerBuzzedAction();
     if (!success) {
-      console.error('Failed to send buzz action');
+      console.error('[Buzzer] Failed to send buzz action');
+    } else {
+      console.log('[Buzzer] Buzz action sent successfully');
     }
   }, [isCurrentPlayerInQueue, hasCurrentPlayerGuessed, currentPlayerId]);
 
@@ -151,6 +176,16 @@ export default function Game() {
         </div>
       )}
 
+      {buzzerNotification && (
+        <div className="toast toast-top toast-center z-50">
+          <div className="alert alert-info shadow-2xl">
+            <span>
+              <strong>{buzzerNotification.playerName}</strong> hat den Buzzer gedrückt!
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* biome-ignore lint/a11y/noStaticElementInteractions: This div only stops event propagation, not interactive */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: This div only stops event propagation, not interactive */}
       <div
@@ -165,20 +200,14 @@ export default function Game() {
           currentPlayer={currentPlayer}
         />
 
-        <Card className="w-full cursor-pointer" bodyClassName="items-center text-center gap-4 py-4">
-          <button
-            type="button"
-            className="w-full flex flex-col items-center gap-4 bg-transparent border-none p-0 cursor-pointer"
-            onClick={handleBuzz}
-            onTouchStart={handleBuzz}
-            aria-label="Press to buzz and guess the current song"
-          >
+        <Card className="w-full" bodyClassName="items-center text-center gap-4 py-4">
+          <div className="w-full flex flex-col items-center gap-4">
             <div className="w-full">{gameState.content}</div>
             <button
               type="button"
-              className="relative w-44 h-44 rounded-full transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-offset-2"
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
+              className="relative w-44 h-44 rounded-full transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-offset-2 cursor-pointer"
+              onClick={handleBuzz}
+              onTouchStart={handleBuzz}
               style={{
                 background: `radial-gradient(circle at 30% 30%, ${buzzerColor || '#FF1744'}ff, ${buzzerColor || '#FF1744'} 50%, ${buzzerColor || '#FF1744'}dd)`,
                 boxShadow: `
@@ -189,7 +218,7 @@ export default function Game() {
                   inset 0 0 30px rgba(255, 255, 255, 0.2)
                 `,
               }}
-              aria-label="Buzzer button"
+              aria-label="Press to buzz and guess the current song"
             >
               {/* Outer ring */}
               <div
@@ -215,7 +244,7 @@ export default function Game() {
                 }}
               />
             </button>
-          </button>
+          </div>
         </Card>
       </div>
     </main>
