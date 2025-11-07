@@ -115,6 +115,8 @@ export default function Game() {
     return stored ? parseFloat(stored) : 0.5;
   });
   const [currentPosition, setCurrentPosition] = useState<number>(0); // Current playback position in milliseconds
+  const [trackDuration, setTrackDuration] = useState<number>(0); // Track duration in milliseconds
+  const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
   const positionUpdateIntervalRef = useRef<number | null>(null);
 
   // Transfer playback to this device using Spotify Web API
@@ -154,6 +156,7 @@ export default function Game() {
                   setPaused(state.paused);
                   setTrack(state.track_window.current_track);
                   setCurrentPosition(state.position || 0);
+                  setTrackDuration(state.track_window.current_track.duration_ms || 0);
                 }
               })
               .catch((error) => {
@@ -237,11 +240,13 @@ export default function Game() {
               setPaused(state.paused);
               setTrack(state.track_window.current_track);
               setCurrentPosition(state.position || 0);
+              setTrackDuration(state.track_window.current_track.duration_ms || 0);
               hasAttemptedTransferRef.current = true;
             } else {
               console.log('[Spotify] No initial playback state');
               setActive(false);
               setCurrentPosition(0);
+              setTrackDuration(0);
               if (!hasAttemptedTransferRef.current) {
                 console.log('[Spotify] Attempting to transfer playback');
                 hasAttemptedTransferRef.current = true;
@@ -293,6 +298,7 @@ export default function Game() {
           setActive(false);
           setTrack(track);
           setCurrentPosition(0);
+          setTrackDuration(0);
           previousTrackIdRefFirst.current = '';
           return;
         }
@@ -314,6 +320,7 @@ export default function Game() {
         setTrack(state.track_window.current_track);
         setPaused(state.paused);
         setCurrentPosition(state.position || 0);
+        setTrackDuration(state.track_window.current_track.duration_ms || 0);
         setActive(true);
       });
 
@@ -364,11 +371,13 @@ export default function Game() {
               setPaused(state.paused);
               setTrack(state.track_window.current_track);
               setCurrentPosition(state.position || 0);
+              setTrackDuration(state.track_window.current_track.duration_ms || 0);
               hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
             } else {
               console.log('[Spotify] No initial playback state');
               setActive(false);
               setCurrentPosition(0);
+              setTrackDuration(0);
               // Only attempt transfer once
               if (!hasAttemptedTransferRef.current) {
                 console.log('[Spotify] Attempting to transfer playback');
@@ -426,6 +435,7 @@ export default function Game() {
           // Clear track info when state is null
           setTrack(track);
           setCurrentPosition(0);
+          setTrackDuration(0);
           previousTrackIdRef.current = '';
           return;
         }
@@ -447,6 +457,7 @@ export default function Game() {
         setTrack(state.track_window.current_track);
         setPaused(state.paused);
         setCurrentPosition(state.position || 0);
+        setTrackDuration(state.track_window.current_track.duration_ms || 0);
         setActive(true); // If we have state, we're active
         // Don't call getCurrentState() here - it can cause loops and we already have the state
       });
@@ -492,10 +503,61 @@ export default function Game() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Update position periodically when playing
+  // Seek to a specific position in the song
+  const handleSeek = async (positionMs: number) => {
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken || !deviceId) {
+      console.error('[Spotify] No access token or device ID available for seek');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.spotify.com/v1/me/player/seek?position_ms=${Math.floor(positionMs)}`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.status === 204) {
+        console.log('[Spotify] Seeked to position:', positionMs);
+        setCurrentPosition(positionMs);
+      } else {
+        console.error('[Spotify] Failed to seek:', response.status);
+      }
+    } catch (error) {
+      console.error('[Spotify] Error seeking:', error);
+    }
+  };
+
+  // Handle timeline slider change
+  const handleTimelineChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPosition = parseInt(e.target.value, 10);
+    setCurrentPosition(newPosition);
+    setIsSeeking(true);
+  };
+
+  // Handle timeline slider release (when user finishes dragging)
+  const handleTimelineMouseUp = (e: React.MouseEvent<HTMLInputElement>) => {
+    const newPosition = parseInt((e.target as HTMLInputElement).value, 10);
+    handleSeek(newPosition);
+    setIsSeeking(false);
+  };
+
+  // Handle timeline touch end (for mobile)
+  const handleTimelineTouchEnd = (e: React.TouchEvent<HTMLInputElement>) => {
+    const newPosition = parseInt((e.target as HTMLInputElement).value, 10);
+    handleSeek(newPosition);
+    setIsSeeking(false);
+  };
+
+  // Update position periodically when playing (only if not seeking)
   useEffect(() => {
-    if (!is_active || !player || is_paused) {
-      // Clear interval if paused or inactive
+    if (!is_active || !player || is_paused || isSeeking) {
+      // Clear interval if paused, inactive, or user is seeking
       if (positionUpdateIntervalRef.current) {
         clearInterval(positionUpdateIntervalRef.current);
         positionUpdateIntervalRef.current = null;
@@ -506,7 +568,7 @@ export default function Game() {
     // Update position every second
     positionUpdateIntervalRef.current = window.setInterval(async () => {
       const currentPlayer = playerInstanceRef.current || player;
-      if (currentPlayer) {
+      if (currentPlayer && !isSeeking) {
         try {
           const state = await currentPlayer.getCurrentState();
           if (state && !state.paused) {
@@ -524,7 +586,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [is_active, player, is_paused]);
+  }, [is_active, player, is_paused, isSeeking]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =
@@ -761,11 +823,23 @@ export default function Game() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {/* Timer - always visible when track is playing */}
-              {current_track.name && is_active && (
-                <div className="text-center">
-                  <div className="text-2xl font-mono font-bold text-base-content">
-                    {formatTime(currentPosition)}
+              {/* Timeline - always visible when track is playing */}
+              {current_track.name && is_active && trackDuration > 0 && (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max={trackDuration}
+                    value={currentPosition}
+                    onChange={handleTimelineChange}
+                    onMouseUp={handleTimelineMouseUp}
+                    onTouchEnd={handleTimelineTouchEnd}
+                    className="range range-primary w-full"
+                    step="1000"
+                  />
+                  <div className="flex justify-between text-xs text-base-content/70">
+                    <span className="font-mono">{formatTime(currentPosition)}</span>
+                    <span className="font-mono">{formatTime(trackDuration)}</span>
                   </div>
                 </div>
               )}
@@ -831,6 +905,8 @@ export default function Game() {
                           // Update local state to match
                           setPaused(newState.paused);
                           setTrack(newState.track_window.current_track);
+                          setCurrentPosition(newState.position || 0);
+                          setTrackDuration(newState.track_window.current_track.duration_ms || 0);
                         }
                       }, 500);
                     } catch (error) {
