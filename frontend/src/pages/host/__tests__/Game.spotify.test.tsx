@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
 import Game from '../Game';
@@ -111,8 +112,7 @@ describe('Spotify SDK Integration', () => {
         } else if (event === 'player_state_changed') {
           stateChangeCallback = callback as (state: SpotifyPlaybackState) => void;
         }
-        // Note: initialization_error, authentication_error, and account_error listeners
-        // are not currently implemented in the Game component, so we don't track them
+        // Error listeners are now implemented in the Game component
         return true;
       }),
       getCurrentState: vi.fn().mockResolvedValue(null),
@@ -188,9 +188,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Assert
@@ -207,9 +209,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Wait a bit to ensure useEffect has run
@@ -226,6 +230,13 @@ describe('Spotify SDK Integration', () => {
     });
     expect(spotifyScript).toBeUndefined();
 
+    // Assert - error message should be displayed
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+      ).toBeInTheDocument();
+    });
+
     createElementSpy.mockRestore();
   });
 
@@ -235,9 +246,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Assert
@@ -258,9 +271,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -284,9 +299,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Assert
@@ -304,9 +321,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Wait for SDK to load and player to be initialized
@@ -332,9 +351,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Wait for SDK to load and player to be initialized
@@ -360,9 +381,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Assert
@@ -377,21 +400,100 @@ describe('Spotify SDK Integration', () => {
     );
   });
 
-  // Note: These error listeners are not currently registered in the Game component
-  // They are part of the SDK but not implemented in the UI yet
-  it.skip('should register initialization_error event listener', async () => {
-    // This test is skipped because the Game component doesn't currently register this listener
-    // The listener exists in the SDK but isn't used in the component yet
+  it('should register initialization_error event listener', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    // Wait for SDK to load and player to be initialized
+    await waitFor(
+      () => {
+        expect(mockPlayer.connect).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Assert
+    await waitFor(
+      () => {
+        expect(mockPlayer.addListener).toHaveBeenCalledWith(
+          'initialization_error',
+          expect.any(Function)
+        );
+      },
+      { timeout: 2000 }
+    );
   });
 
-  it.skip('should register authentication_error event listener', async () => {
-    // This test is skipped because the Game component doesn't currently register this listener
-    // The listener exists in the SDK but isn't used in the component yet
+  it('should register authentication_error event listener', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    // Wait for SDK to load and player to be initialized
+    await waitFor(
+      () => {
+        expect(mockPlayer.connect).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Assert
+    await waitFor(
+      () => {
+        expect(mockPlayer.addListener).toHaveBeenCalledWith(
+          'authentication_error',
+          expect.any(Function)
+        );
+      },
+      { timeout: 2000 }
+    );
   });
 
-  it.skip('should register account_error event listener', async () => {
-    // This test is skipped because the Game component doesn't currently register this listener
-    // The listener exists in the SDK but isn't used in the component yet
+  it('should register account_error event listener', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    // Wait for SDK to load and player to be initialized
+    await waitFor(
+      () => {
+        expect(mockPlayer.connect).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Assert
+    await waitFor(
+      () => {
+        expect(mockPlayer.addListener).toHaveBeenCalledWith('account_error', expect.any(Function));
+      },
+      { timeout: 2000 }
+    );
   });
 
   it('should update track info when player_state_changed event fires', async () => {
@@ -418,9 +520,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -462,9 +566,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -505,9 +611,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -556,9 +664,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -607,9 +717,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -635,9 +747,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Wait for SDK to load and player to be initialized
@@ -681,9 +795,11 @@ describe('Spotify SDK Integration', () => {
 
     // Act
     const { unmount } = render(
-      <GameProvider>
-        <Game />
-      </GameProvider>
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
     );
 
     // Wait for SDK to load and player to be initialized
@@ -713,18 +829,135 @@ describe('Spotify SDK Integration', () => {
     );
   });
 
-  it.skip('should handle initialization_error event', async () => {
-    // This test is skipped because the Game component doesn't currently register this listener
-    // The listener exists in the SDK but isn't used in the component yet
+  it('should handle initialization_error event', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+    let errorCallback: ((error: { message: string }) => void) | null = null;
+
+    // Setup mock to capture error callback
+    // biome-ignore lint/suspicious/noExplicitAny: Need to override mock for this specific test
+    (mockPlayer as any).addListener = vi.fn((event: string, callback: unknown) => {
+      if (event === 'initialization_error') {
+        errorCallback = callback as (error: { message: string }) => void;
+      }
+      return true;
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    // Wait for listener to be registered
+    await waitFor(
+      () => {
+        expect(errorCallback).toBeTruthy();
+      },
+      { timeout: 3000 }
+    );
+
+    // Trigger error
+    if (errorCallback) {
+      (errorCallback as (error: { message: string }) => void)({ message: 'Initialization failed' });
+    }
+
+    // Assert - error message should be displayed
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+      ).toBeInTheDocument();
+    });
   });
 
-  it.skip('should handle authentication_error event', async () => {
-    // This test is skipped because the Game component doesn't currently register this listener
-    // The listener exists in the SDK but isn't used in the component yet
+  it('should handle authentication_error event', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+    let errorCallback: ((error: { message: string }) => void) | null = null;
+
+    // Setup mock to capture error callback
+    // biome-ignore lint/suspicious/noExplicitAny: Need to override mock for this specific test
+    (mockPlayer as any).addListener = vi.fn((event: string, callback: unknown) => {
+      if (event === 'authentication_error') {
+        errorCallback = callback as (error: { message: string }) => void;
+      }
+      return true;
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    // Wait for listener to be registered
+    await waitFor(
+      () => {
+        expect(errorCallback).toBeTruthy();
+      },
+      { timeout: 3000 }
+    );
+
+    // Trigger error
+    if (errorCallback) {
+      (errorCallback as (error: { message: string }) => void)({ message: 'Authentication failed' });
+    }
+
+    // Assert - error message should be displayed
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+      ).toBeInTheDocument();
+    });
   });
 
-  it.skip('should handle account_error event', async () => {
-    // This test is skipped because the Game component doesn't currently register this listener
-    // The listener exists in the SDK but isn't used in the component yet
+  it('should handle account_error event', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+    let errorCallback: ((error: { message: string }) => void) | null = null;
+
+    // Setup mock to capture error callback
+    // biome-ignore lint/suspicious/noExplicitAny: Need to override mock for this specific test
+    (mockPlayer as any).addListener = vi.fn((event: string, callback: unknown) => {
+      if (event === 'account_error') {
+        errorCallback = callback as (error: { message: string }) => void;
+      }
+      return true;
+    });
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    // Wait for listener to be registered
+    await waitFor(
+      () => {
+        expect(errorCallback).toBeTruthy();
+      },
+      { timeout: 3000 }
+    );
+
+    // Trigger error
+    if (errorCallback) {
+      (errorCallback as (error: { message: string }) => void)({ message: 'Account error' });
+    }
+
+    // Assert - error message should be displayed
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+      ).toBeInTheDocument();
+    });
   });
 });
