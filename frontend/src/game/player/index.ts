@@ -447,13 +447,19 @@ export function joinGame(
             // The host sends empty arrays via waitingPlayersChanged and guessedPlayersChanged,
             // but we also handle this message explicitly to ensure cleanup
             logger.info('[Player] Player guessed right - resetting lists');
-            const rightPlayerId = message.payload?.playerId;
-            const rightPlayerName = getPlayerName(gameContext, rightPlayerId);
-            showToast(gameContext, `${rightPlayerName} guessed correctly!`, 'success', 3000);
+            const rightPlayerId = message.data?.playerId || message.payload?.playerId;
+            const rightPlayerName =
+              message.data?.playerName || getPlayerName(gameContext, rightPlayerId);
+            showToast(
+              gameContext,
+              `Guess from ${rightPlayerName} was correct! Next song starts now.`,
+              'success',
+              4000
+            );
             // Show new song toast after the success toast dismisses (lists will be cleared by separate messages)
             setTimeout(() => {
               showNewSongToast(gameContext);
-            }, 3200);
+            }, 4200);
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
           }
@@ -461,15 +467,38 @@ export function joinGame(
           case 'player-guessed-partially': {
             // Player guessed partially - they are moved to partiallyGuessedPlayers list
             console.log('[Player] Player guessed partially');
-            const partialPlayerId = message.payload?.playerId;
-            const partialPlayerName = getPlayerName(gameContext, partialPlayerId);
-            showToast(
-              gameContext,
-              `${partialPlayerName} guessed partially right!`,
-              'warning',
-              3000
-            );
+            const partialPlayerId = message.data?.playerId || message.payload?.playerId;
+            const partialPlayerName =
+              message.data?.playerName || getPlayerName(gameContext, partialPlayerId);
+            // Determine next player after state updates process
+            // Use a small delay to allow state updates from waitingPlayersChanged to process
+            setTimeout(() => {
+              const nextWaitingPlayer = gameContext.waitingPlayers[0];
+              const toastMessage = nextWaitingPlayer
+                ? `Guess from ${partialPlayerName} was partially correct. ${nextWaitingPlayer.name} can guess now.`
+                : `Guess from ${partialPlayerName} was partially correct. Song continues now.`;
+              showToast(gameContext, toastMessage, 'warning', 4000);
+            }, 100);
             // The partiallyGuessedPlayersChanged message will handle the state update
+            break;
+          }
+
+          case 'player-guessed-wrong': {
+            // Player guessed wrong - they are moved to guessedPlayers list
+            logger.info('[Player] Player guessed wrong');
+            const wrongPlayerId = message.data?.playerId || message.payload?.playerId;
+            const wrongPlayerName =
+              message.data?.playerName || getPlayerName(gameContext, wrongPlayerId);
+            // Determine next player after state updates process
+            // Use a small delay to allow state updates from waitingPlayersChanged to process
+            setTimeout(() => {
+              const nextWaitingPlayer = gameContext.waitingPlayers[0];
+              const toastMessage = nextWaitingPlayer
+                ? `Guess from ${wrongPlayerName} was wrong. ${nextWaitingPlayer.name} can guess now.`
+                : `Guess from ${wrongPlayerName} was wrong. Song continues now.`;
+              showToast(gameContext, toastMessage, 'error', 4000);
+            }, 100);
+            // The waitingPlayersChanged and guessedPlayersChanged messages will handle the state update
             break;
           }
 
@@ -523,15 +552,6 @@ export function joinGame(
               }
             }
             break;
-
-          case 'player-guessed-wrong': {
-            // Player guessed wrong - they are moved to guessedPlayers list
-            logger.info('[Player] Player guessed wrong');
-            const wrongPlayerId = message.payload?.playerId;
-            const wrongPlayerName = getPlayerName(gameContext, wrongPlayerId);
-            showToast(gameContext, `${wrongPlayerName} guessed wrong`, 'error', 3000);
-            break;
-          }
 
           case 'lastSongChanged':
             // Last song info updated (when a song ends)
