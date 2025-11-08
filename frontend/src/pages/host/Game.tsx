@@ -11,7 +11,6 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
 } from '../../game/host';
-import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
   getPlaylistTracks,
   getSelectedPlaylistId,
@@ -24,7 +23,6 @@ import logger from '../../utils/logger';
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
 const AUTOPLAY_KEY = 'hostAutoplay';
-const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 // Track object structure as per tutorial
 const track = {
@@ -146,10 +144,6 @@ export default function Game() {
   const [volume, setVolume] = useState<number>(() => {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
     return stored ? parseFloat(stored) : 0.5;
-  });
-  const [buzzerSoundEnabled, setBuzzerSoundEnabled] = useState<boolean>(() => {
-    const stored = localStorage.getItem(BUZZER_SOUND_ENABLED_KEY);
-    return stored === null ? true : stored === 'true';
   });
   const [currentPosition, setCurrentPosition] = useState<number>(0); // Current playback position in milliseconds
   const [trackDuration, setTrackDuration] = useState<number>(0); // Track duration in milliseconds
@@ -1283,92 +1277,18 @@ export default function Game() {
     };
   }, [player, is_active, pausePlayerFunction, setPausePlayerCallback]);
 
-  // Persist buzzer sound preference to localStorage and sync with audio object
-  useEffect(() => {
-    localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
-    // Sync mute state with audio object (muted when sound is disabled)
-    setBuzzerSoundMuted(!buzzerSoundEnabled);
-  }, [buzzerSoundEnabled]);
-
-  // Toggle buzzer sound
-  const toggleBuzzerSound = useCallback(() => {
-    setBuzzerSoundEnabled((prev) => !prev);
-  }, []);
-
-  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
+  // Auto-dismiss buzzer notification after 3 seconds
   useEffect(() => {
     if (buzzerNotification) {
-      // Play buzzer sound when notification appears (if enabled)
-      if (buzzerSoundEnabled) {
-        playBuzzerSound();
-      }
-
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [buzzerNotification, setBuzzerNotification, buzzerSoundEnabled]);
+  }, [buzzerNotification, setBuzzerNotification]);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
-      {/* Buzzer sound toggle button in upper right corner */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleBuzzerSound();
-        }}
-        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
-        aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
-        title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
-      >
-        {buzzerSoundEnabled ? (
-          // Speaker icon (sound enabled)
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth="2"
-            stroke="currentColor"
-            className="w-5 h-5"
-            aria-hidden="true"
-          >
-            <title>Speaker icon</title>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
-            />
-          </svg>
-        ) : (
-          // Speaker muted icon (sound disabled)
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth="2"
-            stroke="currentColor"
-            className="w-5 h-5 opacity-60"
-            aria-hidden="true"
-          >
-            <title>Speaker muted icon</title>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 3l18 18"
-              style={{ opacity: 0.75 }}
-            />
-          </svg>
-        )}
-      </button>
-
       {buzzerNotification && (
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
