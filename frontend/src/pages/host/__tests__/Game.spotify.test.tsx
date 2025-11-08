@@ -599,6 +599,55 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
+  it('should display all artists when a song has multiple artists', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+    const mockTrack = {
+      id: 'track-456',
+      name: 'Collaboration Song',
+      uri: 'spotify:track:456',
+      artists: [{ name: 'Artist One' }, { name: 'Artist Two' }, { name: 'Artist Three' }],
+      album: {
+        name: 'Collaboration Album',
+        images: [{ url: 'https://example.com/collab-cover.jpg' }],
+      },
+      duration_ms: 180000,
+    };
+
+    const mockState = {
+      paused: false,
+      position: 0,
+      track_window: {
+        current_track: mockTrack,
+      },
+    };
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(stateChangeCallback).toBeTruthy();
+    });
+
+    // Trigger state change
+    if (stateChangeCallback) {
+      mockPlayer.getCurrentState.mockResolvedValue(mockState);
+      stateChangeCallback(mockState);
+    }
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText('Collaboration Song')).toBeInTheDocument();
+      expect(screen.getByText('Artist One, Artist Two, Artist Three')).toBeInTheDocument();
+    });
+  });
+
   it('should update pause state when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
