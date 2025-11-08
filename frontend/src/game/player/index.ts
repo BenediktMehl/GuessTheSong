@@ -385,21 +385,6 @@ export function joinGame(
                       return playerWithPoints || listPlayer;
                     }
                   );
-                  // Update guess result notification with next player if notification exists and needs it
-                  const firstWaitingPlayer = syncedWaitingPlayers[0];
-                  if (firstWaitingPlayer && gameContext.guessResultNotification) {
-                    const currentNotification = gameContext.guessResultNotification;
-                    if (
-                      (currentNotification.result === 'partially' ||
-                        currentNotification.result === 'wrong') &&
-                      !currentNotification.nextPlayerName
-                    ) {
-                      gameContext.setGuessResultNotification({
-                        ...currentNotification,
-                        nextPlayerName: firstWaitingPlayer.name,
-                      });
-                    }
-                  }
                   return syncedWaitingPlayers;
                 });
               }
@@ -463,7 +448,8 @@ export function joinGame(
             // but we also handle this message explicitly to ensure cleanup
             logger.info('[Player] Player guessed right - resetting lists');
             const rightPlayerId = message.data?.playerId || message.payload?.playerId;
-            const rightPlayerName = message.data?.playerName || getPlayerName(gameContext, rightPlayerId);
+            const rightPlayerName =
+              message.data?.playerName || getPlayerName(gameContext, rightPlayerId);
             showToast(
               gameContext,
               `Guess from ${rightPlayerName} was correct! Next song starts now.`,
@@ -482,7 +468,8 @@ export function joinGame(
             // Player guessed partially - they are moved to partiallyGuessedPlayers list
             console.log('[Player] Player guessed partially');
             const partialPlayerId = message.data?.playerId || message.payload?.playerId;
-            const partialPlayerName = message.data?.playerName || getPlayerName(gameContext, partialPlayerId);
+            const partialPlayerName =
+              message.data?.playerName || getPlayerName(gameContext, partialPlayerId);
             // Determine next player after state updates process
             // Use a small delay to allow state updates from waitingPlayersChanged to process
             setTimeout(() => {
@@ -500,7 +487,8 @@ export function joinGame(
             // Player guessed wrong - they are moved to guessedPlayers list
             logger.info('[Player] Player guessed wrong');
             const wrongPlayerId = message.data?.playerId || message.payload?.playerId;
-            const wrongPlayerName = message.data?.playerName || getPlayerName(gameContext, wrongPlayerId);
+            const wrongPlayerName =
+              message.data?.playerName || getPlayerName(gameContext, wrongPlayerId);
             // Determine next player after state updates process
             // Use a small delay to allow state updates from waitingPlayersChanged to process
             setTimeout(() => {
@@ -513,28 +501,6 @@ export function joinGame(
             // The waitingPlayersChanged and guessedPlayersChanged messages will handle the state update
             break;
           }
-
-          case 'player-guessed-wrong':
-            // Player guessed wrong - they are moved to guessedPlayers list
-            logger.info('[Player] Player guessed wrong');
-            // Set notification - check for next player after state updates
-            const wrongPlayerId = message.data?.playerId || message.payload?.playerId;
-            const wrongPlayerName = message.data?.playerName || message.payload?.playerName;
-            if (wrongPlayerId && wrongPlayerName) {
-              // Determine next player after state updates process
-              // Use a small delay to allow state updates from waitingPlayersChanged to process
-              setTimeout(() => {
-                const nextWaitingPlayer = gameContext.waitingPlayers[0];
-                gameContext.setGuessResultNotification({
-                  playerId: wrongPlayerId,
-                  playerName: wrongPlayerName,
-                  result: 'wrong',
-                  nextPlayerName: nextWaitingPlayer?.name,
-                });
-              }, 100);
-            }
-            // The waitingPlayersChanged and guessedPlayersChanged messages will handle the state update
-            break;
 
           case 'partiallyGuessedPlayersChanged':
             // Partially guessed players list updated
