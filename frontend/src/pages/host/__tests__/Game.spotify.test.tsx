@@ -32,6 +32,8 @@ const mockGameContext = {
   currentPlayerId: '',
   setCurrentPlayerId: vi.fn(),
   setStatus: vi.fn(),
+  lastSong: null,
+  setLastSong: vi.fn(),
 };
 
 // Mock GameProvider
@@ -46,6 +48,11 @@ vi.mock('../../../game/context', async () => {
 // Mock PlayersLobby
 vi.mock('../../../components/PlayersLobby', () => ({
   default: () => <div data-testid="players-lobby">Players Lobby</div>,
+}));
+
+// Mock LastSongCard
+vi.mock('../../../components/LastSongCard', () => ({
+  LastSongCard: () => null,
 }));
 
 // Mock Card component
