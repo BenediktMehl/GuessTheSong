@@ -13,9 +13,13 @@ export function LastSongCard({
   guessedPlayersCount,
 }: LastSongCardProps) {
   // Only show when lastSong exists and all players are reset (back in default list)
-  const shouldShow = lastSong !== null && waitingPlayersCount === 0 && guessedPlayersCount === 0;
+  const shouldShow =
+    lastSong !== null &&
+    lastSong !== undefined &&
+    waitingPlayersCount === 0 &&
+    guessedPlayersCount === 0;
 
-  if (!shouldShow) {
+  if (!shouldShow || !lastSong) {
     return null;
   }
 
