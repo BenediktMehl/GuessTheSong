@@ -22,6 +22,12 @@ export type BuzzerNotification = {
   playerName: string;
 } | null;
 
+export type PlayerToast = {
+  message: string;
+  type: 'success' | 'warning' | 'error' | 'info';
+  duration?: number;
+} | null;
+
 export type PausePlayerCallback = () => void | Promise<void>;
 
 // Global reference to pause function (set by Host Game component)
@@ -47,6 +53,7 @@ export interface GameContextType {
   sessionId: string;
   currentPlayerId: string;
   buzzerNotification: BuzzerNotification;
+  playerToast: PlayerToast;
   pausePlayerCallback: PausePlayerCallback | null;
   setIsHost: Dispatch<SetStateAction<boolean>>;
   setPlayers: Dispatch<SetStateAction<Player[]>>;
@@ -59,6 +66,7 @@ export interface GameContextType {
   setSessionId: Dispatch<SetStateAction<string>>;
   setCurrentPlayerId: Dispatch<SetStateAction<string>>;
   setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
+  setPlayerToast: Dispatch<SetStateAction<PlayerToast>>;
   setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
 }
 
@@ -76,6 +84,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [sessionId, setSessionId] = useState('');
   const [currentPlayerId, setCurrentPlayerId] = useState('');
   const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
+  const [playerToast, setPlayerToast] = useState<PlayerToast>(null);
   const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
 
   return (
@@ -92,6 +101,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         sessionId,
         currentPlayerId,
         buzzerNotification,
+        playerToast,
         pausePlayerCallback,
         setIsHost,
         setPlayers,
@@ -104,6 +114,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSessionId,
         setCurrentPlayerId,
         setBuzzerNotification,
+        setPlayerToast,
         setPausePlayerCallback,
       }}
     >
