@@ -10,6 +10,7 @@ import {
   getUserPlaylists,
   type SpotifyPlaylist,
   setSelectedPlaylistId,
+  validatePlaylistHasTracks,
 } from '../../services/spotify/api';
 import { handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
 import { DEFAULT_PLAYLIST_ID, DEFAULT_PLAYLISTS } from '../../services/spotify/playlists';
@@ -26,6 +27,8 @@ export default function Lobby() {
   const [availablePlaylists, setAvailablePlaylists] = useState<SpotifyPlaylist[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
   const [playlistsError, setPlaylistsError] = useState<string | null>(null);
+  const [playlistValidationLoading, setPlaylistValidationLoading] = useState(false);
+  const [playlistValidationError, setPlaylistValidationError] = useState<string | null>(null);
   const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
   const navigate = useNavigate();
   const gameContext = useGameContext();
@@ -68,10 +71,41 @@ export default function Lobby() {
     }
   }, [isLoggedInSpotify, sessionId]);
 
+  // Validate playlist has tracks when playlist is selected
+  useEffect(() => {
+    if (isLoggedInSpotify && selectedPlaylistId) {
+      const validatePlaylist = async () => {
+        setPlaylistValidationLoading(true);
+        setPlaylistValidationError(null);
+        try {
+          logger.debug('[Lobby] Validating playlist has tracks:', selectedPlaylistId);
+          const hasTracks = await validatePlaylistHasTracks(selectedPlaylistId);
+          if (!hasTracks) {
+            logger.warn('[Lobby] Playlist has no tracks');
+            setPlaylistValidationError('Selected playlist has no tracks');
+          } else {
+            logger.debug('[Lobby] Playlist validated successfully');
+          }
+        } catch (error) {
+          logger.error('[Lobby] Error validating playlist:', error);
+          setPlaylistValidationError(
+            error instanceof Error ? error.message : 'Failed to validate playlist'
+          );
+        } finally {
+          setPlaylistValidationLoading(false);
+        }
+      };
+
+      validatePlaylist();
+    }
+  }, [isLoggedInSpotify, selectedPlaylistId]);
+
   // Handle playlist selection change
   const handlePlaylistChange = (playlistId: string) => {
     setSelectedPlaylistIdState(playlistId);
     setSelectedPlaylistId(playlistId);
+    // Reset validation error when changing playlist
+    setPlaylistValidationError(null);
   };
 
   const handleSpotifyLoginClick = async () => {
@@ -218,6 +252,7 @@ export default function Lobby() {
                       className="select select-bordered w-full"
                       value={selectedPlaylistId}
                       onChange={(e) => handlePlaylistChange(e.target.value)}
+                      disabled={playlistValidationLoading}
                     >
                       {/* Default playlists first */}
                       {DEFAULT_PLAYLISTS.map((playlist) => (
@@ -243,6 +278,18 @@ export default function Lobby() {
                           </option>
                         )}
                     </select>
+                  )}
+                  {/* Playlist validation indicator */}
+                  {playlistValidationLoading && (
+                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                      <span className="loading loading-spinner loading-sm"></span>
+                      <span>Validating playlist...</span>
+                    </div>
+                  )}
+                  {playlistValidationError && !playlistValidationLoading && (
+                    <div className="alert alert-warning py-2">
+                      <span className="text-sm">{playlistValidationError}</span>
+                    </div>
                   )}
                 </div>
               </div>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
 import {
@@ -11,18 +10,19 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
 } from '../../game/host';
+import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
-  getPlaylistTracks,
   getSelectedPlaylistId,
   pausePlayback,
-  playRandomPlaylistTrack,
-  type SpotifyTrack,
+  playNextTrack,
+  playPlaylist,
 } from '../../services/spotify/api';
 import logger from '../../utils/logger';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
 const AUTOPLAY_KEY = 'hostAutoplay';
+const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 // Track object structure as per tutorial
 const track = {
@@ -44,6 +44,7 @@ declare global {
       }) => SpotifyPlayer;
     };
     onSpotifyWebPlaybackSDKReady: (() => void) | null;
+    spotifyPlayerInstance: SpotifyPlayer | undefined;
   }
 }
 
@@ -101,7 +102,7 @@ export default function Game() {
     setBuzzerNotification,
     setPausePlayerCallback,
     setLastSong,
-    lastSong,
+    status,
   } = gameContext;
   const navigate = useNavigate();
 
@@ -145,6 +146,10 @@ export default function Game() {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
     return stored ? parseFloat(stored) : 0.5;
   });
+  const [buzzerSoundEnabled, setBuzzerSoundEnabled] = useState<boolean>(() => {
+    const stored = localStorage.getItem(BUZZER_SOUND_ENABLED_KEY);
+    return stored === null ? true : stored === 'true';
+  });
   const [currentPosition, setCurrentPosition] = useState<number>(0); // Current playback position in milliseconds
   const [trackDuration, setTrackDuration] = useState<number>(0); // Track duration in milliseconds
   const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
@@ -152,10 +157,6 @@ export default function Game() {
 
   // Playlist-related state
   const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
-  const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
-  const [playedTrackIds, setPlayedTrackIds] = useState<Set<string>>(new Set());
-  const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(false);
-  const playlistTracksLoadedRef = useRef(false);
   const gameStartedRef = useRef(false);
   const firstTrackPlayedRef = useRef(false);
 
@@ -202,57 +203,30 @@ export default function Game() {
     }
   }, []);
 
-  // Load playlist tracks
-  const loadPlaylistTracks = useCallback(
-    async (selectedPlaylistId: string): Promise<SpotifyTrack[]> => {
-      if (playlistTracksLoadedRef.current && playlistTracks.length > 0) {
-        logger.debug('[Spotify] Playlist tracks already loaded');
-        return playlistTracks;
-      }
-
-      setIsLoadingPlaylist(true);
-      try {
-        logger.debug('[Spotify] Loading tracks from playlist:', selectedPlaylistId);
-        const tracks = await getPlaylistTracks(selectedPlaylistId);
-        if (tracks.length === 0) {
-          logger.warn('[Spotify] Playlist has no tracks');
-          setSpotifyError('Selected playlist has no tracks. Please select a different playlist.');
-          setIsLoadingPlaylist(false);
-          return [];
-        }
-        logger.debug(`[Spotify] Loaded ${tracks.length} tracks from playlist`);
-        setPlaylistTracks(tracks);
-        playlistTracksLoadedRef.current = true;
-        setPlayedTrackIds(new Set()); // Reset played tracks when loading new playlist
-        setIsLoadingPlaylist(false);
-        return tracks;
-      } catch (error) {
-        logger.error('[Spotify] Error loading playlist tracks:', error);
-        setSpotifyError(
-          `Failed to load playlist tracks: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-        setIsLoadingPlaylist(false);
-        return [];
-      }
-    },
-    [playlistTracks]
-  );
-
-  // Play next track from playlist
-  const playNextPlaylistTrack = useCallback(async () => {
+  // Play playlist with shuffle enabled (Spotify handles random selection)
+  const startPlaylistPlayback = useCallback(async () => {
     if (!deviceId || !playlistId) {
       logger.error('[Spotify] No device ID or playlist ID available');
       return;
     }
 
-    // Ensure playlist tracks are loaded
-    let tracksToUse = playlistTracks;
-    if (tracksToUse.length === 0) {
-      tracksToUse = await loadPlaylistTracks(playlistId);
+    try {
+      logger.debug('[Spotify] Starting playlist playback with shuffle:', playlistId);
+      await playPlaylist(deviceId, playlistId);
+      logger.debug('[Spotify] Playlist playback started successfully');
+    } catch (error) {
+      logger.error('[Spotify] Error starting playlist playback:', error);
+      setSpotifyError(
+        `Failed to start playback: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
     }
+  }, [deviceId, playlistId]);
 
-    if (tracksToUse.length === 0) {
-      logger.error('[Spotify] No tracks available to play');
+  // Play next track in playlist (Spotify handles random selection with shuffle)
+  const playNextPlaylistTrack = useCallback(async () => {
+    if (!deviceId) {
+      logger.error('[Spotify] No device ID available');
       return;
     }
 
@@ -265,50 +239,37 @@ export default function Game() {
       // Set flag to indicate we're intentionally changing tracks
       isChangingTrackRef.current = true;
 
-      const excludeIds = Array.from(playedTrackIds);
-      const playedTrack = await playRandomPlaylistTrack(
-        deviceId,
-        playlistId,
-        tracksToUse,
-        excludeIds
-      );
-      logger.debug('[Spotify] Playing track from playlist:', playedTrack.name);
-
-      // Add to played tracks
-      setPlayedTrackIds((prev) => new Set([...prev, playedTrack.id]));
+      logger.debug('[Spotify] Playing next track from playlist');
+      await playNextTrack(deviceId);
+      logger.debug('[Spotify] Next track started');
 
       // Clear the flag after a short delay as fallback (state listener will also clear it)
       setTimeout(() => {
         isChangingTrackRef.current = false;
       }, 2000);
     } catch (error) {
-      logger.error('[Spotify] Error playing playlist track:', error);
+      logger.error('[Spotify] Error playing next track:', error);
       setSpotifyError(
-        `Failed to play track: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to play next track: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       // Clear flag on error
       isChangingTrackRef.current = false;
+      throw error;
     }
-  }, [deviceId, playlistId, playlistTracks, playedTrackIds, loadPlaylistTracks]);
+  }, [deviceId]);
 
-  // Preload playlist tracks when device is ready (don't wait for game start)
+  // Load playlist ID on mount
   useEffect(() => {
-    if (deviceId && playlistId && !playlistTracksLoadedRef.current) {
-      logger.debug('[Spotify] Preloading playlist tracks');
-      loadPlaylistTracks(playlistId).catch((error) => {
-        logger.error('[Spotify] Error preloading playlist:', error);
-      });
-    }
-  }, [deviceId, playlistId, loadPlaylistTracks]);
+    const currentPlaylistId = getSelectedPlaylistId();
+    setPlaylistId(currentPlaylistId);
+  }, []);
 
-  // Reset track history when starting a new game
+  // Stop playback immediately when game starts
   useEffect(() => {
-    const currentStatus = gameContext.status;
-    if (currentStatus === 'waiting' && !gameStartedRef.current) {
+    if (status === 'waiting' && !gameStartedRef.current) {
       // Game just started - immediately clear UI state and stop playback
       gameStartedRef.current = true;
       firstTrackPlayedRef.current = false;
-      setPlayedTrackIds(new Set());
 
       // Immediately clear UI state to show loading instead of old track
       setTrack(track);
@@ -320,6 +281,7 @@ export default function Game() {
       hasLoopedRef.current = false;
 
       // Stop any current playback immediately
+      logger.debug('[Spotify] Game started, stopping current playback');
       if (deviceId) {
         pausePlayback(deviceId).catch((error) => {
           logger.warn('[Spotify] Error pausing playback on game start:', error);
@@ -330,81 +292,63 @@ export default function Game() {
       const currentPlaylistId = getSelectedPlaylistId();
       if (currentPlaylistId !== playlistId) {
         setPlaylistId(currentPlaylistId);
-        playlistTracksLoadedRef.current = false;
-        setPlaylistTracks([]);
       }
-    } else if (currentStatus === 'notStarted' || currentStatus === 'finished') {
+    } else if (status === 'notStarted' || status === 'finished') {
       // Game ended or not started, reset flags
       gameStartedRef.current = false;
       firstTrackPlayedRef.current = false;
     }
-  }, [gameContext.status, playlistId, deviceId]);
+  }, [status, playlistId, deviceId]);
 
-  // Load playlist ID from localStorage on mount and when it changes
+  // Load playlist ID from localStorage when it changes
   useEffect(() => {
     const currentPlaylistId = getSelectedPlaylistId();
     if (currentPlaylistId !== playlistId) {
       setPlaylistId(currentPlaylistId);
-      playlistTracksLoadedRef.current = false;
-      setPlaylistTracks([]);
-      setPlayedTrackIds(new Set());
     }
   }, [playlistId]);
 
-  // Play first track when device is ready and game has started
+  // Play first track immediately when device is ready and game has started
   useEffect(() => {
-    const playFirstTrack = async () => {
+    const _playFirstTrack = async () => {
       // Only play if:
       // 1. Device is ready
       // 2. Game has started (status is 'waiting')
       // 3. We haven't attempted to play the first track yet
-      // 4. Playlist tracks are loaded (or loading is complete)
       if (
         deviceId &&
         playlistId &&
-        gameContext.status === 'waiting' &&
+        status === 'waiting' &&
         gameStartedRef.current &&
-        !firstTrackPlayedRef.current &&
-        !isLoadingPlaylist
+        !firstTrackPlayedRef.current
       ) {
         firstTrackPlayedRef.current = true; // Mark as attempted to prevent retries
-        logger.debug('[Spotify] Game started, playing first track from playlist');
+        logger.debug('[Spotify] Device ready, starting playlist playback');
         try {
-          // Use already loaded tracks (they should be preloaded by now)
-          let tracksToUse = playlistTracks;
-
-          // Only load if we don't have tracks yet (fallback)
-          if (tracksToUse.length === 0) {
-            logger.debug('[Spotify] Tracks not preloaded, loading now');
-            tracksToUse = await loadPlaylistTracks(playlistId);
+          // Stop any current playback before starting new track
+          try {
+            await pausePlayback(deviceId);
+          } catch (error) {
+            logger.warn('[Spotify] Error stopping playback before starting track:', error);
+            // Non-critical error, continue anyway
           }
 
-          // Play first track if we have tracks
-          if (tracksToUse.length > 0) {
-            await playNextPlaylistTrack();
-          } else {
-            // No tracks available, reset flag so we can try again
-            logger.warn('[Spotify] No tracks available after loading');
-            firstTrackPlayedRef.current = false;
-          }
+          // Start playlist playback with shuffle (Spotify picks random track)
+          await startPlaylistPlayback();
+          logger.debug('[Spotify] Playlist playback started successfully');
         } catch (error) {
-          logger.error('[Spotify] Error playing first track:', error);
+          logger.error('[Spotify] Error starting playlist playback:', error);
+          setSpotifyError(
+            `Failed to start playback: ${error instanceof Error ? error.message : 'Unknown error'}. Please try starting the game again.`
+          );
           // Reset flag on error so we can retry
           firstTrackPlayedRef.current = false;
         }
       }
     };
 
-    playFirstTrack();
-  }, [
-    deviceId,
-    playlistId,
-    gameContext.status,
-    isLoadingPlaylist,
-    playlistTracks,
-    loadPlaylistTracks,
-    playNextPlaylistTrack,
-  ]);
+    _playFirstTrack();
+  }, [deviceId, playlistId, status, startPlaylistPlayback]);
 
   // Transfer playback to this device using Spotify Web API
   const transferPlaybackToDevice = useCallback(
@@ -473,7 +417,7 @@ export default function Game() {
         setIsTransferring(false);
       }
     },
-    [player, enableRepeatMode]
+    [enableRepeatMode, player]
   );
 
   // Initialize player following the tutorial exactly
@@ -625,8 +569,10 @@ export default function Game() {
           previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
 
         if (trackChanged) {
-          // New track started - enable repeat mode and reset loop tracking
-          logger.debug('[Spotify] New track started, enabling repeat mode');
+          // New track started - clear last song and enable repeat mode
+          logger.debug('[Spotify] New track started, clearing last song and enabling repeat mode');
+          setLastSong(null);
+          sendLastSongChangedAction(null);
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
           previousPositionRef.current = position;
@@ -1080,7 +1026,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [is_active, player, is_paused, isSeeking, trackDuration, saveLastSong]);
+  }, [isSeeking, is_active, is_paused, player, saveLastSong, trackDuration]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =
@@ -1133,12 +1079,12 @@ export default function Game() {
     });
   }, [
     currentGuessingPlayer,
-    player,
-    gameContext,
-    current_track,
-    saveLastSong,
     autoplay,
+    current_track,
+    gameContext,
     playNextPlaylistTrack,
+    player,
+    saveLastSong,
   ]);
 
   // Handle partially right guess
@@ -1156,19 +1102,11 @@ export default function Game() {
         }
       }
     });
-  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+  }, [currentGuessingPlayer, gameContext, is_paused, player]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
     if (!currentGuessingPlayer) return;
-
-    // Prepare last song info in case this is the last player
-    const lastSongInfo = current_track?.name
-      ? {
-          name: current_track.name,
-          artists: current_track.artists.map((artist) => artist.name),
-        }
-      : null;
 
     markPlayerGuessedWrong(
       gameContext,
@@ -1216,18 +1154,9 @@ export default function Game() {
           logger.error('[Host] Error playing next song:', error);
           pendingPauseRef.current = false;
         }
-      },
-      lastSongInfo
+      }
     );
-  }, [
-    currentGuessingPlayer,
-    player,
-    is_paused,
-    gameContext,
-    current_track,
-    autoplay,
-    playNextPlaylistTrack,
-  ]);
+  }, [currentGuessingPlayer, autoplay, gameContext, is_paused, playNextPlaylistTrack, player]);
 
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
@@ -1275,20 +1204,94 @@ export default function Game() {
       setPausePlayerCallback(null);
       setGlobalPausePlayer(null);
     };
-  }, [player, is_active, pausePlayerFunction, setPausePlayerCallback]);
+  }, [pausePlayerFunction, is_active, player, setPausePlayerCallback]);
 
-  // Auto-dismiss buzzer notification after 3 seconds
+  // Persist buzzer sound preference to localStorage and sync with audio object
+  useEffect(() => {
+    localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
+    // Sync mute state with audio object (muted when sound is disabled)
+    setBuzzerSoundMuted(!buzzerSoundEnabled);
+  }, [buzzerSoundEnabled]);
+
+  // Toggle buzzer sound
+  const toggleBuzzerSound = useCallback(() => {
+    setBuzzerSoundEnabled((prev) => !prev);
+  }, []);
+
+  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
   useEffect(() => {
     if (buzzerNotification) {
+      // Play buzzer sound when notification appears (if enabled)
+      if (buzzerSoundEnabled) {
+        playBuzzerSound();
+      }
+
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [buzzerNotification, setBuzzerNotification]);
+  }, [buzzerNotification, buzzerSoundEnabled, setBuzzerNotification]);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
+      {/* Buzzer sound toggle button in upper right corner */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleBuzzerSound();
+        }}
+        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
+        aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+        title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+      >
+        {buzzerSoundEnabled ? (
+          // Speaker icon (sound enabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5"
+            aria-hidden="true"
+          >
+            <title>Speaker icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+          </svg>
+        ) : (
+          // Speaker muted icon (sound disabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5 opacity-60"
+            aria-hidden="true"
+          >
+            <title>Speaker muted icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 3l18 18"
+              style={{ opacity: 0.75 }}
+            />
+          </svg>
+        )}
+      </button>
+
       {buzzerNotification && (
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
@@ -1554,10 +1557,6 @@ export default function Game() {
                   type="button"
                   className="btn btn-outline flex-1"
                   onClick={async () => {
-                    // Save current track as last song before going to next song
-                    if (current_track?.name) {
-                      saveLastSong(current_track);
-                    }
                     // Reset all players to default list before going to next song
                     logger.debug('[Host Game] Next button clicked - resetting all players');
                     resetAllPlayersForNewRound(gameContext);
@@ -1668,12 +1667,6 @@ export default function Game() {
             </div>
           </Card>
         )}
-
-        <LastSongCard
-          lastSong={lastSong}
-          waitingPlayersCount={waitingPlayers?.length || 0}
-          guessedPlayersCount={guessedPlayers?.length || 0}
-        />
 
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}

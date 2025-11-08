@@ -78,18 +78,15 @@ vi.mock('../../../components/Card', () => ({
 }));
 
 // Mock playlist API functions
-const mockGetPlaylistTracks = vi.fn();
-const mockPlayRandomPlaylistTrack = vi.fn();
+const mockPausePlayback = vi.fn();
+const mockPlayNextTrack = vi.fn();
+const mockPlayPlaylist = vi.fn();
 const mockGetSelectedPlaylistId = vi.fn(() => 'default-playlist-id');
 
 vi.mock('../../../services/spotify/api', () => ({
-  getPlaylistTracks: (playlistId: string) => mockGetPlaylistTracks(playlistId),
-  playRandomPlaylistTrack: (
-    deviceId: string,
-    playlistId: string,
-    tracks: unknown[],
-    excludeIds: string[] = []
-  ) => mockPlayRandomPlaylistTrack(deviceId, playlistId, tracks, excludeIds),
+  pausePlayback: (...args: unknown[]) => mockPausePlayback(...args),
+  playNextTrack: (...args: unknown[]) => mockPlayNextTrack(...args),
+  playPlaylist: (...args: unknown[]) => mockPlayPlaylist(...args),
   getSelectedPlaylistId: () => mockGetSelectedPlaylistId(),
   setSelectedPlaylistId: vi.fn(),
 }));
@@ -136,29 +133,10 @@ describe('Spotify SDK Integration', () => {
     localStorage.clear();
 
     // Reset playlist API mocks
-    mockGetPlaylistTracks.mockClear();
-    mockPlayRandomPlaylistTrack.mockClear();
-    mockGetSelectedPlaylistId.mockClear();
-    // Mock default behavior
-    mockGetPlaylistTracks.mockResolvedValue([
-      {
-        id: 'track-1',
-        name: 'Test Track 1',
-        uri: 'spotify:track:1',
-        artists: [{ name: 'Artist 1' }],
-        album: { name: 'Album 1', images: [] },
-        duration_ms: 200000,
-      },
-    ]);
-    mockPlayRandomPlaylistTrack.mockResolvedValue({
-      id: 'track-1',
-      name: 'Test Track 1',
-      uri: 'spotify:track:1',
-      artists: [{ name: 'Artist 1' }],
-      album: { name: 'Album 1', images: [] },
-      duration_ms: 200000,
-    });
-    mockGetSelectedPlaylistId.mockReturnValue('default-playlist-id');
+    mockPausePlayback.mockClear().mockResolvedValue(undefined);
+    mockPlayNextTrack.mockClear().mockResolvedValue(undefined);
+    mockPlayPlaylist.mockClear().mockResolvedValue(undefined);
+    mockGetSelectedPlaylistId.mockClear().mockReturnValue('default-playlist-id');
 
     // Setup mock player
     mockPlayer = {
@@ -860,7 +838,7 @@ describe('Spotify SDK Integration', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockPlayRandomPlaylistTrack).toHaveBeenCalled();
+      expect(mockPlayNextTrack).toHaveBeenCalled();
     });
   });
 
