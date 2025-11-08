@@ -1056,13 +1056,7 @@ export default function Game() {
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
               // Song looped - save as last song and pause it
-<<<<<<< HEAD
               logger.debug('[Host Game] Song looped (detected in interval), saving as last song and pausing');
-              if (state && state.track_window && state.track_window.current_track) {
-=======
-              console.log(
-                '[Host Game] Song looped (detected in interval), saving as last song and pausing'
-              );
               if (state?.track_window?.current_track) {
                 saveLastSong(state.track_window.current_track);
               }
