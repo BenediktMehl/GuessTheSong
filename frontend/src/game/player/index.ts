@@ -550,15 +550,6 @@ export function joinGame(
             }
             break;
 
-          case 'player-guessed-wrong': {
-            // Player guessed wrong - they are moved to guessedPlayers list
-            logger.info('[Player] Player guessed wrong');
-            const wrongPlayerId = message.payload?.playerId;
-            const wrongPlayerName = getPlayerName(gameContext, wrongPlayerId);
-            showToast(gameContext, `${wrongPlayerName} guessed wrong`, 'error', 3000);
-            break;
-          }
-
           case 'lastSongChanged':
             // Last song info updated (when a song ends)
             if (message.data?.lastSong !== undefined) {
