@@ -11,4 +11,3 @@ export function getRandomBuzzerSound(): string | null {
   const randomIndex = Math.floor(Math.random() * BUZZER_SOUNDS.length);
   return BUZZER_SOUNDS[randomIndex];
 }
-

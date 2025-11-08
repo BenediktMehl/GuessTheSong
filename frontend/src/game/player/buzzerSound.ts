@@ -11,7 +11,7 @@ let audioElement: HTMLAudioElement | null = null;
  */
 export function initializeBuzzerSound(): void {
   selectedBuzzerSound = getRandomBuzzerSound();
-  
+
   // Preload the audio if a sound file was selected
   if (selectedBuzzerSound) {
     try {
@@ -49,10 +49,10 @@ export function playBuzzerSound(): void {
         audioElement.pause();
       }
       audioElement.currentTime = 0;
-      
+
       // Play the audio
       const playPromise = audioElement.play();
-      
+
       // Handle play promise rejection (e.g., autoplay policies)
       if (playPromise !== undefined) {
         playPromise
@@ -61,7 +61,10 @@ export function playBuzzerSound(): void {
           })
           .catch((error) => {
             // Fallback to Web Audio API if MP3 playback fails
-            console.warn('[Buzzer Sound] Failed to play MP3, falling back to Web Audio API:', error);
+            console.warn(
+              '[Buzzer Sound] Failed to play MP3, falling back to Web Audio API:',
+              error
+            );
             playWebAudioBuzzerSound();
           });
       }

@@ -156,7 +156,6 @@ export default function Game() {
   const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
   const positionUpdateIntervalRef = useRef<number | null>(null);
 
-<<<<<<< HEAD
   // Playlist-related state
   const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
   const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
@@ -1163,7 +1162,7 @@ export default function Game() {
         }
       }
     });
-  }, [currentGuessingPlayer, player, is_paused, gameContext, current_track, saveLastSong]);
+  }, [currentGuessingPlayer, player, is_paused, gameContext]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {

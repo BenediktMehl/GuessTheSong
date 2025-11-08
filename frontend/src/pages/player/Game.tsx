@@ -6,7 +6,11 @@ import PlayersLobby from '../../components/PlayersLobby';
 import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
-import { initializeBuzzerSound, playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
+import {
+  initializeBuzzerSound,
+  playBuzzerSound,
+  setBuzzerSoundMuted,
+} from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
