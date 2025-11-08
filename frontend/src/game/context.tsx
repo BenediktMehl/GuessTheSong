@@ -30,6 +30,11 @@ export type PlayerToast = {
 
 export type PausePlayerCallback = () => void | Promise<void>;
 
+export type LastSong = {
+  name: string;
+  artists: string[];
+} | null;
+
 // Global reference to pause function (set by Host Game component)
 let globalPausePlayer: PausePlayerCallback | null = null;
 
@@ -55,6 +60,7 @@ export interface GameContextType {
   buzzerNotification: BuzzerNotification;
   playerToast: PlayerToast;
   pausePlayerCallback: PausePlayerCallback | null;
+  lastSong: LastSong;
   setIsHost: Dispatch<SetStateAction<boolean>>;
   setPlayers: Dispatch<SetStateAction<Player[]>>;
   setWaitingPlayers: Dispatch<SetStateAction<Player[]>>;
@@ -68,6 +74,7 @@ export interface GameContextType {
   setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
   setPlayerToast: Dispatch<SetStateAction<PlayerToast>>;
   setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
+  setLastSong: Dispatch<SetStateAction<LastSong>>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -86,6 +93,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
   const [playerToast, setPlayerToast] = useState<PlayerToast>(null);
   const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
+  const [lastSong, setLastSong] = useState<LastSong>(null);
 
   return (
     <GameContext.Provider
@@ -103,6 +111,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         buzzerNotification,
         playerToast,
         pausePlayerCallback,
+        lastSong,
         setIsHost,
         setPlayers,
         setWaitingPlayers,
@@ -116,6 +125,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setBuzzerNotification,
         setPlayerToast,
         setPausePlayerCallback,
+        setLastSong,
       }}
     >
       {children}

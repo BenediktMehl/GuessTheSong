@@ -1,6 +1,7 @@
 import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
+import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
@@ -21,6 +22,7 @@ export default function Game() {
     setBuzzerNotification,
     playerToast,
     setPlayerToast,
+    lastSong,
   } = useGameContext();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
@@ -320,6 +322,12 @@ export default function Game() {
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
+        <LastSongCard
+          lastSong={lastSong}
+          waitingPlayersCount={waitingPlayers?.length || 0}
+          guessedPlayersCount={guessedPlayers?.length || 0}
+        />
+
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}

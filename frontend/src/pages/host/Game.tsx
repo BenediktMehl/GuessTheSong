@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
+import { LastSongCard } from '../../components/LastSongCard';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
 import {
   markPlayerGuessedPartially,
   markPlayerGuessedRight,
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
+  sendLastSongChangedAction,
 } from '../../game/host';
 import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
@@ -100,6 +102,8 @@ export default function Game() {
     buzzerNotification,
     setBuzzerNotification,
     setPausePlayerCallback,
+    setLastSong,
+    lastSong,
   } = gameContext;
   const navigate = useNavigate();
 
@@ -152,6 +156,7 @@ export default function Game() {
   const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
   const positionUpdateIntervalRef = useRef<number | null>(null);
 
+<<<<<<< HEAD
   // Playlist-related state
   const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
   const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
@@ -160,6 +165,22 @@ export default function Game() {
   const playlistTracksLoadedRef = useRef(false);
   const gameStartedRef = useRef(false);
   const firstTrackPlayedRef = useRef(false);
+
+  // Helper function to save current track as last song
+  const saveLastSong = useCallback(
+    (track: typeof current_track) => {
+      if (track && track.name && track.artists && track.artists.length > 0) {
+        const lastSong = {
+          name: track.name,
+          artists: track.artists.map((artist) => artist.name),
+        };
+        console.log('[Host Game] Saving last song:', lastSong);
+        setLastSong(lastSong);
+        sendLastSongChangedAction(lastSong);
+      }
+    },
+    [setLastSong]
+  );
 
   // Enable repeat mode for track (loop single track)
   const enableRepeatMode = useCallback(async (_trackId?: string) => {
@@ -823,8 +844,10 @@ export default function Game() {
           previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
 
         if (trackChanged) {
-          // New track started - enable repeat mode and reset loop tracking
-          logger.debug('[Spotify] New track started, enabling repeat mode');
+          // New track started - clear last song and enable repeat mode
+          logger.debug('[Spotify] New track started, clearing last song and enabling repeat mode');
+          setLastSong(null);
+          sendLastSongChangedAction(null);
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
           previousPositionRef.current = position;
@@ -869,8 +892,9 @@ export default function Game() {
             position < duration * 0.1 && // Now near the start (<10%)
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
-            // Song looped - pause it
-            logger.debug('[Spotify] Song looped (second time started), pausing');
+            // Song looped - save as last song and pause it
+            logger.debug('[Spotify] Song looped (second time started), saving as last song and pausing');
+            saveLastSong(state.track_window.current_track);
             hasLoopedRef.current = true;
             if (!state.paused) {
               const currentPlayer = playerInstanceRef.current;
@@ -1031,8 +1055,11 @@ export default function Game() {
               newPosition < currentDuration * 0.1 && // Now near the start (<10%)
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
-              // Song looped - pause it
-              logger.debug('[Host Game] Song looped (detected in interval), pausing');
+              // Song looped - save as last song and pause it
+              logger.debug('[Host Game] Song looped (detected in interval), saving as last song and pausing');
+              if (state && state.track_window && state.track_window.current_track) {
+                saveLastSong(state.track_window.current_track);
+              }
               hasLoopedRef.current = true;
               await currentPlayer.togglePlay();
               setPaused(true);
@@ -1056,7 +1083,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [is_active, player, is_paused, isSeeking, trackDuration]);
+  }, [is_active, player, is_paused, isSeeking, trackDuration, saveLastSong]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =
@@ -1069,6 +1096,11 @@ export default function Game() {
   // Handle right guess
   const handleRightGuess = useCallback(async () => {
     if (!currentGuessingPlayer) return;
+
+    // Save current track as last song before resetting players
+    if (current_track && current_track.name) {
+      saveLastSong(current_track);
+    }
 
     markPlayerGuessedRight(gameContext, async () => {
       // Play next song from playlist
@@ -1119,11 +1151,20 @@ export default function Game() {
         }
       }
     });
-  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+  }, [currentGuessingPlayer, player, is_paused, gameContext, current_track, saveLastSong]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
     if (!currentGuessingPlayer) return;
+
+    // Prepare last song info in case this is the last player
+    const lastSongInfo =
+      current_track && current_track.name
+        ? {
+            name: current_track.name,
+            artists: current_track.artists.map((artist) => artist.name),
+          }
+        : null;
 
     markPlayerGuessedWrong(
       gameContext,
@@ -1171,9 +1212,10 @@ export default function Game() {
           logger.error('[Host] Error playing next song:', error);
           pendingPauseRef.current = false;
         }
-      }
+      },
+      lastSongInfo
     );
-  }, [currentGuessingPlayer, player, is_paused, gameContext, autoplay, playNextPlaylistTrack]);
+  }, [currentGuessingPlayer, player, is_paused, gameContext, autoplay, playNextPlaylistTrack, current_track]);
 
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
@@ -1574,6 +1616,10 @@ export default function Game() {
                   type="button"
                   className="btn btn-outline flex-1"
                   onClick={async () => {
+                    // Save current track as last song before going to next song
+                    if (current_track && current_track.name) {
+                      saveLastSong(current_track);
+                    }
                     // Reset all players to default list before going to next song
                     logger.debug('[Host Game] Next button clicked - resetting all players');
                     resetAllPlayersForNewRound(gameContext);
@@ -1684,6 +1730,12 @@ export default function Game() {
             </div>
           </Card>
         )}
+
+        <LastSongCard
+          lastSong={lastSong}
+          waitingPlayersCount={waitingPlayers?.length || 0}
+          guessedPlayersCount={guessedPlayers?.length || 0}
+        />
 
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
