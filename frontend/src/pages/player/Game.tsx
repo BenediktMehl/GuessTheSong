@@ -340,7 +340,10 @@ export default function Game() {
           currentPlayer={currentPlayer}
         />
 
-        <Card className="w-full" bodyClassName="items-center text-center gap-2 sm:gap-4 py-2 sm:py-4">
+        <Card
+          className="w-full"
+          bodyClassName="items-center text-center gap-2 sm:gap-4 py-2 sm:py-4"
+        >
           <div className="w-full flex flex-col items-center gap-2 sm:gap-4">
             <div className="w-full">{gameState.content}</div>
             <button

@@ -35,7 +35,9 @@ function PlayerItem({
         )}
         <span className="font-medium text-xs sm:text-sm">
           {player.name}
-          {isCurrentPlayer && <span className="ml-1.5 sm:ml-2 text-success text-xs font-bold">(You)</span>}
+          {isCurrentPlayer && (
+            <span className="ml-1.5 sm:ml-2 text-success text-xs font-bold">(You)</span>
+          )}
         </span>
       </div>
       <span className="badge badge-primary badge-sm bg-opacity-90 text-xs">{player.points}</span>

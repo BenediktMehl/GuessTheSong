@@ -64,7 +64,9 @@ export default function Join() {
   return (
     <main className="h-screen flex flex-col items-center justify-start p-2 sm:p-4 gap-2 sm:gap-4 overflow-y-auto">
       <Card className="w-full max-w-md" bodyClassName="gap-3 sm:gap-4">
-        <p className="text-xs sm:text-sm text-base-content text-center">Enter the game code to join a game</p>
+        <p className="text-xs sm:text-sm text-base-content text-center">
+          Enter the game code to join a game
+        </p>
         <form onSubmit={handleJoin} className="flex flex-col gap-3 sm:gap-4">
           <div className="form-control">
             <label htmlFor="game-code" className="label justify-center py-1">

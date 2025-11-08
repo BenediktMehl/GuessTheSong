@@ -1314,7 +1314,9 @@ export default function Game() {
                     className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl shadow-lg"
                   />
                   <div className="text-center">
-                    <div className="font-bold text-sm sm:text-base md:text-lg">{current_track.name}</div>
+                    <div className="font-bold text-sm sm:text-base md:text-lg">
+                      {current_track.name}
+                    </div>
                     <div className="text-xs sm:text-sm text-base-content/70">
                       {(current_track.artists || []).map((artist) => artist.name).join(', ')}
                     </div>
@@ -1440,7 +1442,9 @@ export default function Game() {
 
               {/* Setting */}
               <label className="label cursor-pointer py-1 sm:py-2">
-                <span className="label-text text-xs sm:text-sm">Hide song until player guesses</span>
+                <span className="label-text text-xs sm:text-sm">
+                  Hide song until player guesses
+                </span>
                 <input
                   type="checkbox"
                   className="toggle toggle-primary toggle-sm sm:toggle-md"
@@ -1633,7 +1637,9 @@ export default function Game() {
         {currentGuessingPlayer && (
           <Card className="w-full" bodyClassName="flex flex-col gap-2 sm:gap-4 py-2 sm:py-4">
             <div className="text-center">
-              <h2 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">{currentGuessingPlayer.name} is guessing</h2>
+              <h2 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">
+                {currentGuessingPlayer.name} is guessing
+              </h2>
               <p className="text-xs sm:text-sm text-base-content/70">
                 {partiallyGuessedPlayers.length > 0
                   ? 'Was the answer correct or wrong?'

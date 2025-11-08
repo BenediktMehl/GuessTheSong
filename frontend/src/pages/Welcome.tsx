@@ -26,7 +26,9 @@ function Welcome() {
     <main className="min-h-screen flex items-center justify-center p-2 sm:p-4">
       <div className="hero">
         <div className="hero-content flex-col">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 sm:mb-4">{appConfig.displayName}</h1>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 sm:mb-4">
+            {appConfig.displayName}
+          </h1>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
             <button
               type="button"

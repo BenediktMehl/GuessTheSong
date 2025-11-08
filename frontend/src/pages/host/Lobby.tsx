@@ -192,7 +192,9 @@ export default function Lobby() {
                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-semibold text-sm sm:text-base">Connection could not be established.</span>
+            <span className="font-semibold text-sm sm:text-base">
+              Connection could not be established.
+            </span>
           </div>
           <p className="text-xs sm:text-sm">Please reload the page or try again later.</p>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
@@ -235,7 +237,9 @@ export default function Lobby() {
                 {/* Playlist Selection */}
                 <div className="w-full flex flex-col gap-1.5 sm:gap-2">
                   <label htmlFor="playlist-select" className="label py-1">
-                    <span className="label-text font-medium text-xs sm:text-sm">Select Playlist</span>
+                    <span className="label-text font-medium text-xs sm:text-sm">
+                      Select Playlist
+                    </span>
                   </label>
                   {playlistsLoading ? (
                     <div className="flex items-center gap-2 text-xs sm:text-sm text-base-content/70">

@@ -39,7 +39,12 @@ export function Card({
       {header ? (
         <div className={cx('mb-2 sm:mb-4', headerClassName)}>{header}</div>
       ) : hasHeading ? (
-        <div className={cx('mb-2 sm:mb-4 flex items-start justify-between gap-2 sm:gap-3', headerClassName)}>
+        <div
+          className={cx(
+            'mb-2 sm:mb-4 flex items-start justify-between gap-2 sm:gap-3',
+            headerClassName
+          )}
+        >
           <div className="space-y-1">
             {title &&
               (typeof title === 'string' ? (
