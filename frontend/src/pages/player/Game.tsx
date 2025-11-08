@@ -4,7 +4,7 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
-import { playBuzzerSound } from '../../game/player/buzzerSound';
+import { initializeBuzzerSound, playBuzzerSound } from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
@@ -68,6 +68,11 @@ export default function Game() {
     ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     setBuzzerColor(randomColor);
+  }, []);
+
+  // Initialize buzzer sound selection on mount (similar to buzzer color)
+  useEffect(() => {
+    initializeBuzzerSound();
   }, []);
 
   // Persist buzzer sound preference to localStorage
