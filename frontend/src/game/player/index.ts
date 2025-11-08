@@ -42,6 +42,49 @@ let reconnectTimeout: number | null = null;
 const MAX_RECONNECT_ATTEMPTS = 3;
 let hasFailed = false; // Track if we've permanently failed
 
+// Track if we've shown a new song toast to avoid duplicates
+let newSongToastShown = false;
+let newSongToastTimeout: number | null = null;
+
+// Helper function to show toast notification
+function showToast(
+  gameContext: GameContextType,
+  message: string,
+  type: 'success' | 'warning' | 'error' | 'info',
+  duration?: number
+) {
+  gameContext.setPlayerToast({
+    message,
+    type,
+    duration,
+  });
+}
+
+// Helper function to get player name from playerId
+function getPlayerName(gameContext: GameContextType, playerId: string | undefined): string {
+  if (!playerId) {
+    return 'Someone';
+  }
+  const player = gameContext.players.find((p) => p.id === playerId);
+  return player?.name || 'Someone';
+}
+
+// Helper function to show new song toast if not already shown
+function showNewSongToast(gameContext: GameContextType) {
+  if (!newSongToastShown) {
+    newSongToastShown = true;
+    showToast(gameContext, 'New song starting!', 'info', 3000);
+    // Reset flag after a delay to allow showing again for next song
+    if (newSongToastTimeout) {
+      clearTimeout(newSongToastTimeout);
+    }
+    newSongToastTimeout = window.setTimeout(() => {
+      newSongToastShown = false;
+      newSongToastTimeout = null;
+    }, 5000);
+  }
+}
+
 function attemptReconnect(gameContext: GameContextType) {
   if (!currentSessionId || !currentPlayerName || !currentPlayerId) {
     return;
@@ -217,6 +260,7 @@ export function joinGame(
             // Game has been started by the host
             logger.info('Game started!');
             gameContext.setStatus('waiting');
+            showToast(gameContext, 'Game started!', 'info', 3000);
             break;
 
           case 'playersChanged':
@@ -303,10 +347,22 @@ export function joinGame(
               Array.isArray(message.data.buzzedPlayers)
             ) {
               // Handle empty array (reset) or populated array
-              if (message.data.buzzedPlayers.length === 0) {
+              const waitingCleared = message.data.buzzedPlayers.length === 0;
+              if (waitingCleared) {
                 // Clear waiting list - all players reset for new round
                 logger.debug('[Player] Clearing waiting players list');
                 gameContext.setWaitingPlayers([]);
+                // Check if all lists are cleared (for new song detection)
+                // Use a small delay to allow other state updates to complete
+                setTimeout(() => {
+                  if (
+                    gameContext.waitingPlayers.length === 0 &&
+                    gameContext.guessedPlayers.length === 0 &&
+                    gameContext.partiallyGuessedPlayers.length === 0
+                  ) {
+                    showNewSongToast(gameContext);
+                  }
+                }, 200);
               } else {
                 // Sync points from main players list to ensure correct points are displayed
                 // Use functional update to get the latest players list
@@ -342,10 +398,22 @@ export function joinGame(
               Array.isArray(message.data.guessedPlayers)
             ) {
               // Handle empty array (reset) or populated array
-              if (message.data.guessedPlayers.length === 0) {
+              const guessedCleared = message.data.guessedPlayers.length === 0;
+              if (guessedCleared) {
                 // Clear guessed list - all players reset for new round
                 logger.debug('[Player] Clearing guessed players list');
                 gameContext.setGuessedPlayers([]);
+                // Check if all lists are cleared (for new song detection)
+                // Use a small delay to allow other state updates to complete
+                setTimeout(() => {
+                  if (
+                    gameContext.waitingPlayers.length === 0 &&
+                    gameContext.guessedPlayers.length === 0 &&
+                    gameContext.partiallyGuessedPlayers.length === 0
+                  ) {
+                    showNewSongToast(gameContext);
+                  }
+                }, 200);
               } else {
                 // Sync points from main players list to ensure correct points are displayed
                 // Use functional update to get the latest players list
@@ -374,19 +442,36 @@ export function joinGame(
             }
             break;
 
-          case 'player-guessed-right':
+          case 'player-guessed-right': {
             // Player guessed right - reset all lists for new round
             // The host sends empty arrays via waitingPlayersChanged and guessedPlayersChanged,
             // but we also handle this message explicitly to ensure cleanup
             logger.info('[Player] Player guessed right - resetting lists');
+            const rightPlayerId = message.payload?.playerId;
+            const rightPlayerName = getPlayerName(gameContext, rightPlayerId);
+            showToast(gameContext, `${rightPlayerName} guessed correctly!`, 'success', 3000);
+            // Show new song toast after the success toast dismisses (lists will be cleared by separate messages)
+            setTimeout(() => {
+              showNewSongToast(gameContext);
+            }, 3200);
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
+          }
 
-          case 'player-guessed-partially':
+          case 'player-guessed-partially': {
             // Player guessed partially - they are moved to partiallyGuessedPlayers list
             console.log('[Player] Player guessed partially');
+            const partialPlayerId = message.payload?.playerId;
+            const partialPlayerName = getPlayerName(gameContext, partialPlayerId);
+            showToast(
+              gameContext,
+              `${partialPlayerName} guessed partially right!`,
+              'warning',
+              3000
+            );
             // The partiallyGuessedPlayersChanged message will handle the state update
             break;
+          }
 
           case 'partiallyGuessedPlayersChanged':
             // Partially guessed players list updated
@@ -395,10 +480,22 @@ export function joinGame(
               Array.isArray(message.data.partiallyGuessedPlayers)
             ) {
               // Handle empty array (reset) or populated array
-              if (message.data.partiallyGuessedPlayers.length === 0) {
+              const partiallyCleared = message.data.partiallyGuessedPlayers.length === 0;
+              if (partiallyCleared) {
                 // Clear partially guessed list - all players reset for new round
                 console.log('[Player] Clearing partially guessed players list');
                 gameContext.setPartiallyGuessedPlayers([]);
+                // Check if all lists are cleared (for new song detection)
+                // Use a small delay to allow other state updates to complete
+                setTimeout(() => {
+                  if (
+                    gameContext.waitingPlayers.length === 0 &&
+                    gameContext.guessedPlayers.length === 0 &&
+                    gameContext.partiallyGuessedPlayers.length === 0
+                  ) {
+                    showNewSongToast(gameContext);
+                  }
+                }, 200);
               } else {
                 // Sync points from main players list to ensure correct points are displayed
                 // Use functional update to get the latest players list
@@ -426,6 +523,15 @@ export function joinGame(
               }
             }
             break;
+
+          case 'player-guessed-wrong': {
+            // Player guessed wrong - they are moved to guessedPlayers list
+            logger.info('[Player] Player guessed wrong');
+            const wrongPlayerId = message.payload?.playerId;
+            const wrongPlayerName = getPlayerName(gameContext, wrongPlayerId);
+            showToast(gameContext, `${wrongPlayerName} guessed wrong`, 'error', 3000);
+            break;
+          }
 
           case 'player-buzzed-notification':
             logger.debug('[Player] Handling player-buzzed-notification:', message);

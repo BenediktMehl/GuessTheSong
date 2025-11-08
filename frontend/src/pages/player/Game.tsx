@@ -2,6 +2,7 @@ import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
+import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
 import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
@@ -18,6 +19,8 @@ export default function Game() {
     partiallyGuessedPlayers,
     buzzerNotification,
     setBuzzerNotification,
+    playerToast,
+    setPlayerToast,
   } = useGameContext();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
@@ -302,6 +305,8 @@ export default function Game() {
           </div>
         </div>
       )}
+
+      <PlayerToastComponent toast={playerToast} onDismiss={() => setPlayerToast(null)} />
 
       {/* biome-ignore lint/a11y/noStaticElementInteractions: This div only stops event propagation, not interactive */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: This div only stops event propagation, not interactive */}
