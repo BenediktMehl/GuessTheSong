@@ -442,7 +442,7 @@ export function joinGame(
             }
             break;
 
-          case 'player-guessed-right':
+          case 'player-guessed-right': {
             // Player guessed right - reset all lists for new round
             // The host sends empty arrays via waitingPlayersChanged and guessedPlayersChanged,
             // but we also handle this message explicitly to ensure cleanup
@@ -456,15 +456,22 @@ export function joinGame(
             }, 3200);
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
+          }
 
-          case 'player-guessed-partially':
+          case 'player-guessed-partially': {
             // Player guessed partially - they are moved to partiallyGuessedPlayers list
             console.log('[Player] Player guessed partially');
             const partialPlayerId = message.payload?.playerId;
             const partialPlayerName = getPlayerName(gameContext, partialPlayerId);
-            showToast(gameContext, `${partialPlayerName} guessed partially right!`, 'warning', 3000);
+            showToast(
+              gameContext,
+              `${partialPlayerName} guessed partially right!`,
+              'warning',
+              3000
+            );
             // The partiallyGuessedPlayersChanged message will handle the state update
             break;
+          }
 
           case 'partiallyGuessedPlayersChanged':
             // Partially guessed players list updated
@@ -517,13 +524,14 @@ export function joinGame(
             }
             break;
 
-          case 'player-guessed-wrong':
+          case 'player-guessed-wrong': {
             // Player guessed wrong - they are moved to guessedPlayers list
             logger.info('[Player] Player guessed wrong');
             const wrongPlayerId = message.payload?.playerId;
             const wrongPlayerName = getPlayerName(gameContext, wrongPlayerId);
             showToast(gameContext, `${wrongPlayerName} guessed wrong`, 'error', 3000);
             break;
+          }
 
           case 'player-buzzed-notification':
             logger.debug('[Player] Handling player-buzzed-notification:', message);

@@ -40,4 +40,3 @@ export function PlayerToastComponent({ toast, onDismiss }: PlayerToastProps) {
     </div>
   );
 }
-
