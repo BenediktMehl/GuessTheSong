@@ -52,9 +52,9 @@ export default function GameCode({
   };
 
   return (
-    <Card className="w-full max-w-md" bodyClassName="gap-3">
+    <Card className="w-full max-w-md" bodyClassName="gap-2 sm:gap-3">
       <div className="text-center">
-        <span className="text-3xl md:text-4xl font-mono font-bold tracking-widest text-primary">
+        <span className="text-2xl sm:text-3xl md:text-4xl font-mono font-bold tracking-widest text-primary">
           {sessionId}
         </span>
       </div>
@@ -62,17 +62,17 @@ export default function GameCode({
       {showCopyLink && (
         <>
           <div className="divider my-1 text-xs">OR</div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <input
               type="text"
-              className="input input-bordered input-sm flex-1 text-xs bg-white"
+              className="input input-bordered input-xs sm:input-sm flex-1 text-xs bg-white"
               value={inviteLink}
               readOnly
               onFocus={(e) => e.target.select()}
             />
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-xs sm:btn-sm"
               onClick={handleCopy}
               title="Copy link"
             >
@@ -81,7 +81,7 @@ export default function GameCode({
             {canShare && (
               <button
                 type="button"
-                className="btn btn-success btn-sm"
+                className="btn btn-success btn-xs sm:btn-sm"
                 onClick={handleShare}
                 title="Share link"
               >

@@ -1234,7 +1234,7 @@ export default function Game() {
   }, [buzzerNotification, buzzerSoundEnabled, setBuzzerNotification]);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
+    <main className="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 gap-3 sm:gap-6 relative">
       {/* Buzzer sound toggle button in upper right corner */}
       <button
         type="button"
@@ -1243,7 +1243,7 @@ export default function Game() {
           e.stopPropagation();
           toggleBuzzerSound();
         }}
-        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
+        className="absolute top-2 right-2 sm:top-4 sm:right-4 btn btn-circle btn-xs sm:btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
         aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
         title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
       >
@@ -1255,7 +1255,7 @@ export default function Game() {
             viewBox="0 0 24 24"
             strokeWidth="2"
             stroke="currentColor"
-            className="w-5 h-5"
+            className="w-4 h-4 sm:w-5 sm:h-5"
             aria-hidden="true"
           >
             <title>Speaker icon</title>
@@ -1273,7 +1273,7 @@ export default function Game() {
             viewBox="0 0 24 24"
             strokeWidth="2"
             stroke="currentColor"
-            className="w-5 h-5 opacity-60"
+            className="w-4 h-4 sm:w-5 sm:h-5 opacity-60"
             aria-hidden="true"
           >
             <title>Speaker muted icon</title>
@@ -1302,8 +1302,8 @@ export default function Game() {
         </div>
       )}
 
-      <div className="w-full max-w-md flex flex-col gap-6">
-        <Card className="w-full" bodyClassName="flex flex-col gap-4">
+      <div className="w-full max-w-md flex flex-col gap-3 sm:gap-6">
+        <Card className="w-full" bodyClassName="flex flex-col gap-2 sm:gap-4">
           <div className={trackDisplayClass}>
             {current_track.name ? (
               shouldShowSong ? (
@@ -1311,11 +1311,11 @@ export default function Game() {
                   <img
                     src={current_track.album.images[0]?.url}
                     alt={current_track.name}
-                    className="w-16 h-16 rounded-xl shadow-lg"
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl shadow-lg"
                   />
                   <div className="text-center">
-                    <div className="font-bold text-lg">{current_track.name}</div>
-                    <div className="text-sm text-base-content/70">
+                    <div className="font-bold text-sm sm:text-base md:text-lg">{current_track.name}</div>
+                    <div className="text-xs sm:text-sm text-base-content/70">
                       {(current_track.artists || []).map((artist) => artist.name).join(', ')}
                     </div>
                     <div className="text-xs text-base-content/60">
@@ -1326,25 +1326,25 @@ export default function Game() {
                   </div>
                 </>
               ) : (
-                <div className="w-full text-sm text-base-content/60 text-center">
+                <div className="w-full text-xs sm:text-sm text-base-content/60 text-center">
                   Song hidden - waiting for player guess...
                 </div>
               )
             ) : (
-              <div className="w-full text-sm text-base-content/60 text-center">
+              <div className="w-full text-xs sm:text-sm text-base-content/60 text-center">
                 No track playing
               </div>
             )}
           </div>
         </Card>
 
-        <Card className="w-full" bodyClassName="flex flex-col gap-3">
+        <Card className="w-full" bodyClassName="flex flex-col gap-2 sm:gap-3">
           {spotifyError ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:gap-3">
               <div className="alert alert-error">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="stroke-current shrink-0 h-6 w-6"
+                  className="stroke-current shrink-0 h-5 w-5 sm:h-6 sm:w-6"
                   fill="none"
                   viewBox="0 0 24 24"
                   role="img"
@@ -1359,26 +1359,26 @@ export default function Game() {
                   />
                 </svg>
                 <div>
-                  <h3 className="font-bold">Spotify Connection Error</h3>
-                  <div className="text-sm">{spotifyError}</div>
+                  <h3 className="font-bold text-sm sm:text-base">Spotify Connection Error</h3>
+                  <div className="text-xs sm:text-sm">{spotifyError}</div>
                 </div>
               </div>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm sm:btn-md"
                 onClick={() => navigate('/settings')}
               >
                 Back to Lobby
               </button>
             </div>
           ) : !is_active ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:gap-3">
               <div className="alert alert-info">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  className="stroke-current shrink-0 w-6 h-6"
+                  className="stroke-current shrink-0 w-5 h-5 sm:w-6 sm:h-6"
                   role="img"
                   aria-label="Information icon"
                 >
@@ -1391,8 +1391,8 @@ export default function Game() {
                   ></path>
                 </svg>
                 <div>
-                  <h3 className="font-bold">Ready to play!</h3>
-                  <div className="text-sm">
+                  <h3 className="font-bold text-sm sm:text-base">Ready to play!</h3>
+                  <div className="text-xs sm:text-sm">
                     {isTransferring
                       ? 'Transferring playback...'
                       : 'Playback will be transferred automatically, or you can transfer manually from another Spotify device.'}
@@ -1402,7 +1402,7 @@ export default function Game() {
               {!isTransferring && deviceId && (
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-sm sm:btn-md"
                   onClick={() => transferPlaybackToDevice(deviceId, player)}
                 >
                   Transfer Playback Now
@@ -1410,10 +1410,10 @@ export default function Game() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:gap-3">
               {/* Timeline - always visible when track is playing */}
               {current_track.name && is_active && trackDuration > 0 && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <input
                     type="range"
                     min="0"
@@ -1439,21 +1439,21 @@ export default function Game() {
               )}
 
               {/* Setting */}
-              <label className="label cursor-pointer">
-                <span className="label-text">Hide song until player guesses</span>
+              <label className="label cursor-pointer py-1 sm:py-2">
+                <span className="label-text text-xs sm:text-sm">Hide song until player guesses</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary"
+                  className="toggle toggle-primary toggle-sm sm:toggle-md"
                   checked={hideSongUntilBuzzed}
                   onChange={(e) => handleToggleHideSong(e.target.checked)}
                 />
               </label>
 
-              <label className="label cursor-pointer">
-                <span className="label-text">Autoplay</span>
+              <label className="label cursor-pointer py-1 sm:py-2">
+                <span className="label-text text-xs sm:text-sm">Autoplay</span>
                 <input
                   type="checkbox"
-                  className="toggle toggle-primary"
+                  className="toggle toggle-primary toggle-sm sm:toggle-md"
                   checked={autoplay}
                   onChange={(e) => handleToggleAutoplay(e.target.checked)}
                 />
@@ -1461,10 +1461,10 @@ export default function Game() {
 
               <div className="divider my-0"></div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 sm:gap-2">
                 <button
                   type="button"
-                  className={`flex-1 ${!autoplay && is_paused ? 'btn btn-success animate-pulse' : 'btn btn-warning'}`}
+                  className={`flex-1 btn-sm sm:btn-md md:btn-lg ${!autoplay && is_paused ? 'btn btn-success animate-pulse' : 'btn btn-warning'}`}
                   onClick={async () => {
                     if (!player) {
                       logger.error('[Spotify] Player not available');
@@ -1555,7 +1555,7 @@ export default function Game() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline flex-1"
+                  className="btn btn-outline flex-1 btn-sm sm:btn-md md:btn-lg"
                   onClick={async () => {
                     // Reset all players to default list before going to next song
                     logger.debug('[Host Game] Next button clicked - resetting all players');
@@ -1597,14 +1597,14 @@ export default function Game() {
                   Next
                 </button>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth={1.5}
                   stroke="currentColor"
-                  className="w-5 h-5 shrink-0"
+                  className="w-4 h-4 sm:w-5 sm:h-5 shrink-0"
                 >
                   <title>Volume icon</title>
                   <path
@@ -1622,7 +1622,7 @@ export default function Game() {
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
                   className="range range-primary flex-1"
                 />
-                <span className="text-sm font-medium w-12 text-right shrink-0">
+                <span className="text-xs sm:text-sm font-medium w-10 sm:w-12 text-right shrink-0">
                   {Math.round(volume * 100)}%
                 </span>
               </div>
@@ -1631,19 +1631,19 @@ export default function Game() {
         </Card>
 
         {currentGuessingPlayer && (
-          <Card className="w-full" bodyClassName="flex flex-col gap-4 py-4">
+          <Card className="w-full" bodyClassName="flex flex-col gap-2 sm:gap-4 py-2 sm:py-4">
             <div className="text-center">
-              <h2 className="text-xl font-bold mb-2">{currentGuessingPlayer.name} is guessing</h2>
-              <p className="text-base-content/70">
+              <h2 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">{currentGuessingPlayer.name} is guessing</h2>
+              <p className="text-xs sm:text-sm text-base-content/70">
                 {partiallyGuessedPlayers.length > 0
                   ? 'Was the answer correct or wrong?'
                   : 'Was the answer correct, partially correct or wrong?'}
               </p>
             </div>
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-2 sm:gap-4 justify-center">
               <button
                 type="button"
-                className="btn btn-success btn-lg flex-1"
+                className="btn btn-success btn-sm sm:btn-md md:btn-lg flex-1"
                 onClick={handleRightGuess}
               >
                 ✓ Correct
@@ -1651,7 +1651,7 @@ export default function Game() {
               {partiallyGuessedPlayers.length === 0 && (
                 <button
                   type="button"
-                  className="btn btn-warning btn-lg flex-1"
+                  className="btn btn-warning btn-sm sm:btn-md md:btn-lg flex-1"
                   onClick={handlePartiallyRightGuess}
                 >
                   ~ Teilweise
@@ -1659,7 +1659,7 @@ export default function Game() {
               )}
               <button
                 type="button"
-                className="btn btn-error btn-lg flex-1"
+                className="btn btn-error btn-sm sm:btn-md md:btn-lg flex-1"
                 onClick={handleWrongGuess}
               >
                 ✗ Wrong

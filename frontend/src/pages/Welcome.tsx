@@ -23,23 +23,22 @@ function Welcome() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center">
+    <main className="min-h-screen flex items-center justify-center p-2 sm:p-4">
       <div className="hero">
         <div className="hero-content flex-col">
-          <h1 className="text-5xl font-bold text-primary mb-4">{appConfig.displayName}</h1>
-          <p className="mb-6 text-lg text-base-content">{appConfig.description}</p>
-          <div className="flex gap-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 sm:mb-4">{appConfig.displayName}</h1>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
             <button
               type="button"
               onClick={hostAGameClickHandler}
-              className="btn btn-primary btn-lg"
+              className="btn btn-primary btn-sm sm:btn-md md:btn-lg w-full sm:w-auto"
             >
               Host a Game
             </button>
             <button
               type="button"
               onClick={joinAGameClickHandler}
-              className="btn btn-success btn-lg"
+              className="btn btn-success btn-sm sm:btn-md md:btn-lg w-full sm:w-auto"
             >
               Join a Game
             </button>

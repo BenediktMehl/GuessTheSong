@@ -24,13 +24,13 @@ export function LastSongCard({
   }
 
   return (
-    <Card className="w-full max-w-md" bodyClassName="text-center py-4" title="Last Song">
-      <div className="flex flex-col gap-2">
+    <Card className="w-full max-w-md" bodyClassName="text-center py-2 sm:py-4" title="Last Song">
+      <div className="flex flex-col gap-1.5 sm:gap-2">
         <div>
-          <p className="text-lg font-semibold text-primary">{lastSong.name}</p>
+          <p className="text-base sm:text-lg font-semibold text-primary">{lastSong.name}</p>
         </div>
         <div>
-          <p className="text-sm text-base-content/70">{lastSong.artists.join(', ')}</p>
+          <p className="text-xs sm:text-sm text-base-content/70">{lastSong.artists.join(', ')}</p>
         </div>
       </div>
     </Card>

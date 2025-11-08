@@ -178,7 +178,7 @@ export default function Game() {
       return {
         title: 'Your Turn!',
         content: (
-          <p className="text-lg text-base-content/80">
+          <p className="text-sm sm:text-base md:text-lg text-base-content/80">
             It is now your turn to{' '}
             <span className="font-bold" style={{ color: buzzerColorValue || '#FF6B6B' }}>
               {appConfig.displayName}
@@ -194,7 +194,7 @@ export default function Game() {
       return {
         title: 'Waiting for Your Turn',
         content: (
-          <p className="text-lg text-base-content/80">
+          <p className="text-sm sm:text-base md:text-lg text-base-content/80">
             It is {currentGuesser?.name || 'someone'}'s turn to {appConfig.displayName}. It is your
             turn after {playersAhead > 1 ? `${playersAhead} players` : 'him/her'}!
           </p>
@@ -207,7 +207,7 @@ export default function Game() {
       return {
         title: 'Already Guessed',
         content: (
-          <p className="text-lg text-base-content/80">
+          <p className="text-sm sm:text-base md:text-lg text-base-content/80">
             {currentGuesser
               ? `It is ${currentGuesser.name}'s turn to ${appConfig.displayName}.`
               : `Waiting for next player to ${appConfig.displayName}.`}{' '}
@@ -220,10 +220,10 @@ export default function Game() {
     return {
       title: 'Ready to Guess',
       content: (
-        <p className="text-lg text-base-content/80">
+        <p className="text-sm sm:text-base md:text-lg text-base-content/80">
           Press the{' '}
           <span
-            className="font-bold text-2xl"
+            className="font-bold text-lg sm:text-xl md:text-2xl"
             style={{
               color: buzzerColorValue || '#FF1744',
               textShadow:
@@ -241,7 +241,7 @@ export default function Game() {
   const gameState = getGameStateContent(buzzerColor);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
+    <main className="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 gap-3 sm:gap-6 relative">
       {/* Buzzer sound toggle button in upper right corner */}
       <button
         type="button"
@@ -250,7 +250,7 @@ export default function Game() {
           e.stopPropagation();
           toggleBuzzerSound();
         }}
-        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
+        className="absolute top-2 right-2 sm:top-4 sm:right-4 btn btn-circle btn-xs sm:btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
         aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
         title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
       >
@@ -262,7 +262,7 @@ export default function Game() {
             viewBox="0 0 24 24"
             strokeWidth="2"
             stroke="currentColor"
-            className="w-5 h-5"
+            className="w-4 h-4 sm:w-5 sm:h-5"
             aria-hidden="true"
           >
             <title>Speaker icon</title>
@@ -280,7 +280,7 @@ export default function Game() {
             viewBox="0 0 24 24"
             strokeWidth="2"
             stroke="currentColor"
-            className="w-5 h-5 opacity-60"
+            className="w-4 h-4 sm:w-5 sm:h-5 opacity-60"
             aria-hidden="true"
           >
             <title>Speaker muted icon</title>
@@ -322,7 +322,7 @@ export default function Game() {
       {/* biome-ignore lint/a11y/noStaticElementInteractions: This div only stops event propagation, not interactive */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: This div only stops event propagation, not interactive */}
       <div
-        className="w-full max-w-md flex flex-col gap-6"
+        className="w-full max-w-md flex flex-col gap-3 sm:gap-6"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
@@ -340,13 +340,13 @@ export default function Game() {
           currentPlayer={currentPlayer}
         />
 
-        <Card className="w-full" bodyClassName="items-center text-center gap-4 py-4">
-          <div className="w-full flex flex-col items-center gap-4">
+        <Card className="w-full" bodyClassName="items-center text-center gap-2 sm:gap-4 py-2 sm:py-4">
+          <div className="w-full flex flex-col items-center gap-2 sm:gap-4">
             <div className="w-full">{gameState.content}</div>
             <button
               type="button"
               disabled={isBuzzerDisabled}
-              className={`relative w-44 h-44 rounded-full transition-all focus:outline-none focus:ring-4 focus:ring-offset-2 ${
+              className={`relative w-32 h-32 sm:w-44 sm:h-44 rounded-full transition-all focus:outline-none focus:ring-4 focus:ring-offset-2 ${
                 isBuzzerDisabled
                   ? 'cursor-not-allowed opacity-50'
                   : 'cursor-pointer hover:scale-105 active:scale-95'
@@ -382,7 +382,7 @@ export default function Game() {
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  border: `5px solid ${isBuzzerDisabled ? '#9E9E9E' : buzzerColor || '#FF1744'}`,
+                  border: `4px solid ${isBuzzerDisabled ? '#9E9E9E' : buzzerColor || '#FF1744'}`,
                   boxShadow: 'inset 0 3px 6px rgba(0, 0, 0, 0.3)',
                 }}
               />
@@ -390,7 +390,7 @@ export default function Game() {
               {!isBuzzerDisabled && (
                 <>
                   <div
-                    className="absolute inset-3 rounded-full"
+                    className="absolute inset-2 sm:inset-3 rounded-full"
                     style={{
                       background: `radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2) 40%, transparent 70%)`,
                       boxShadow: 'inset 0 -5px 15px rgba(0, 0, 0, 0.2)',
@@ -398,7 +398,7 @@ export default function Game() {
                   />
                   {/* Additional shine highlight */}
                   <div
-                    className="absolute top-4 left-6 w-12 h-12 rounded-full opacity-60"
+                    className="absolute top-3 left-4 sm:top-4 sm:left-6 w-8 h-8 sm:w-12 sm:h-12 rounded-full opacity-60"
                     style={{
                       background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent)',
                     }}
