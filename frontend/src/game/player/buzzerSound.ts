@@ -44,7 +44,7 @@ export function playBuzzerSound(): void {
   }
 
   // Try to play MP3 file if one was selected
-  if (selectedBuzzerSound && audioElement) {
+  if (selectedBuzzerSound && audioElement && audioElement.muted === false) {
     try {
       // Reset the audio to the beginning in case it's still playing
       if (!audioElement.paused) {
@@ -73,8 +73,6 @@ export function playBuzzerSound(): void {
       return;
     }
   }
-
-  // Fail silently if no MP3 file is available
 }
 
 /**
