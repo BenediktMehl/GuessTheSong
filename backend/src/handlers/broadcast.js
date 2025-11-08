@@ -1,4 +1,5 @@
 const { sessions, updateSessionStatus } = require('../sessions');
+const logger = require('../logger');
 
 function handleBroadcast(ws, serverPayload) {
   const hostSessionId = ws.sessionId;
@@ -12,7 +13,7 @@ function handleBroadcast(ws, serverPayload) {
       try {
         playerWs.send(JSON.stringify(serverPayload));
       } catch (error) {
-        console.error('Failed to broadcast to player:', error);
+        logger.error({ err: error }, 'Failed to broadcast to player');
       }
     });
   }

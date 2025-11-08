@@ -5,6 +5,7 @@ import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
 import { playBuzzerSound } from '../../game/player/buzzerSound';
+import logger from '../../utils/logger';
 
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
@@ -95,7 +96,7 @@ export default function Game() {
   const isBuzzerDisabled = isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId;
 
   const handleBuzz = useCallback(() => {
-    console.log('[Buzzer] handleBuzz called', {
+    logger.debug('[Buzzer] handleBuzz called', {
       isCurrentPlayerInQueue,
       hasCurrentPlayerGuessed,
       currentPlayerId,
@@ -103,7 +104,7 @@ export default function Game() {
 
     // Don't allow buzzing if already in queue or already guessed
     if (isBuzzerDisabled) {
-      console.log('[Buzzer] Buzzer blocked:', {
+      logger.debug('[Buzzer] Buzzer blocked:', {
         isCurrentPlayerInQueue,
         hasCurrentPlayerGuessed,
         currentPlayerId,
@@ -117,12 +118,12 @@ export default function Game() {
     }
 
     // Send buzz action to host
-    console.log('[Buzzer] Sending buzz action...');
+    logger.debug('[Buzzer] Sending buzz action...');
     const success = sendPlayerBuzzedAction();
     if (!success) {
-      console.error('[Buzzer] Failed to send buzz action');
+      logger.error('[Buzzer] Failed to send buzz action');
     } else {
-      console.log('[Buzzer] Buzz action sent successfully');
+      logger.debug('[Buzzer] Buzz action sent successfully');
     }
   }, [
     isBuzzerDisabled,

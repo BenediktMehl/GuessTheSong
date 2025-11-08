@@ -1,5 +1,6 @@
 const { sessions, createSession } = require('../sessions');
 const { generateSessionId, sendError } = require('../utils');
+const logger = require('../logger');
 
 function handleCreate(ws) {
   let newSessionId;
@@ -22,7 +23,10 @@ function handleCreate(ws) {
       payload: { sessionId: newSessionId },
     })
   );
-  console.log(`Session created: ${newSessionId}. Open sessions: ${Object.keys(sessions).length}`);
+  logger.info(
+    { sessionId: newSessionId, openSessions: Object.keys(sessions).length },
+    'Session created'
+  );
 }
 
 module.exports = { handleCreate };

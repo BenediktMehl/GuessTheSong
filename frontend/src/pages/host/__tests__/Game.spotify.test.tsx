@@ -815,7 +815,7 @@ describe('Spotify SDK Integration', () => {
   it('should handle not_ready event', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     // Act
     render(
@@ -847,10 +847,11 @@ describe('Spotify SDK Integration', () => {
       notReadyCallback({ device_id: 'test-device-123' });
     }
 
-    // Assert - verify the console log was called
+    // Assert - verify the logger (console.debug) was called
     await waitFor(
       () => {
         expect(consoleSpy).toHaveBeenCalledWith(
+          '[DEBUG]',
           '[Spotify] Device ID has gone offline',
           'test-device-123'
         );

@@ -1,5 +1,6 @@
 // Simple Spotify OAuth client-side implementation
 // Note: In production, you should use a backend for token exchange
+import logger from '../../utils/logger';
 
 const SPOTIFY_CLIENT_ID = import.meta.env.SPOTIFY_CLIENT_ID || '';
 
@@ -46,7 +47,7 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 export async function handleSpotifyLogin(): Promise<void> {
   if (!SPOTIFY_CLIENT_ID) {
-    console.error(
+    logger.error(
       'Spotify Client ID not configured. Please set SPOTIFY_CLIENT_ID in your .env.local file'
     );
     alert(
@@ -65,14 +66,14 @@ export async function handleSpotifyLogin(): Promise<void> {
   try {
     localStorage.setItem('spotify_code_verifier', codeVerifier);
     localStorage.setItem('spotify_state', state);
-    console.log('Stored state for verification:', state);
-    console.log('Verification - stored state:', localStorage.getItem('spotify_state'));
+    logger.debug('Stored state for verification:', state);
+    logger.debug('Verification - stored state:', localStorage.getItem('spotify_state'));
   } catch (error) {
-    console.error('Failed to store in localStorage:', error);
+    logger.error('Failed to store in localStorage:', error);
     // Fallback to sessionStorage if localStorage fails
     sessionStorage.setItem('spotify_code_verifier', codeVerifier);
     sessionStorage.setItem('spotify_state', state);
-    console.log('Fell back to sessionStorage');
+    logger.debug('Fell back to sessionStorage');
   }
 
   // Build authorization URL
@@ -89,8 +90,8 @@ export async function handleSpotifyLogin(): Promise<void> {
   params.append('code_challenge', codeChallenge);
 
   // Log the redirect URI for debugging
-  console.log('Redirecting to Spotify with redirect_uri:', REDIRECT_URI);
-  console.log('Make sure this URI is registered in your Spotify app settings:', REDIRECT_URI);
+  logger.debug('Redirecting to Spotify with redirect_uri:', REDIRECT_URI);
+  logger.debug('Make sure this URI is registered in your Spotify app settings:', REDIRECT_URI);
 
   // Redirect to Spotify authorization
   window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;

@@ -1,13 +1,12 @@
 const { sessions } = require('../sessions');
 const { sendError } = require('../utils');
+const logger = require('../logger');
 
 function handlePlayerAction(ws, serverPayload) {
-  console.log('[Backend] handlePlayerAction called', {
-    playerId: ws.playerId,
-    playerName: ws.playerName,
-    sessionId: ws.sessionId,
-    serverPayload,
-  });
+  logger.debug(
+    { playerId: ws.playerId, playerName: ws.playerName, sessionId: ws.sessionId, serverPayload },
+    'handlePlayerAction called'
+  );
 
   const playerSessionId = ws.sessionId;
   if (playerSessionId && sessions[playerSessionId]) {
@@ -26,35 +25,34 @@ function handlePlayerAction(ws, serverPayload) {
         serverTimestamp: Date.now(),
       };
       const hostWs = sessions[playerSessionId].host;
-      console.log('[Backend] Host WebSocket state:', {
-        readyState: hostWs.readyState,
-        OPEN: 1, // WebSocket.OPEN = 1
-        isOpen: hostWs.readyState === 1,
-      });
+      logger.debug(
+        { readyState: hostWs.readyState, isOpen: hostWs.readyState === 1 },
+        'Host WebSocket state'
+      );
 
       if (hostWs.readyState !== 1) {
-        console.error('[Backend] Host WebSocket is not open! State:', hostWs.readyState);
+        logger.error({ readyState: hostWs.readyState }, 'Host WebSocket is not open');
         sendError(ws, 'Host connection is not open.');
         return;
       }
 
-      console.log('[Backend] Forwarding to host:', payloadWithPlayerId);
+      logger.debug({ payload: payloadWithPlayerId }, 'Forwarding to host');
       try {
         hostWs.send(JSON.stringify(payloadWithPlayerId));
-        console.log('[Backend] Message forwarded to host successfully');
+        logger.debug('Message forwarded to host successfully');
       } catch (sendErr) {
-        console.error('[Backend] Error sending to host:', sendErr);
+        logger.error({ err: sendErr }, 'Error sending to host');
         throw sendErr;
       }
     } catch (error) {
-      console.error('[Backend] Failed to send to host:', error);
+      logger.error({ err: error }, 'Failed to send to host');
       sendError(ws, 'Failed to forward action to host.');
     }
   } else {
-    console.error('[Backend] Session does not exist', {
-      playerSessionId,
-      sessionExists: !!sessions[playerSessionId],
-    });
+    logger.error(
+      { playerSessionId, sessionExists: !!sessions[playerSessionId] },
+      'Session does not exist'
+    );
     sendError(ws, 'Session does not exist.');
   }
 }
