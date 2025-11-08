@@ -1,8 +1,8 @@
 import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
-import { PlayerToastComponent } from '../../components/PlayerToast';
 import PlayersLobby from '../../components/PlayersLobby';
+import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
 import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
