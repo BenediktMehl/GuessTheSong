@@ -507,6 +507,8 @@ describe('Spotify SDK Integration', () => {
   it('should update track info when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    // Disable hide song until buzzed so the song is visible in the test
+    localStorage.setItem('hostHideSongUntilBuzzed', 'false');
     const mockTrack = {
       id: 'track-123',
       name: 'Test Song',
