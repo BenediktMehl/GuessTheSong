@@ -75,6 +75,8 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           navigationPreload: false,
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
         },
       }),
     ],
