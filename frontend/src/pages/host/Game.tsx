@@ -8,6 +8,7 @@ import {
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
 } from '../../game/host';
+import { playBuzzerSound } from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
@@ -114,7 +115,8 @@ export default function Game() {
   const pendingPauseRef = useRef(false); // Track if we need to pause after track change
   const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
     const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
-    return stored === 'true';
+    // Default to true (enabled) if no value is stored
+    return stored === null ? true : stored === 'true';
   });
   const [autoplay, setAutoplay] = useState<boolean>(() => {
     const stored = localStorage.getItem(AUTOPLAY_KEY);
@@ -937,9 +939,12 @@ export default function Game() {
     };
   }, [player, is_active, pausePlayerFunction, setPausePlayerCallback]);
 
-  // Auto-dismiss buzzer notification after 3 seconds
+  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
   useEffect(() => {
     if (buzzerNotification) {
+      // Play buzzer sound when notification appears
+      playBuzzerSound();
+
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);

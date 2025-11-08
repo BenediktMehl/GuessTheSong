@@ -1,6 +1,6 @@
 /**
  * Plays a buzzer sound using Web Audio API
- * Creates a harsh, buzzy sound typical of game show buzzers
+ * The sound duration is approximately 600ms (2-3x longer than a typical short buzzer)
  */
 export function playBuzzerSound(): void {
   try {
@@ -8,83 +8,64 @@ export function playBuzzerSound(): void {
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) {
-      console.warn('Web Audio API not supported');
+      console.warn('[Buzzer Sound] Web Audio API not supported');
       return;
     }
 
     const audioContext = new AudioContextClass();
 
-    // Function to create and play the buzzer sound
-    const createBuzzerSound = () => {
-      // Create a harsh buzzer sound using multiple oscillators with distortion
-      const oscillator1 = audioContext.createOscillator();
-      const oscillator2 = audioContext.createOscillator();
+    // Function to play the actual sound
+    const playSound = () => {
+      // Create oscillator for the buzzer tone
+      const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      const compressor = audioContext.createDynamicsCompressor();
 
-      // Configure oscillators for a buzzy sound
-      oscillator1.type = 'square';
-      oscillator1.frequency.setValueAtTime(150, audioContext.currentTime);
-      oscillator1.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.1);
+      // Connect oscillator to gain node, then to destination
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
 
-      oscillator2.type = 'sawtooth';
-      oscillator2.frequency.setValueAtTime(300, audioContext.currentTime);
-      oscillator2.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+      // Configure buzzer sound characteristics
+      // Start with a high frequency (800Hz) and drop to lower frequency (400Hz) for a classic buzzer effect
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.6);
 
-      // Create gain envelope for sharp attack and quick decay
+      // Set oscillator type to 'sawtooth' for a harsh buzzer sound
+      oscillator.type = 'sawtooth';
+
+      // Configure volume envelope (attack, sustain, release)
       const now = audioContext.currentTime;
       gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01); // Quick attack
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15); // Quick decay
+      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05); // Quick attack (50ms)
+      gainNode.gain.setValueAtTime(0.3, now + 0.5); // Sustain for most of the duration
+      gainNode.gain.linearRampToValueAtTime(0, now + 0.6); // Quick release (100ms)
 
-      // Configure compressor for more punch
-      compressor.threshold.setValueAtTime(-24, now);
-      compressor.knee.setValueAtTime(30, now);
-      compressor.ratio.setValueAtTime(12, now);
-      compressor.attack.setValueAtTime(0.003, now);
-      compressor.release.setValueAtTime(0.25, now);
-
-      // Connect: oscillators -> gain -> compressor -> destination
-      oscillator1.connect(gainNode);
-      oscillator2.connect(gainNode);
-      gainNode.connect(compressor);
-      compressor.connect(audioContext.destination);
-
-      // Start and stop the sound
-      oscillator1.start(now);
-      oscillator2.start(now);
-      oscillator1.stop(now + 0.15);
-      oscillator2.stop(now + 0.15);
+      // Play the sound for 600ms (2-3x longer than typical 200-300ms buzzer)
+      oscillator.start(now);
+      oscillator.stop(now + 0.6);
 
       // Clean up after sound finishes
-      setTimeout(() => {
-        try {
-          oscillator1.disconnect();
-          oscillator2.disconnect();
-          gainNode.disconnect();
-          compressor.disconnect();
-        } catch (_error) {
-          // Ignore cleanup errors
-        }
-      }, 200);
+      oscillator.onended = () => {
+        audioContext.close().catch((error) => {
+          console.warn('[Buzzer Sound] Failed to close audio context:', error);
+        });
+      };
     };
 
-    // Resume audio context if it's suspended (required by some browsers)
-    // Since this is triggered by user interaction, it should typically be ready
+    // Resume audio context if it's suspended (required for some browsers)
     if (audioContext.state === 'suspended') {
       audioContext
         .resume()
         .then(() => {
-          createBuzzerSound();
+          playSound();
         })
         .catch((error) => {
-          console.warn('Could not resume audio context:', error);
+          console.warn('[Buzzer Sound] Failed to resume audio context:', error);
         });
     } else {
-      createBuzzerSound();
+      playSound();
     }
   } catch (error) {
-    // Silently fail if audio context is not available
-    console.warn('Could not play buzzer sound:', error);
+    console.warn('[Buzzer Sound] Failed to play buzzer sound:', error);
+    // Silently fail - audio might not be supported or user interaction required
   }
 }
