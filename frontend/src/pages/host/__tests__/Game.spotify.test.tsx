@@ -863,7 +863,7 @@ describe('Spotify SDK Integration', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockPlayRandomPlaylistTrack).toHaveBeenCalled();
+      expect(mockPlayNextTrack).toHaveBeenCalledWith('test-device-id');
     });
   });
 

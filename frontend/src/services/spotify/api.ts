@@ -1,3 +1,4 @@
+import logger from '../../utils/logger';
 import { DEFAULT_PLAYLIST_ID } from './playlists';
 import logger from '../../utils/logger';
 
