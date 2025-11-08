@@ -6,21 +6,39 @@ import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
 
 export default function Game() {
-  const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
+  const {
+    players,
+    currentPlayerId,
+    waitingPlayers,
+    guessedPlayers,
+    partiallyGuessedPlayers,
+    buzzerNotification,
+    setBuzzerNotification,
+  } = useGameContext();
 
-  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
-    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .filter(
+      (p) =>
+        !waitingPlayerIds.has(p.id) &&
+        !guessedPlayerIds.has(p.id) &&
+        !partiallyGuessedPlayerIds.has(p.id)
+    )
     .sort((a, b) => b.points - a.points);
 
   // Find currentPlayer object from currentPlayerId
-  const allPlayers = [...(players || []), ...(waitingPlayers || []), ...(guessedPlayers || [])];
+  const allPlayers = [
+    ...(players || []),
+    ...(waitingPlayers || []),
+    ...(guessedPlayers || []),
+    ...(partiallyGuessedPlayers || []),
+  ];
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;
-  const { buzzerNotification, setBuzzerNotification } = useGameContext();
   const [showJoinedToast, setShowJoinedToast] = useState(true);
   const [buzzerColor, setBuzzerColor] = useState<string>('');
 
@@ -67,9 +85,10 @@ export default function Game() {
   const isCurrentPlayerInQueue = currentPlayerInQueue >= 0;
   const queuePosition = currentPlayerInQueue >= 0 ? currentPlayerInQueue + 1 : null;
 
-  // Check if current player has already guessed
+  // Check if current player has already guessed (either fully or partially)
   const hasCurrentPlayerGuessed = currentPlayerId
-    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId)
+    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId) ||
+      (partiallyGuessedPlayers || []).some((p) => p.id === currentPlayerId)
     : false;
 
   // Check if buzzer should be disabled (already buzzed or already guessed)
@@ -200,6 +219,7 @@ export default function Game() {
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
+          partiallyGuessedPlayers={partiallyGuessedPlayers}
           currentPlayer={currentPlayer}
         />
 

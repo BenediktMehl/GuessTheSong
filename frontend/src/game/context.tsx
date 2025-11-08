@@ -40,6 +40,7 @@ export interface GameContextType {
   players: Player[];
   waitingPlayers: Player[];
   guessedPlayers: Player[];
+  partiallyGuessedPlayers: Player[];
   musicHostLoggedIn: boolean;
   status: GameStatus;
   wsStatus: WsStatus;
@@ -51,6 +52,7 @@ export interface GameContextType {
   setPlayers: Dispatch<SetStateAction<Player[]>>;
   setWaitingPlayers: Dispatch<SetStateAction<Player[]>>;
   setGuessedPlayers: Dispatch<SetStateAction<Player[]>>;
+  setPartiallyGuessedPlayers: Dispatch<SetStateAction<Player[]>>;
   setMusicHostLoggedIn: Dispatch<SetStateAction<boolean>>;
   setStatus: Dispatch<SetStateAction<GameStatus>>;
   setWsStatus: Dispatch<SetStateAction<WsStatus>>;
@@ -67,6 +69,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [players, setPlayers] = useState<Player[]>([]);
   const [waitingPlayers, setWaitingPlayers] = useState<Player[]>([]);
   const [guessedPlayers, setGuessedPlayers] = useState<Player[]>([]);
+  const [partiallyGuessedPlayers, setPartiallyGuessedPlayers] = useState<Player[]>([]);
   const [musicHostLoggedIn, setMusicHostLoggedIn] = useState(false);
   const [status, setStatus] = useState<GameStatus>('notStarted');
   const [wsStatus, setWsStatus] = useState<WsStatus>('closed');
@@ -82,6 +85,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         players,
         waitingPlayers,
         guessedPlayers,
+        partiallyGuessedPlayers,
         musicHostLoggedIn,
         status,
         wsStatus,
@@ -93,6 +97,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setPlayers,
         setWaitingPlayers,
         setGuessedPlayers,
+        setPartiallyGuessedPlayers,
         setMusicHostLoggedIn,
         setStatus,
         setWsStatus,

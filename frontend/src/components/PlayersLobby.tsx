@@ -5,6 +5,7 @@ interface PlayersLobbyProps {
   notGuessedPlayers: Player[];
   waitingPlayers?: Player[];
   guessedPlayers?: Player[];
+  partiallyGuessedPlayers?: Player[];
   currentPlayer?: Player;
   minPlayers?: number;
 }
@@ -86,11 +87,17 @@ export default function PlayersLobby({
   notGuessedPlayers,
   waitingPlayers = [],
   guessedPlayers = [],
+  partiallyGuessedPlayers = [],
   currentPlayer,
   minPlayers = 2,
 }: PlayersLobbyProps) {
   // Collect all players to find highest scorer
-  const allPlayers = [...notGuessedPlayers, ...waitingPlayers, ...guessedPlayers];
+  const allPlayers = [
+    ...notGuessedPlayers,
+    ...waitingPlayers,
+    ...guessedPlayers,
+    ...partiallyGuessedPlayers,
+  ];
 
   // Find the highest points value across all players
   const highestPoints =
@@ -110,8 +117,9 @@ export default function PlayersLobby({
   const nowGuessing = waitingPlayers.length > 0 ? [waitingPlayers[0]] : [];
   const nextGuessing = waitingPlayers.length > 1 ? waitingPlayers.slice(1) : [];
 
-  // Check if we should show headers (if any players are in waiting or guessed states)
-  const hasActiveGuessing = waitingPlayers.length > 0 || guessedPlayers.length > 0;
+  // Check if we should show headers (if any players are in waiting, guessed, or partially guessed states)
+  const hasActiveGuessing =
+    waitingPlayers.length > 0 || guessedPlayers.length > 0 || partiallyGuessedPlayers.length > 0;
 
   // Total player count for empty state and min players check
   const totalPlayers = allPlayers.length;
@@ -153,6 +161,15 @@ export default function PlayersLobby({
                   <PlayerSection
                     title="Not guessing"
                     players={notGuessedPlayers}
+                    currentPlayer={currentPlayer}
+                    highestScorerIds={highestScorerIds}
+                    showDivider={true}
+                  />
+                )}
+                {partiallyGuessedPlayers.length > 0 && (
+                  <PlayerSection
+                    title="Partially guessed"
+                    players={partiallyGuessedPlayers}
                     currentPlayer={currentPlayer}
                     highestScorerIds={highestScorerIds}
                     showDivider={true}

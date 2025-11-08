@@ -4,6 +4,7 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
 import {
+  markPlayerGuessedPartially,
   markPlayerGuessedRight,
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
@@ -84,17 +85,24 @@ export default function Game() {
     players,
     waitingPlayers,
     guessedPlayers,
+    partiallyGuessedPlayers,
     buzzerNotification,
     setBuzzerNotification,
     setPausePlayerCallback,
   } = gameContext;
   const navigate = useNavigate();
 
-  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
-    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .filter(
+      (p) =>
+        !waitingPlayerIds.has(p.id) &&
+        !guessedPlayerIds.has(p.id) &&
+        !partiallyGuessedPlayerIds.has(p.id)
+    )
     .sort((a, b) => b.points - a.points);
   const [player, setPlayer] = useState<SpotifyPlayer | undefined>(undefined);
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
@@ -760,6 +768,23 @@ export default function Game() {
     });
   }, [currentGuessingPlayer, player, gameContext]);
 
+  // Handle partially right guess
+  const handlePartiallyRightGuess = useCallback(async () => {
+    if (!currentGuessingPlayer) return;
+
+    markPlayerGuessedPartially(gameContext, async () => {
+      // Resume current song if there are more players who can guess
+      if (player && is_paused) {
+        try {
+          await player.togglePlay();
+          console.log('[Host] Resuming song for next player after partial answer');
+        } catch (error) {
+          console.error('[Host] Error resuming song:', error);
+        }
+      }
+    });
+  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
     if (!currentGuessingPlayer) return;
@@ -1162,7 +1187,11 @@ export default function Game() {
           <Card className="w-full" bodyClassName="flex flex-col gap-4 py-4">
             <div className="text-center">
               <h2 className="text-xl font-bold mb-2">{currentGuessingPlayer.name} rät gerade</h2>
-              <p className="text-base-content/70">War die Antwort richtig oder falsch?</p>
+              <p className="text-base-content/70">
+                {partiallyGuessedPlayers.length > 0
+                  ? 'War die Antwort richtig oder falsch?'
+                  : 'War die Antwort richtig, teilweise richtig oder falsch?'}
+              </p>
             </div>
             <div className="flex gap-4 justify-center">
               <button
@@ -1172,6 +1201,15 @@ export default function Game() {
               >
                 ✓ Richtig
               </button>
+              {partiallyGuessedPlayers.length === 0 && (
+                <button
+                  type="button"
+                  className="btn btn-warning btn-lg flex-1"
+                  onClick={handlePartiallyRightGuess}
+                >
+                  ~ Teilweise
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-error btn-lg flex-1"
@@ -1187,6 +1225,7 @@ export default function Game() {
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
+          partiallyGuessedPlayers={partiallyGuessedPlayers}
         />
       </div>
     </main>
