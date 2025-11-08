@@ -11,10 +11,10 @@ import {
 } from '../../game/host';
 import { playBuzzerSound } from '../../game/player/buzzerSound';
 import {
-  getPlaylistTracks,
   getSelectedPlaylistId,
-  playRandomPlaylistTrack,
-  type SpotifyTrack,
+  playNextTrack,
+  playPlaylist,
+  stopPlayback,
 } from '../../services/spotify/api';
 import logger from '../../utils/logger';
 
@@ -147,10 +147,6 @@ export default function Game() {
 
   // Playlist-related state
   const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
-  const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
-  const [playedTrackIds, setPlayedTrackIds] = useState<Set<string>>(new Set());
-  const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(false);
-  const playlistTracksLoadedRef = useRef(false);
   const gameStartedRef = useRef(false);
   const firstTrackPlayedRef = useRef(false);
 
@@ -181,97 +177,71 @@ export default function Game() {
     }
   }, []);
 
-  // Load playlist tracks
-  const loadPlaylistTracks = useCallback(
-    async (selectedPlaylistId: string): Promise<SpotifyTrack[]> => {
-      if (playlistTracksLoadedRef.current && playlistTracks.length > 0) {
-        logger.debug('[Spotify] Playlist tracks already loaded');
-        return playlistTracks;
-      }
-
-      setIsLoadingPlaylist(true);
-      try {
-        logger.debug('[Spotify] Loading tracks from playlist:', selectedPlaylistId);
-        const tracks = await getPlaylistTracks(selectedPlaylistId);
-        if (tracks.length === 0) {
-          logger.warn('[Spotify] Playlist has no tracks');
-          setSpotifyError('Selected playlist has no tracks. Please select a different playlist.');
-          setIsLoadingPlaylist(false);
-          return [];
-        }
-        logger.debug(`[Spotify] Loaded ${tracks.length} tracks from playlist`);
-        setPlaylistTracks(tracks);
-        playlistTracksLoadedRef.current = true;
-        setPlayedTrackIds(new Set()); // Reset played tracks when loading new playlist
-        setIsLoadingPlaylist(false);
-        return tracks;
-      } catch (error) {
-        logger.error('[Spotify] Error loading playlist tracks:', error);
-        setSpotifyError(
-          `Failed to load playlist tracks: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-        setIsLoadingPlaylist(false);
-        return [];
-      }
-    },
-    [playlistTracks]
-  );
-
-  // Play next track from playlist
-  const playNextPlaylistTrack = useCallback(async () => {
+  // Play playlist with shuffle enabled (Spotify handles random selection)
+  const startPlaylistPlayback = useCallback(async () => {
     if (!deviceId || !playlistId) {
       logger.error('[Spotify] No device ID or playlist ID available');
       return;
     }
 
-    // Ensure playlist tracks are loaded
-    let tracksToUse = playlistTracks;
-    if (tracksToUse.length === 0) {
-      tracksToUse = await loadPlaylistTracks(playlistId);
+    try {
+      logger.debug('[Spotify] Starting playlist playback with shuffle:', playlistId);
+      await playPlaylist(deviceId, playlistId);
+      logger.debug('[Spotify] Playlist playback started successfully');
+    } catch (error) {
+      logger.error('[Spotify] Error starting playlist playback:', error);
+      setSpotifyError(
+        `Failed to start playback: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
     }
+  }, [deviceId, playlistId]);
 
-    if (tracksToUse.length === 0) {
-      logger.error('[Spotify] No tracks available to play');
+  // Play next track in playlist (Spotify handles random selection with shuffle)
+  const playNextPlaylistTrack = useCallback(async () => {
+    if (!deviceId) {
+      logger.error('[Spotify] No device ID available');
       return;
     }
 
     try {
-      const excludeIds = Array.from(playedTrackIds);
-      const playedTrack = await playRandomPlaylistTrack(
-        deviceId,
-        playlistId,
-        tracksToUse,
-        excludeIds
-      );
-      logger.debug('[Spotify] Playing track from playlist:', playedTrack.name);
-
-      // Add to played tracks
-      setPlayedTrackIds((prev) => new Set([...prev, playedTrack.id]));
-
-      // Enable repeat mode for the track
-      await enableRepeatMode(playedTrack.id);
+      logger.debug('[Spotify] Playing next track from playlist');
+      await playNextTrack(deviceId);
+      logger.debug('[Spotify] Next track started');
     } catch (error) {
-      logger.error('[Spotify] Error playing playlist track:', error);
+      logger.error('[Spotify] Error playing next track:', error);
       setSpotifyError(
-        `Failed to play track: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to play next track: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+      throw error;
     }
-  }, [deviceId, playlistId, playlistTracks, playedTrackIds, loadPlaylistTracks, enableRepeatMode]);
+  }, [deviceId]);
 
-  // Reset track history when starting a new game
+  // Load playlist ID on mount
+  useEffect(() => {
+    const currentPlaylistId = getSelectedPlaylistId();
+    setPlaylistId(currentPlaylistId);
+  }, []);
+
+  // Stop playback immediately when game starts
   useEffect(() => {
     const currentStatus = gameContext.status;
     if (currentStatus === 'waiting' && !gameStartedRef.current) {
+      // Game just started - immediately stop any current playback
+      logger.debug('[Spotify] Game started, stopping current playback');
+      stopPlayback().catch((error) => {
+        logger.warn('[Spotify] Error stopping playback:', error);
+        // Non-critical error, continue anyway
+      });
+
       // Game just started
       gameStartedRef.current = true;
       firstTrackPlayedRef.current = false;
-      setPlayedTrackIds(new Set());
+      
       // Reload playlist ID in case it changed
       const currentPlaylistId = getSelectedPlaylistId();
       if (currentPlaylistId !== playlistId) {
         setPlaylistId(currentPlaylistId);
-        playlistTracksLoadedRef.current = false;
-        setPlaylistTracks([]);
       }
     } else if (currentStatus === 'notStarted' || currentStatus === 'finished') {
       // Game ended or not started, reset flags
@@ -280,51 +250,47 @@ export default function Game() {
     }
   }, [gameContext.status, playlistId]);
 
-  // Load playlist ID from localStorage on mount and when it changes
+  // Load playlist ID from localStorage when it changes
   useEffect(() => {
     const currentPlaylistId = getSelectedPlaylistId();
     if (currentPlaylistId !== playlistId) {
       setPlaylistId(currentPlaylistId);
-      playlistTracksLoadedRef.current = false;
-      setPlaylistTracks([]);
-      setPlayedTrackIds(new Set());
     }
   }, [playlistId]);
 
-  // Play first track when device is ready and game has started
+  // Play first track immediately when device is ready and game has started
   useEffect(() => {
     const playFirstTrack = async () => {
       // Only play if:
       // 1. Device is ready
       // 2. Game has started (status is 'waiting')
       // 3. We haven't attempted to play the first track yet
-      // 4. We're not currently loading the playlist
       if (
         deviceId &&
         playlistId &&
         gameContext.status === 'waiting' &&
         gameStartedRef.current &&
-        !firstTrackPlayedRef.current &&
-        !isLoadingPlaylist
+        !firstTrackPlayedRef.current
       ) {
         firstTrackPlayedRef.current = true; // Mark as attempted to prevent retries
-        logger.debug('[Spotify] Game started, playing first track from playlist');
+        logger.debug('[Spotify] Device ready, starting playlist playback');
         try {
-          // Load tracks if not already loaded
-          let tracksToUse = playlistTracks;
-          if (tracksToUse.length === 0) {
-            tracksToUse = await loadPlaylistTracks(playlistId);
+          // Stop any current playback before starting new track
+          try {
+            await stopPlayback(deviceId);
+          } catch (error) {
+            logger.warn('[Spotify] Error stopping playback before starting track:', error);
+            // Non-critical error, continue anyway
           }
-
-          // Play first track if we have tracks
-          if (tracksToUse.length > 0) {
-            await playNextPlaylistTrack();
-          } else {
-            // No tracks available, reset flag so we can try again
-            firstTrackPlayedRef.current = false;
-          }
+          
+          // Start playlist playback with shuffle (Spotify picks random track)
+          await startPlaylistPlayback();
+          logger.debug('[Spotify] Playlist playback started successfully');
         } catch (error) {
-          logger.error('[Spotify] Error playing first track:', error);
+          logger.error('[Spotify] Error starting playlist playback:', error);
+          setSpotifyError(
+            `Failed to start playback: ${error instanceof Error ? error.message : 'Unknown error'}. Please try starting the game again.`
+          );
           // Reset flag on error so we can retry
           firstTrackPlayedRef.current = false;
         }
@@ -332,15 +298,7 @@ export default function Game() {
     };
 
     playFirstTrack();
-  }, [
-    deviceId,
-    playlistId,
-    gameContext.status,
-    isLoadingPlaylist,
-    playlistTracks,
-    loadPlaylistTracks,
-    playNextPlaylistTrack,
-  ]);
+  }, [deviceId, playlistId, gameContext.status, startPlaylistPlayback]);
 
   // Transfer playback to this device using Spotify Web API
   const transferPlaybackToDevice = useCallback(

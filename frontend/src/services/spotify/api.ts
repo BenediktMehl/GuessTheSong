@@ -1,4 +1,5 @@
 import { DEFAULT_PLAYLIST_ID } from './playlists';
+import logger from '../../utils/logger';
 
 const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
 
@@ -105,9 +106,8 @@ export async function getUserPlaylists(): Promise<SpotifyPlaylist[]> {
   return playlists;
 }
 
-/**
- * Fetch all tracks from a playlist (handles pagination)
- */
+// Keep getPlaylistTracks for any remaining code that might use it, but it's no longer needed for main flow
+// Can be removed later if not used elsewhere
 export async function getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]> {
   const tracks: SpotifyTrack[] = [];
   let url = `/playlists/${playlistId}/tracks?limit=50&fields=items(track(id,name,uri,artists,album,duration_ms)),next`;
@@ -126,18 +126,52 @@ export async function getPlaylistTracks(playlistId: string): Promise<SpotifyTrac
 }
 
 /**
- * Play a specific track from a playlist using Spotify Web API
+ * Enable shuffle mode for Spotify playback
  */
-export async function playPlaylistTrack(
-  deviceId: string,
-  playlistId: string,
-  trackUri: string
-): Promise<void> {
+export async function enableShuffle(deviceId: string, shuffle: boolean = true): Promise<void> {
   const token = getAccessToken();
   if (!token) {
     throw new Error('No access token available');
   }
 
+  const response = await fetch(
+    `${SPOTIFY_API_BASE}/me/player/shuffle?state=${shuffle}&device_id=${deviceId}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  // 404 means no active device, which is fine - will be handled when playing
+  if (!response.ok && response.status !== 404) {
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(
+      `Failed to enable shuffle: ${response.status} - ${error.message || response.statusText}`
+    );
+  }
+}
+
+/**
+ * Start playing a playlist with shuffle enabled (Spotify handles random selection)
+ */
+export async function playPlaylist(deviceId: string, playlistId: string): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('No access token available');
+  }
+
+  // First enable shuffle
+  try {
+    await enableShuffle(deviceId, true);
+    logger.debug('[Spotify] Shuffle enabled');
+  } catch (error) {
+    logger.warn('[Spotify] Failed to enable shuffle, continuing anyway:', error);
+    // Non-critical, continue
+  }
+
+  // Start playing the playlist (Spotify will pick a random track with shuffle enabled)
   const response = await fetch(`${SPOTIFY_API_BASE}/me/player/play?device_id=${deviceId}`, {
     method: 'PUT',
     headers: {
@@ -146,48 +180,39 @@ export async function playPlaylistTrack(
     },
     body: JSON.stringify({
       context_uri: `spotify:playlist:${playlistId}`,
-      offset: {
-        uri: trackUri,
-      },
     }),
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Unknown error' }));
     throw new Error(
-      `Failed to play track: ${response.status} - ${error.message || response.statusText}`
+      `Failed to play playlist: ${response.status} - ${error.message || response.statusText}`
     );
   }
 }
 
 /**
- * Play a random track from a playlist
+ * Play next track in playlist (Spotify handles random selection with shuffle)
  */
-export async function playRandomPlaylistTrack(
-  deviceId: string,
-  playlistId: string,
-  tracks: SpotifyTrack[],
-  excludeTrackIds: string[] = []
-): Promise<SpotifyTrack> {
-  if (tracks.length === 0) {
-    throw new Error('Playlist has no tracks');
+export async function playNextTrack(deviceId: string): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('No access token available');
   }
 
-  // Filter out excluded tracks (already played)
-  const availableTracks = tracks.filter((track) => !excludeTrackIds.includes(track.id));
+  const response = await fetch(`${SPOTIFY_API_BASE}/me/player/next?device_id=${deviceId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-  if (availableTracks.length === 0) {
-    // All tracks have been played, reset and use all tracks
-    console.log('[Spotify] All tracks played, resetting track history');
-    return playRandomPlaylistTrack(deviceId, playlistId, tracks, []);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(
+      `Failed to play next track: ${response.status} - ${error.message || response.statusText}`
+    );
   }
-
-  // Select random track
-  const randomIndex = Math.floor(Math.random() * availableTracks.length);
-  const selectedTrack = availableTracks[randomIndex];
-
-  await playPlaylistTrack(deviceId, playlistId, selectedTrack.uri);
-  return selectedTrack;
 }
 
 /**
@@ -203,4 +228,47 @@ export function getSelectedPlaylistId(): string {
  */
 export function setSelectedPlaylistId(playlistId: string): void {
   localStorage.setItem('spotify_selected_playlist_id', playlistId);
+}
+
+/**
+ * Check if playlist has at least one track (for validation)
+ */
+export async function validatePlaylistHasTracks(playlistId: string): Promise<boolean> {
+  try {
+    // Just fetch first page of tracks to check if playlist is not empty
+    const response = await spotifyRequest<SpotifyPlaylistTracksResponse>(
+      `/playlists/${playlistId}/tracks?limit=1&fields=items(track(id))`
+    );
+    const hasTracks = response.items.some((item) => item.track !== null);
+    return hasTracks;
+  } catch (error) {
+    logger.error('[Spotify] Error validating playlist:', error);
+    return false;
+  }
+}
+
+/**
+ * Stop current Spotify playback
+ */
+export async function stopPlayback(deviceId?: string): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('No access token available');
+  }
+
+  const deviceParam = deviceId ? `?device_id=${deviceId}` : '';
+  const response = await fetch(`${SPOTIFY_API_BASE}/me/player/pause${deviceParam}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  // 404 means no active playback, which is fine
+  if (!response.ok && response.status !== 404) {
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(
+      `Failed to stop playback: ${response.status} - ${error.message || response.statusText}`
+    );
+  }
 }
