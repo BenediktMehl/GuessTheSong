@@ -650,7 +650,8 @@ export function markPlayerGuessedPartially(
 export function markPlayerGuessedWrong(
   gameContext: GameContextType,
   onResumeSong?: () => void,
-  onNextSong?: () => void
+  onNextSong?: () => void,
+  lastSong?: { name: string; artists: string[] } | null
 ): boolean {
   const firstWaitingPlayer = gameContext.waitingPlayers[0];
   if (!firstWaitingPlayer) {
@@ -685,9 +686,15 @@ export function markPlayerGuessedWrong(
     // This is the last player - don't move to guessedPlayers, just reset everything for next song
     logger.info('[Host] Last player guessed wrong - resetting all players for next song');
 
+    // Save last song if provided
+    if (lastSong) {
+      gameContext.setLastSong(lastSong);
+      sendLastSongChangedAction(lastSong);
+    }
+
     // Award 0.5 points to partiallyGuessedPlayers if there are any
     if (gameContext.partiallyGuessedPlayers.length > 0) {
-      console.log(
+      logger.info(
         '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
       );
       gameContext.setPlayers((currentPlayers) => {
@@ -700,7 +707,7 @@ export function markPlayerGuessedWrong(
           }
           return player;
         });
-        console.log('[Host] Updated player points after partial points awarded:', updatedPlayers);
+        logger.debug('[Host] Updated player points after partial points awarded:', updatedPlayers);
         sendPlayersChangedAction(updatedPlayers);
         return updatedPlayers;
       });
@@ -878,6 +885,15 @@ function sendBuzzerNotificationAction(playerId: string, playerName: string) {
     data: {
       playerId,
       playerName,
+    },
+  });
+}
+
+export function sendLastSongChangedAction(lastSong: { name: string; artists: string[] } | null) {
+  return sendHostAction({
+    action: 'lastSongChanged',
+    data: {
+      lastSong,
     },
   });
 }
