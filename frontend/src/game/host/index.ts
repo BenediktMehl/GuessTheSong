@@ -556,8 +556,9 @@ export function markPlayerGuessedRight(
   // Broadcast to players
   const success = sendHostAction({
     action: 'player-guessed-right',
-    payload: {
+    data: {
       playerId: firstWaitingPlayer.id,
+      playerName: firstWaitingPlayer.name,
     },
   });
 
@@ -598,8 +599,9 @@ export function markPlayerGuessedPartially(
   // Broadcast to players
   const success = sendHostAction({
     action: 'player-guessed-partially',
-    payload: {
+    data: {
       playerId: firstWaitingPlayer.id,
+      playerName: firstWaitingPlayer.name,
     },
   });
 
@@ -686,9 +688,15 @@ export function markPlayerGuessedWrong(
     // This is the last player - don't move to guessedPlayers, just reset everything for next song
     logger.info('[Host] Last player guessed wrong - resetting all players for next song');
 
+    // Save last song if provided
+    if (lastSong) {
+      gameContext.setLastSong(lastSong);
+      sendLastSongChangedAction(lastSong);
+    }
+
     // Award 0.5 points to partiallyGuessedPlayers if there are any
     if (gameContext.partiallyGuessedPlayers.length > 0) {
-      console.log(
+      logger.info(
         '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
       );
       gameContext.setPlayers((currentPlayers) => {
@@ -701,7 +709,7 @@ export function markPlayerGuessedWrong(
           }
           return player;
         });
-        console.log('[Host] Updated player points after partial points awarded:', updatedPlayers);
+        logger.debug('[Host] Updated player points after partial points awarded:', updatedPlayers);
         sendPlayersChangedAction(updatedPlayers);
         return updatedPlayers;
       });
@@ -726,8 +734,9 @@ export function markPlayerGuessedWrong(
     // Broadcast the wrong guess action (for consistency, but players will be reset anyway)
     const success = sendHostAction({
       action: 'player-guessed-wrong',
-      payload: {
+      data: {
         playerId: firstWaitingPlayer.id,
+        playerName: firstWaitingPlayer.name,
       },
     });
 
@@ -749,8 +758,9 @@ export function markPlayerGuessedWrong(
   // Broadcast to players (they will update their state via the broadcast)
   const success = sendHostAction({
     action: 'player-guessed-wrong',
-    payload: {
+    data: {
       playerId: firstWaitingPlayer.id,
+      playerName: firstWaitingPlayer.name,
     },
   });
 

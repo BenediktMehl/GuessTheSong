@@ -25,6 +25,8 @@ const mockGameContext = {
   setMusicHostLoggedIn: vi.fn(),
   buzzerNotification: null,
   setBuzzerNotification: vi.fn(),
+  playerToast: null,
+  setPlayerToast: vi.fn(),
   pausePlayerCallback: null,
   setPausePlayerCallback: vi.fn(),
   currentPlayerId: '',
@@ -32,8 +34,6 @@ const mockGameContext = {
   setStatus: vi.fn(),
   lastSong: null,
   setLastSong: vi.fn(),
-  playerToast: null,
-  setPlayerToast: vi.fn(),
 };
 
 // Mock GameProvider
@@ -48,6 +48,11 @@ vi.mock('../../../game/context', async () => {
 // Mock PlayersLobby
 vi.mock('../../../components/PlayersLobby', () => ({
   default: () => <div data-testid="players-lobby">Players Lobby</div>,
+}));
+
+// Mock LastSongCard
+vi.mock('../../../components/LastSongCard', () => ({
+  LastSongCard: () => null,
 }));
 
 // Mock Card component
@@ -76,9 +81,6 @@ vi.mock('../../../components/Card', () => ({
 const mockGetPlaylistTracks = vi.fn();
 const mockPlayRandomPlaylistTrack = vi.fn();
 const mockGetSelectedPlaylistId = vi.fn(() => 'default-playlist-id');
-const mockPausePlayback = vi.fn().mockResolvedValue(undefined);
-const mockPlayNextTrack = vi.fn().mockResolvedValue(undefined);
-const mockPlayPlaylist = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../../services/spotify/api', () => ({
   getPlaylistTracks: (playlistId: string) => mockGetPlaylistTracks(playlistId),
@@ -90,9 +92,6 @@ vi.mock('../../../services/spotify/api', () => ({
   ) => mockPlayRandomPlaylistTrack(deviceId, playlistId, tracks, excludeIds),
   getSelectedPlaylistId: () => mockGetSelectedPlaylistId(),
   setSelectedPlaylistId: vi.fn(),
-  pausePlayback: (deviceId?: string) => mockPausePlayback(deviceId),
-  playNextTrack: (deviceId: string) => mockPlayNextTrack(deviceId),
-  playPlaylist: (deviceId: string, playlistId: string) => mockPlayPlaylist(deviceId, playlistId),
 }));
 
 interface MockPlayer {
@@ -563,7 +562,7 @@ describe('Spotify SDK Integration', () => {
   it('should update track info when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
-    // Ensure song is visible (not hidden until buzzed)
+    // Disable hide song until buzzed so the song is visible in the test
     localStorage.setItem('hostHideSongUntilBuzzed', 'false');
     const mockTrack = {
       id: 'track-123',
@@ -861,7 +860,7 @@ describe('Spotify SDK Integration', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockPlayNextTrack).toHaveBeenCalledWith('test-device-id');
+      expect(mockPlayRandomPlaylistTrack).toHaveBeenCalled();
     });
   });
 

@@ -1,11 +1,16 @@
 import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
+import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
-import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
+import {
+  initializeBuzzerSound,
+  playBuzzerSound,
+  setBuzzerSoundMuted,
+} from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
@@ -21,6 +26,7 @@ export default function Game() {
     setBuzzerNotification,
     playerToast,
     setPlayerToast,
+    lastSong,
   } = useGameContext();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
@@ -71,6 +77,11 @@ export default function Game() {
     ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     setBuzzerColor(randomColor);
+  }, []);
+
+  // Initialize buzzer sound selection on mount (similar to buzzer color)
+  useEffect(() => {
+    initializeBuzzerSound();
   }, []);
 
   // Persist buzzer sound preference to localStorage and sync with audio object
@@ -315,6 +326,12 @@ export default function Game() {
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
+        <LastSongCard
+          lastSong={lastSong}
+          waitingPlayersCount={waitingPlayers?.length || 0}
+          guessedPlayersCount={guessedPlayers?.length || 0}
+        />
+
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
