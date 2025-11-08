@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
-import PlayersLobby from '../../components/PlayersLobby';
 import { LastSongCard } from '../../components/LastSongCard';
+import PlayersLobby from '../../components/PlayersLobby';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
 import {
   markPlayerGuessedRight,
@@ -129,7 +129,7 @@ export default function Game() {
   // Helper function to save current track as last song
   const saveLastSong = useCallback(
     (track: typeof current_track) => {
-      if (track && track.name && track.artists && track.artists.length > 0) {
+      if (track?.name && track.artists && track.artists.length > 0) {
         const lastSong = {
           name: track.name,
           artists: track.artists.map((artist) => artist.name),
@@ -574,7 +574,9 @@ export default function Game() {
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
             // Song looped - save as last song and pause it
-            console.log('[Spotify] Song looped (second time started), saving as last song and pausing');
+            console.log(
+              '[Spotify] Song looped (second time started), saving as last song and pausing'
+            );
             saveLastSong(state.track_window.current_track);
             hasLoopedRef.current = true;
             if (!state.paused) {
@@ -619,7 +621,7 @@ export default function Game() {
         playerInstanceRef.current = undefined;
       }
     };
-  }, [transferPlaybackToDevice, enableRepeatMode]);
+  }, [transferPlaybackToDevice, enableRepeatMode, saveLastSong, setLastSong]);
 
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
@@ -732,8 +734,10 @@ export default function Game() {
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
               // Song looped - save as last song and pause it
-              console.log('[Host Game] Song looped (detected in interval), saving as last song and pausing');
-              if (state && state.track_window && state.track_window.current_track) {
+              console.log(
+                '[Host Game] Song looped (detected in interval), saving as last song and pausing'
+              );
+              if (state?.track_window?.current_track) {
                 saveLastSong(state.track_window.current_track);
               }
               hasLoopedRef.current = true;
@@ -774,7 +778,7 @@ export default function Game() {
     if (!currentGuessingPlayer) return;
 
     // Save current track as last song before resetting players
-    if (current_track && current_track.name) {
+    if (current_track?.name) {
       saveLastSong(current_track);
     }
 
@@ -796,13 +800,12 @@ export default function Game() {
     if (!currentGuessingPlayer) return;
 
     // Prepare last song info in case this is the last player
-    const lastSongInfo =
-      current_track && current_track.name
-        ? {
-            name: current_track.name,
-            artists: current_track.artists.map((artist) => artist.name),
-          }
-        : null;
+    const lastSongInfo = current_track?.name
+      ? {
+          name: current_track.name,
+          artists: current_track.artists.map((artist) => artist.name),
+        }
+      : null;
 
     markPlayerGuessedWrong(
       gameContext,
@@ -1148,7 +1151,7 @@ export default function Game() {
                   className="btn btn-outline flex-1"
                   onClick={async () => {
                     // Save current track as last song before going to next song
-                    if (current_track && current_track.name) {
+                    if (current_track?.name) {
                       saveLastSong(current_track);
                     }
                     // Reset all players to default list before going to next song

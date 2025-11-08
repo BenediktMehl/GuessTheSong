@@ -1,14 +1,13 @@
 import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
-import PlayersLobby from '../../components/PlayersLobby';
 import { LastSongCard } from '../../components/LastSongCard';
+import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
 
 export default function Game() {
-  const { players, currentPlayerId, waitingPlayers, guessedPlayers, lastSong } =
-    useGameContext();
+  const { players, currentPlayerId, waitingPlayers, guessedPlayers, lastSong } = useGameContext();
 
   // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
