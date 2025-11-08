@@ -286,10 +286,6 @@ export default function Game() {
         pausePlayback(deviceId).catch((error) => {
           logger.warn('[Spotify] Error pausing playback on game start:', error);
         });
-      } else {
-        pausePlayback().catch((error) => {
-          logger.warn('[Spotify] Error pausing playback:', error);
-        });
       }
 
       // Reload playlist ID in case it changed
