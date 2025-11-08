@@ -522,7 +522,7 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType) {
   logger.debug('[Host] Current state before reset:', {
     waitingCount: gameContext.waitingPlayers.length,
     guessedCount: gameContext.guessedPlayers.length,
-    partiallyGuessedCount: gameContext.partiallyGuessedPlayers.length,
+    partiallyGuessedCount: gameContext.partiallyGuessedPlayers?.length ?? 0,
     totalPlayers: gameContext.players.length,
   });
 
