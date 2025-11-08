@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
@@ -72,9 +72,14 @@ const mockPlayRandomPlaylistTrack = vi.fn();
 const mockGetSelectedPlaylistId = vi.fn(() => 'default-playlist-id');
 
 vi.mock('../../../services/spotify/api', () => ({
-  getPlaylistTracks: (...args: unknown[]) => mockGetPlaylistTracks(...args),
-  playRandomPlaylistTrack: (...args: unknown[]) => mockPlayRandomPlaylistTrack(...args),
-  getSelectedPlaylistId: (...args: unknown[]) => mockGetSelectedPlaylistId(...args),
+  getPlaylistTracks: (playlistId: string) => mockGetPlaylistTracks(playlistId),
+  playRandomPlaylistTrack: (
+    deviceId: string,
+    playlistId: string,
+    tracks: unknown[],
+    excludeIds: string[] = []
+  ) => mockPlayRandomPlaylistTrack(deviceId, playlistId, tracks, excludeIds),
+  getSelectedPlaylistId: () => mockGetSelectedPlaylistId(),
   setSelectedPlaylistId: vi.fn(),
 }));
 
@@ -738,9 +743,12 @@ describe('Spotify SDK Integration', () => {
     });
 
     // Trigger ready event with device ID
-    if (readyCallback) {
-      readyCallback({ device_id: 'test-device-id' });
-    }
+    await act(async () => {
+      const cb = readyCallback;
+      if (cb) {
+        cb({ device_id: 'test-device-id' });
+      }
+    });
 
     await waitFor(() => {
       expect(stateChangeCallback).toBeTruthy();

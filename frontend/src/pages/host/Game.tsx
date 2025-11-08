@@ -233,7 +233,7 @@ export default function Game() {
         tracksToUse,
         excludeIds
       );
-        logger.debug('[Spotify] Playing track from playlist:', playedTrack.name);
+      logger.debug('[Spotify] Playing track from playlist:', playedTrack.name);
 
       // Add to played tracks
       setPlayedTrackIds((prev) => new Set([...prev, playedTrack.id]));
@@ -241,7 +241,7 @@ export default function Game() {
       // Enable repeat mode for the track
       await enableRepeatMode(playedTrack.id);
     } catch (error) {
-        logger.error('[Spotify] Error playing playlist track:', error);
+      logger.error('[Spotify] Error playing playlist track:', error);
       setSpotifyError(
         `Failed to play track: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
