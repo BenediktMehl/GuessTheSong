@@ -3,29 +3,51 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
 import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
+import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
-import { playBuzzerSound } from '../../game/player/buzzerSound';
+import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 export default function Game() {
-  const { players, currentPlayerId, waitingPlayers, guessedPlayers, lastSong } = useGameContext();
+  const {
+    players,
+    currentPlayerId,
+    waitingPlayers,
+    guessedPlayers,
+    partiallyGuessedPlayers,
+    buzzerNotification,
+    setBuzzerNotification,
+    playerToast,
+    setPlayerToast,
+    lastSong,
+  } = useGameContext();
 
-  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
-    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .filter(
+      (p) =>
+        !waitingPlayerIds.has(p.id) &&
+        !guessedPlayerIds.has(p.id) &&
+        !partiallyGuessedPlayerIds.has(p.id)
+    )
     .sort((a, b) => b.points - a.points);
 
   // Find currentPlayer object from currentPlayerId
-  const allPlayers = [...(players || []), ...(waitingPlayers || []), ...(guessedPlayers || [])];
+  const allPlayers = [
+    ...(players || []),
+    ...(waitingPlayers || []),
+    ...(guessedPlayers || []),
+    ...(partiallyGuessedPlayers || []),
+  ];
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;
-  const { buzzerNotification, setBuzzerNotification } = useGameContext();
   const [showJoinedToast, setShowJoinedToast] = useState(true);
   const [buzzerColor, setBuzzerColor] = useState<string>('');
 
@@ -53,9 +75,11 @@ export default function Game() {
     setBuzzerColor(randomColor);
   }, []);
 
-  // Persist buzzer sound preference to localStorage
+  // Persist buzzer sound preference to localStorage and sync with audio object
   useEffect(() => {
     localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
+    // Sync mute state with audio object (muted when sound is disabled)
+    setBuzzerSoundMuted(!buzzerSoundEnabled);
   }, [buzzerSoundEnabled]);
 
   // Toggle buzzer sound
@@ -93,9 +117,10 @@ export default function Game() {
   const isCurrentPlayerInQueue = currentPlayerInQueue >= 0;
   const queuePosition = currentPlayerInQueue >= 0 ? currentPlayerInQueue + 1 : null;
 
-  // Check if current player has already guessed
+  // Check if current player has already guessed (either fully or partially)
   const hasCurrentPlayerGuessed = currentPlayerId
-    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId)
+    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId) ||
+      (partiallyGuessedPlayers || []).some((p) => p.id === currentPlayerId)
     : false;
 
   // Check if buzzer should be disabled (already buzzed or already guessed)
@@ -211,8 +236,12 @@ export default function Game() {
       {/* Buzzer sound toggle button in upper right corner */}
       <button
         type="button"
-        onClick={toggleBuzzerSound}
-        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-10"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleBuzzerSound();
+        }}
+        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
         aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
         title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
       >
@@ -279,6 +308,8 @@ export default function Game() {
         </div>
       )}
 
+      <PlayerToastComponent toast={playerToast} onDismiss={() => setPlayerToast(null)} />
+
       {/* biome-ignore lint/a11y/noStaticElementInteractions: This div only stops event propagation, not interactive */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: This div only stops event propagation, not interactive */}
       <div
@@ -296,6 +327,7 @@ export default function Game() {
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
+          partiallyGuessedPlayers={partiallyGuessedPlayers}
           currentPlayer={currentPlayer}
         />
 

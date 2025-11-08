@@ -22,6 +22,12 @@ export type BuzzerNotification = {
   playerName: string;
 } | null;
 
+export type PlayerToast = {
+  message: string;
+  type: 'success' | 'warning' | 'error' | 'info';
+  duration?: number;
+} | null;
+
 export type PausePlayerCallback = () => void | Promise<void>;
 
 export type LastSong = {
@@ -45,24 +51,28 @@ export interface GameContextType {
   players: Player[];
   waitingPlayers: Player[];
   guessedPlayers: Player[];
+  partiallyGuessedPlayers: Player[];
   musicHostLoggedIn: boolean;
   status: GameStatus;
   wsStatus: WsStatus;
   sessionId: string;
   currentPlayerId: string;
   buzzerNotification: BuzzerNotification;
+  playerToast: PlayerToast;
   pausePlayerCallback: PausePlayerCallback | null;
   lastSong: LastSong;
   setIsHost: Dispatch<SetStateAction<boolean>>;
   setPlayers: Dispatch<SetStateAction<Player[]>>;
   setWaitingPlayers: Dispatch<SetStateAction<Player[]>>;
   setGuessedPlayers: Dispatch<SetStateAction<Player[]>>;
+  setPartiallyGuessedPlayers: Dispatch<SetStateAction<Player[]>>;
   setMusicHostLoggedIn: Dispatch<SetStateAction<boolean>>;
   setStatus: Dispatch<SetStateAction<GameStatus>>;
   setWsStatus: Dispatch<SetStateAction<WsStatus>>;
   setSessionId: Dispatch<SetStateAction<string>>;
   setCurrentPlayerId: Dispatch<SetStateAction<string>>;
   setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
+  setPlayerToast: Dispatch<SetStateAction<PlayerToast>>;
   setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
   setLastSong: Dispatch<SetStateAction<LastSong>>;
 }
@@ -74,12 +84,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [players, setPlayers] = useState<Player[]>([]);
   const [waitingPlayers, setWaitingPlayers] = useState<Player[]>([]);
   const [guessedPlayers, setGuessedPlayers] = useState<Player[]>([]);
+  const [partiallyGuessedPlayers, setPartiallyGuessedPlayers] = useState<Player[]>([]);
   const [musicHostLoggedIn, setMusicHostLoggedIn] = useState(false);
   const [status, setStatus] = useState<GameStatus>('notStarted');
   const [wsStatus, setWsStatus] = useState<WsStatus>('closed');
   const [sessionId, setSessionId] = useState('');
   const [currentPlayerId, setCurrentPlayerId] = useState('');
   const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
+  const [playerToast, setPlayerToast] = useState<PlayerToast>(null);
   const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
   const [lastSong, setLastSong] = useState<LastSong>(null);
 
@@ -90,24 +102,28 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         players,
         waitingPlayers,
         guessedPlayers,
+        partiallyGuessedPlayers,
         musicHostLoggedIn,
         status,
         wsStatus,
         sessionId,
         currentPlayerId,
         buzzerNotification,
+        playerToast,
         pausePlayerCallback,
         lastSong,
         setIsHost,
         setPlayers,
         setWaitingPlayers,
         setGuessedPlayers,
+        setPartiallyGuessedPlayers,
         setMusicHostLoggedIn,
         setStatus,
         setWsStatus,
         setSessionId,
         setCurrentPlayerId,
         setBuzzerNotification,
+        setPlayerToast,
         setPausePlayerCallback,
         setLastSong,
       }}

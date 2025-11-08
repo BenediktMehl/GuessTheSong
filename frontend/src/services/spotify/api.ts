@@ -149,6 +149,7 @@ export async function playPlaylistTrack(
       offset: {
         uri: trackUri,
       },
+      position_ms: 0,
     }),
   });
 
@@ -203,4 +204,33 @@ export function getSelectedPlaylistId(): string {
  */
 export function setSelectedPlaylistId(playlistId: string): void {
   localStorage.setItem('spotify_selected_playlist_id', playlistId);
+}
+
+/**
+ * Pause playback on the specified device
+ */
+export async function pausePlayback(deviceId?: string): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('No access token available');
+  }
+
+  const url = deviceId
+    ? `${SPOTIFY_API_BASE}/me/player/pause?device_id=${deviceId}`
+    : `${SPOTIFY_API_BASE}/me/player/pause`;
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  // 204 is success, 404 means no active device (which is okay)
+  if (!response.ok && response.status !== 404) {
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(
+      `Failed to pause playback: ${response.status} - ${error.message || response.statusText}`
+    );
+  }
 }

@@ -116,6 +116,10 @@ export function useGameInitializer() {
             handlePlayerGuessedRight(gameContext);
             break;
 
+          case 'player-guessed-partially':
+            handlePlayerGuessedPartially(gameContext);
+            break;
+
           case 'player-left':
             handlePlayerLeft(gameContext, msg.payload.playerId);
             break;
@@ -225,6 +229,9 @@ function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
   );
   gameContext.setGuessedPlayers((currentGuessedPlayers) =>
     currentGuessedPlayers.filter((player) => player.id !== playerId)
+  );
+  gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessedPlayers) =>
+    currentPartiallyGuessedPlayers.filter((player) => player.id !== playerId)
   );
 }
 
@@ -424,6 +431,47 @@ function handlePlayerGuessedWrong(gameContext: GameContextType) {
   });
 }
 
+function handlePlayerGuessedPartially(gameContext: GameContextType) {
+  gameContext.setWaitingPlayers((currentWaitingPlayers) => {
+    const firstWaitingPlayer = currentWaitingPlayers[0];
+
+    if (!firstWaitingPlayer) {
+      console.warn('[Host] No player in waiting list for partial guess');
+      return currentWaitingPlayers;
+    }
+
+    // Get the player with current points from the main players list
+    const playerWithCurrentPoints = gameContext.players.find((p) => p.id === firstWaitingPlayer.id);
+    const playerToAdd = playerWithCurrentPoints || firstWaitingPlayer;
+
+    // Move player to partiallyGuessedPlayers list
+    gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessedPlayers) => {
+      // Check if player is already in partially guessed list to prevent duplicates
+      if (currentPartiallyGuessedPlayers.some((p) => p.id === playerToAdd.id)) {
+        console.warn('[Host] Player already in partially guessed list, skipping', playerToAdd);
+        return currentPartiallyGuessedPlayers;
+      }
+
+      const newPartiallyGuessedPlayers = [...currentPartiallyGuessedPlayers, playerToAdd];
+      console.log(
+        '[Host] Moving player to partially guessed list:',
+        playerToAdd.name,
+        'with',
+        playerToAdd.points,
+        'points'
+      );
+      sendPartiallyGuessedPlayersChangedAction(newPartiallyGuessedPlayers);
+      return newPartiallyGuessedPlayers;
+    });
+
+    // Remove from waiting list
+    const newWaitingPlayers = currentWaitingPlayers.slice(1);
+    console.log('[Host] Remaining waiting players after partial:', newWaitingPlayers.length);
+    sendWaitingPlayersChangedAction(newWaitingPlayers);
+    return newWaitingPlayers;
+  });
+}
+
 function handlePlayerGuessedRight(gameContext: GameContextType) {
   gameContext.setWaitingPlayers((currentWaitingPlayers) => {
     const firstWaitingPlayer = currentWaitingPlayers[0];
@@ -433,6 +481,7 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
       // Still reset lists even if no player
       sendWaitingPlayersChangedAction([]);
       sendGuessedPlayersChangedAction([]);
+      sendPartiallyGuessedPlayersChangedAction([]);
       return [];
     }
 
@@ -449,6 +498,10 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
       sendPlayersChangedAction(updatedPlayers);
       return updatedPlayers;
     });
+
+    // Clear partiallyGuessedPlayers since someone got it right - they don't get points
+    gameContext.setPartiallyGuessedPlayers([]);
+    sendPartiallyGuessedPlayersChangedAction([]);
 
     // Reset all lists - all players can buzz again for next song
     sendWaitingPlayersChangedAction([]);
@@ -469,16 +522,19 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType) {
   logger.debug('[Host] Current state before reset:', {
     waitingCount: gameContext.waitingPlayers.length,
     guessedCount: gameContext.guessedPlayers.length,
+    partiallyGuessedCount: gameContext.partiallyGuessedPlayers?.length ?? 0,
     totalPlayers: gameContext.players.length,
   });
 
   // Clear lists locally
   gameContext.setWaitingPlayers([]);
   gameContext.setGuessedPlayers([]);
+  gameContext.setPartiallyGuessedPlayers([]);
 
   // Broadcast to all players so they also reset their lists
   sendWaitingPlayersChangedAction([]);
   sendGuessedPlayersChangedAction([]);
+  sendPartiallyGuessedPlayersChangedAction([]);
 
   logger.debug('[Host] All players reset - waiting and guessed lists cleared');
 }
@@ -518,6 +574,79 @@ export function markPlayerGuessedRight(
   return success;
 }
 
+export function markPlayerGuessedPartially(
+  gameContext: GameContextType,
+  onResumeSong?: () => void
+): boolean {
+  const firstWaitingPlayer = gameContext.waitingPlayers[0];
+  if (!firstWaitingPlayer) {
+    console.error('[Host] No player waiting to guess');
+    return false;
+  }
+
+  // Check if a partial answer has already been given
+  if (gameContext.partiallyGuessedPlayers.length > 0) {
+    console.warn(
+      '[Host] Partial answer already given - cannot mark another player as partially right'
+    );
+    return false;
+  }
+
+  // Update state first (move to partiallyGuessedPlayers)
+  handlePlayerGuessedPartially(gameContext);
+
+  // Broadcast to players
+  const success = sendHostAction({
+    action: 'player-guessed-partially',
+    payload: {
+      playerId: firstWaitingPlayer.id,
+    },
+  });
+
+  if (success) {
+    // Determine what to do based on remaining players after the partial guess
+    // After moving first player to partiallyGuessed, check remaining players
+    const remainingWaitingAfterUpdate = gameContext.waitingPlayers.length - 1;
+
+    // Calculate who can still guess after this partial answer
+    // Exclude: current waiting player (will be moved to partiallyGuessed), current guessed players,
+    // other waiting players, and partially guessed players (including the one being added)
+    const currentWaitingPlayerIds = new Set(gameContext.waitingPlayers.map((p) => p.id));
+    const guessedPlayerIds = new Set(gameContext.guessedPlayers.map((p) => p.id));
+    const partiallyGuessedPlayerIds = new Set(
+      [...gameContext.partiallyGuessedPlayers, firstWaitingPlayer].map((p) => p.id)
+    );
+
+    const notGuessedPlayersAfterUpdate = gameContext.players.filter(
+      (p) =>
+        p.id !== firstWaitingPlayer.id &&
+        !guessedPlayerIds.has(p.id) &&
+        !currentWaitingPlayerIds.has(p.id) &&
+        !partiallyGuessedPlayerIds.has(p.id)
+    );
+
+    if (remainingWaitingAfterUpdate > 0) {
+      // There are more players in the waiting queue
+      // Keep song paused - next player can guess immediately
+      console.log('[Host] Next player in queue after partial, keeping song paused');
+    } else if (notGuessedPlayersAfterUpdate.length > 0) {
+      // No more players in queue, but there are players who can still guess
+      // Resume song so new players can buzz
+      console.log(
+        '[Host] No players in queue after partial, but players can still guess - resuming song'
+      );
+      if (onResumeSong) {
+        // Small delay to ensure state updates are processed
+        setTimeout(() => {
+          onResumeSong();
+        }, 100);
+      }
+    }
+  }
+
+  return success;
+}
+
 export function markPlayerGuessedWrong(
   gameContext: GameContextType,
   onResumeSong?: () => void,
@@ -535,14 +664,17 @@ export function markPlayerGuessedWrong(
   const remainingWaitingAfterUpdate = gameContext.waitingPlayers.length - 1; // One less after moving first to guessed
 
   // Calculate players who can still guess AFTER this wrong guess
-  // Exclude: current waiting player (will be moved to guessed), current guessed players, and other waiting players
+  // Exclude: current waiting player (will be moved to guessed), current guessed players,
+  // partially guessed players, and other waiting players
   const currentWaitingPlayerIds = new Set(gameContext.waitingPlayers.map((p) => p.id));
   const guessedPlayerIds = new Set(gameContext.guessedPlayers.map((p) => p.id));
+  const partiallyGuessedPlayerIds = new Set(gameContext.partiallyGuessedPlayers.map((p) => p.id));
   // After moving first waiting player to guessed, who can still guess?
   const notGuessedPlayersAfterUpdate = gameContext.players.filter(
     (p) =>
       p.id !== firstWaitingPlayer.id &&
       !guessedPlayerIds.has(p.id) &&
+      !partiallyGuessedPlayerIds.has(p.id) &&
       !currentWaitingPlayerIds.has(p.id)
   );
 
@@ -558,6 +690,27 @@ export function markPlayerGuessedWrong(
     if (lastSong) {
       gameContext.setLastSong(lastSong);
       sendLastSongChangedAction(lastSong);
+    }
+
+    // Award 0.5 points to partiallyGuessedPlayers if there are any
+    if (gameContext.partiallyGuessedPlayers.length > 0) {
+      logger.info(
+        '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
+      );
+      gameContext.setPlayers((currentPlayers) => {
+        const updatedPlayers = currentPlayers.map((player) => {
+          const partiallyGuessedPlayer = gameContext.partiallyGuessedPlayers.find(
+            (p) => p.id === player.id
+          );
+          if (partiallyGuessedPlayer) {
+            return { ...player, points: player.points + 0.5 };
+          }
+          return player;
+        });
+        logger.debug('[Host] Updated player points after partial points awarded:', updatedPlayers);
+        sendPlayersChangedAction(updatedPlayers);
+        return updatedPlayers;
+      });
     }
 
     // Remove player from waiting list without adding to guessed list
@@ -713,6 +866,15 @@ function sendGuessedPlayersChangedAction(guessedPlayers: Player[]) {
     action: 'guessedPlayersChanged',
     data: {
       guessedPlayers,
+    },
+  });
+}
+
+function sendPartiallyGuessedPlayersChangedAction(partiallyGuessedPlayers: Player[]) {
+  return sendHostAction({
+    action: 'partiallyGuessedPlayersChanged',
+    data: {
+      partiallyGuessedPlayers,
     },
   });
 }

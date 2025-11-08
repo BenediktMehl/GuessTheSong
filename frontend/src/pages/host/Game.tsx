@@ -5,15 +5,17 @@ import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
 import {
+  markPlayerGuessedPartially,
   markPlayerGuessedRight,
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
 } from '../../game/host';
-import { playBuzzerSound } from '../../game/player/buzzerSound';
+import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
   getPlaylistTracks,
   getSelectedPlaylistId,
+  pausePlayback,
   playRandomPlaylistTrack,
   type SpotifyTrack,
 } from '../../services/spotify/api';
@@ -22,6 +24,7 @@ import logger from '../../utils/logger';
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
 const SPOTIFY_VOLUME_KEY = 'spotifyVolume';
 const AUTOPLAY_KEY = 'hostAutoplay';
+const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 // Track object structure as per tutorial
 const track = {
@@ -95,6 +98,7 @@ export default function Game() {
     players,
     waitingPlayers,
     guessedPlayers,
+    partiallyGuessedPlayers,
     buzzerNotification,
     setBuzzerNotification,
     setPausePlayerCallback,
@@ -103,11 +107,17 @@ export default function Game() {
   } = gameContext;
   const navigate = useNavigate();
 
-  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
-    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .filter(
+      (p) =>
+        !waitingPlayerIds.has(p.id) &&
+        !guessedPlayerIds.has(p.id) &&
+        !partiallyGuessedPlayerIds.has(p.id)
+    )
     .sort((a, b) => b.points - a.points);
   const [player, setPlayer] = useState<SpotifyPlayer | undefined>(undefined);
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
@@ -123,6 +133,7 @@ export default function Game() {
   const hasLoopedRef = useRef(false); // Track if the song has looped once
   const previousPositionRef = useRef<number>(0); // Track previous position to detect loops
   const pendingPauseRef = useRef(false); // Track if we need to pause after track change
+  const isChangingTrackRef = useRef<boolean>(false); // Track if we're intentionally changing tracks
   const [hideSongUntilBuzzed, setHideSongUntilBuzzed] = useState<boolean>(() => {
     const stored = localStorage.getItem(HIDE_SONG_UNTIL_BUZZED_KEY);
     // Default to true (enabled) if no value is stored
@@ -135,6 +146,10 @@ export default function Game() {
   const [volume, setVolume] = useState<number>(() => {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
     return stored ? parseFloat(stored) : 0.5;
+  });
+  const [buzzerSoundEnabled, setBuzzerSoundEnabled] = useState<boolean>(() => {
+    const stored = localStorage.getItem(BUZZER_SOUND_ENABLED_KEY);
+    return stored === null ? true : stored === 'true';
   });
   const [currentPosition, setCurrentPosition] = useState<number>(0); // Current playback position in milliseconds
   const [trackDuration, setTrackDuration] = useState<number>(0); // Track duration in milliseconds
@@ -248,6 +263,14 @@ export default function Game() {
     }
 
     try {
+      // Reset tracking refs before playing new track to prevent incorrect loop detection
+      previousTrackIdRef.current = '';
+      previousPositionRef.current = 0;
+      hasLoopedRef.current = false;
+
+      // Set flag to indicate we're intentionally changing tracks
+      isChangingTrackRef.current = true;
+
       const excludeIds = Array.from(playedTrackIds);
       const playedTrack = await playRandomPlaylistTrack(
         deviceId,
@@ -260,24 +283,55 @@ export default function Game() {
       // Add to played tracks
       setPlayedTrackIds((prev) => new Set([...prev, playedTrack.id]));
 
-      // Enable repeat mode for the track
-      await enableRepeatMode(playedTrack.id);
+      // Clear the flag after a short delay as fallback (state listener will also clear it)
+      setTimeout(() => {
+        isChangingTrackRef.current = false;
+      }, 2000);
     } catch (error) {
       logger.error('[Spotify] Error playing playlist track:', error);
       setSpotifyError(
         `Failed to play track: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+      // Clear flag on error
+      isChangingTrackRef.current = false;
     }
-  }, [deviceId, playlistId, playlistTracks, playedTrackIds, loadPlaylistTracks, enableRepeatMode]);
+  }, [deviceId, playlistId, playlistTracks, playedTrackIds, loadPlaylistTracks]);
+
+  // Preload playlist tracks when device is ready (don't wait for game start)
+  useEffect(() => {
+    if (deviceId && playlistId && !playlistTracksLoadedRef.current) {
+      logger.debug('[Spotify] Preloading playlist tracks');
+      loadPlaylistTracks(playlistId).catch((error) => {
+        logger.error('[Spotify] Error preloading playlist:', error);
+      });
+    }
+  }, [deviceId, playlistId, loadPlaylistTracks]);
 
   // Reset track history when starting a new game
   useEffect(() => {
     const currentStatus = gameContext.status;
     if (currentStatus === 'waiting' && !gameStartedRef.current) {
-      // Game just started
+      // Game just started - immediately clear UI state and stop playback
       gameStartedRef.current = true;
       firstTrackPlayedRef.current = false;
       setPlayedTrackIds(new Set());
+
+      // Immediately clear UI state to show loading instead of old track
+      setTrack(track);
+      setCurrentPosition(0);
+      setTrackDuration(0);
+      setPaused(true);
+      previousTrackIdRef.current = '';
+      previousPositionRef.current = 0;
+      hasLoopedRef.current = false;
+
+      // Stop any current playback immediately
+      if (deviceId) {
+        pausePlayback(deviceId).catch((error) => {
+          logger.warn('[Spotify] Error pausing playback on game start:', error);
+        });
+      }
+
       // Reload playlist ID in case it changed
       const currentPlaylistId = getSelectedPlaylistId();
       if (currentPlaylistId !== playlistId) {
@@ -290,7 +344,7 @@ export default function Game() {
       gameStartedRef.current = false;
       firstTrackPlayedRef.current = false;
     }
-  }, [gameContext.status, playlistId]);
+  }, [gameContext.status, playlistId, deviceId]);
 
   // Load playlist ID from localStorage on mount and when it changes
   useEffect(() => {
@@ -310,7 +364,7 @@ export default function Game() {
       // 1. Device is ready
       // 2. Game has started (status is 'waiting')
       // 3. We haven't attempted to play the first track yet
-      // 4. We're not currently loading the playlist
+      // 4. Playlist tracks are loaded (or loading is complete)
       if (
         deviceId &&
         playlistId &&
@@ -322,9 +376,12 @@ export default function Game() {
         firstTrackPlayedRef.current = true; // Mark as attempted to prevent retries
         logger.debug('[Spotify] Game started, playing first track from playlist');
         try {
-          // Load tracks if not already loaded
+          // Use already loaded tracks (they should be preloaded by now)
           let tracksToUse = playlistTracks;
+
+          // Only load if we don't have tracks yet (fallback)
           if (tracksToUse.length === 0) {
+            logger.debug('[Spotify] Tracks not preloaded, loading now');
             tracksToUse = await loadPlaylistTracks(playlistId);
           }
 
@@ -333,6 +390,7 @@ export default function Game() {
             await playNextPlaylistTrack();
           } else {
             // No tracks available, reset flag so we can try again
+            logger.warn('[Spotify] No tracks available after loading');
             firstTrackPlayedRef.current = false;
           }
         } catch (error) {
@@ -380,31 +438,34 @@ export default function Game() {
 
         if (response.status === 204) {
           logger.debug('[Spotify] Playback transferred successfully');
-          // Wait a bit for the state to update
-          setTimeout(() => {
-            const playerToCheck = spotifyPlayerInstance || player;
-            playerToCheck
-              ?.getCurrentState()
-              .then((state) => {
-                if (state) {
-                  setActive(true);
-                  setPaused(state.paused);
-                  const trackState = state.track_window.current_track;
-                  setTrack(trackState);
-                  const initialPosition = state.position || 0;
-                  setCurrentPosition(initialPosition);
-                  setTrackDuration(trackState.duration_ms || 0);
-                  previousTrackIdRef.current = trackState.id;
-                  previousPositionRef.current = initialPosition;
-                  hasLoopedRef.current = false;
-                  // Enable repeat mode for the track
-                  enableRepeatMode(trackState.id);
-                }
-              })
-              .catch((error) => {
-                logger.error('[Spotify] Error getting state after transfer:', error);
-              });
-          }, 1000);
+          // Only update state if game hasn't started (we want to play from playlist if game started)
+          if (!gameStartedRef.current) {
+            // Wait a bit for the state to update
+            setTimeout(() => {
+              const playerToCheck = spotifyPlayerInstance || player;
+              playerToCheck
+                ?.getCurrentState()
+                .then((state) => {
+                  if (state) {
+                    setActive(true);
+                    setPaused(state.paused);
+                    const trackState = state.track_window.current_track;
+                    setTrack(trackState);
+                    const initialPosition = state.position || 0;
+                    setCurrentPosition(initialPosition);
+                    setTrackDuration(trackState.duration_ms || 0);
+                    previousTrackIdRef.current = trackState.id;
+                    previousPositionRef.current = initialPosition;
+                    hasLoopedRef.current = false;
+                    // Enable repeat mode for the track
+                    enableRepeatMode(trackState.id);
+                  }
+                })
+                .catch((error) => {
+                  logger.error('[Spotify] Error getting state after transfer:', error);
+                });
+            }, 1000);
+          }
         } else if (response.status === 404) {
           logger.warn('[Spotify] No active device found to transfer from');
           // This is okay - user needs to start playback on another device first
@@ -472,6 +533,16 @@ export default function Game() {
         spotifyPlayer
           .getCurrentState()
           .then((state) => {
+            // If game has started, ignore existing playback state and let playFirstTrack handle it
+            if (gameStartedRef.current) {
+              logger.debug('[Spotify] Game has started, ignoring existing playback state');
+              setActive(false);
+              setCurrentPosition(0);
+              setTrackDuration(0);
+              hasAttemptedTransferRef.current = true;
+              return;
+            }
+
             if (state) {
               logger.debug('[Spotify] Initial state:', {
                 paused: state.paused,
@@ -540,6 +611,7 @@ export default function Game() {
           setTrackDuration(0);
           previousTrackIdRef.current = '';
           hasLoopedRef.current = false;
+          isChangingTrackRef.current = false;
           return;
         }
 
@@ -563,6 +635,10 @@ export default function Game() {
           logger.debug('[Spotify] New track started, enabling repeat mode');
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
+          previousPositionRef.current = position;
+          // Clear the track changing flag since we've detected the change
+          isChangingTrackRef.current = false;
+          // Enable repeat mode only once when track change is detected
           enableRepeatMode(newTrackId);
 
           // If autoplay is OFF and we have a pending pause, pause the track
@@ -581,17 +657,21 @@ export default function Game() {
             setCurrentPosition(position);
             setTrackDuration(duration);
             setActive(true);
-            previousPositionRef.current = position;
             return;
           }
         } else if (previousTrackIdRef.current === '') {
           // First time we see this track - enable repeat mode
           previousTrackIdRef.current = newTrackId;
           hasLoopedRef.current = false;
+          previousPositionRef.current = position;
+          // Clear the track changing flag if it was set
+          isChangingTrackRef.current = false;
           enableRepeatMode(newTrackId);
         } else {
           // Same track - check if it looped (position jumped from near end to near start)
+          // Only check for loops if we're not intentionally changing tracks
           if (
+            !isChangingTrackRef.current &&
             duration > 0 &&
             previousPosition > duration * 0.8 && // Was near the end (>80%)
             position < duration * 0.1 && // Now near the start (<10%)
@@ -660,6 +740,16 @@ export default function Game() {
         spotifyPlayer
           .getCurrentState()
           .then((state) => {
+            // If game has started, ignore existing playback state and let playFirstTrack handle it
+            if (gameStartedRef.current) {
+              logger.debug('[Spotify] Game has started, ignoring existing playback state');
+              setActive(false);
+              setCurrentPosition(0);
+              setTrackDuration(0);
+              hasAttemptedTransferRef.current = true;
+              return;
+            }
+
             if (state) {
               logger.debug('[Spotify] Initial state:', {
                 paused: state.paused,
@@ -722,21 +812,18 @@ export default function Game() {
         );
       });
 
-      // Use ref to track previous track ID to detect track changes
-      const previousTrackIdRef = { current: '' };
-
       spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
           logger.debug(
             '[Spotify] Player state changed: null state - playback may have been transferred away'
           );
           setActive(false);
-          // Clear track info when state is null
           setTrack(track);
           setCurrentPosition(0);
           setTrackDuration(0);
           previousTrackIdRef.current = '';
           hasLoopedRef.current = false;
+          isChangingTrackRef.current = false;
           return;
         }
 
@@ -761,8 +848,11 @@ export default function Game() {
           setLastSong(null);
           sendLastSongChangedAction(null);
           previousTrackIdRef.current = newTrackId;
-          previousPositionRef.current = position;
           hasLoopedRef.current = false;
+          previousPositionRef.current = position;
+          // Clear the track changing flag since we've detected the change
+          isChangingTrackRef.current = false;
+          // Enable repeat mode only once when track change is detected
           enableRepeatMode(newTrackId);
 
           // If autoplay is OFF and we have a pending pause, pause the track
@@ -775,24 +865,27 @@ export default function Game() {
                 logger.error('[Host Game] Error pausing after track change:', error);
               });
             }
-            // Update state to reflect pause
+            // Update state to reflect pause and new track
             setPaused(true);
             setTrack(state.track_window.current_track);
             setCurrentPosition(position);
             setTrackDuration(duration);
             setActive(true);
-            previousPositionRef.current = position;
             return;
           }
         } else if (previousTrackIdRef.current === '') {
           // First time we see this track - enable repeat mode
           previousTrackIdRef.current = newTrackId;
-          previousPositionRef.current = position;
           hasLoopedRef.current = false;
+          previousPositionRef.current = position;
+          // Clear the track changing flag if it was set
+          isChangingTrackRef.current = false;
           enableRepeatMode(newTrackId);
         } else {
           // Same track - check if it looped (position jumped from near end to near start)
+          // Only check for loops if we're not intentionally changing tracks
           if (
+            !isChangingTrackRef.current &&
             duration > 0 &&
             previousPosition > duration * 0.8 && // Was near the end (>80%)
             position < duration * 0.1 && // Now near the start (<10%)
@@ -1054,6 +1147,23 @@ export default function Game() {
     playNextPlaylistTrack,
   ]);
 
+  // Handle partially right guess
+  const handlePartiallyRightGuess = useCallback(async () => {
+    if (!currentGuessingPlayer) return;
+
+    markPlayerGuessedPartially(gameContext, async () => {
+      // Resume current song if there are more players who can guess
+      if (player && is_paused) {
+        try {
+          await player.togglePlay();
+          console.log('[Host] Resuming song for next player after partial answer');
+        } catch (error) {
+          console.error('[Host] Error resuming song:', error);
+        }
+      }
+    });
+  }, [currentGuessingPlayer, player, is_paused, gameContext]);
+
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
     if (!currentGuessingPlayer) return;
@@ -1173,21 +1283,92 @@ export default function Game() {
     };
   }, [player, is_active, pausePlayerFunction, setPausePlayerCallback]);
 
+  // Persist buzzer sound preference to localStorage and sync with audio object
+  useEffect(() => {
+    localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
+    // Sync mute state with audio object (muted when sound is disabled)
+    setBuzzerSoundMuted(!buzzerSoundEnabled);
+  }, [buzzerSoundEnabled]);
+
+  // Toggle buzzer sound
+  const toggleBuzzerSound = useCallback(() => {
+    setBuzzerSoundEnabled((prev) => !prev);
+  }, []);
+
   // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
   useEffect(() => {
     if (buzzerNotification) {
-      // Play buzzer sound when notification appears
-      playBuzzerSound();
+      // Play buzzer sound when notification appears (if enabled)
+      if (buzzerSoundEnabled) {
+        playBuzzerSound();
+      }
 
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [buzzerNotification, setBuzzerNotification]);
+  }, [buzzerNotification, setBuzzerNotification, buzzerSoundEnabled]);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
+      {/* Buzzer sound toggle button in upper right corner */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleBuzzerSound();
+        }}
+        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
+        aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+        title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+      >
+        {buzzerSoundEnabled ? (
+          // Speaker icon (sound enabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5"
+            aria-hidden="true"
+          >
+            <title>Speaker icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+          </svg>
+        ) : (
+          // Speaker muted icon (sound disabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5 opacity-60"
+            aria-hidden="true"
+          >
+            <title>Speaker muted icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 3l18 18"
+              style={{ opacity: 0.75 }}
+            />
+          </svg>
+        )}
+      </button>
+
       {buzzerNotification && (
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
@@ -1212,7 +1393,7 @@ export default function Game() {
                   <div className="text-center">
                     <div className="font-bold text-lg">{current_track.name}</div>
                     <div className="text-sm text-base-content/70">
-                      {current_track.artists[0]?.name || ''}
+                      {(current_track.artists || []).map((artist) => artist.name).join(', ')}
                     </div>
                     <div className="text-xs text-base-content/60">
                       {'name' in current_track.album && typeof current_track.album.name === 'string'
@@ -1534,7 +1715,11 @@ export default function Game() {
           <Card className="w-full" bodyClassName="flex flex-col gap-4 py-4">
             <div className="text-center">
               <h2 className="text-xl font-bold mb-2">{currentGuessingPlayer.name} is guessing</h2>
-              <p className="text-base-content/70">Was the answer correct or wrong?</p>
+              <p className="text-base-content/70">
+                {partiallyGuessedPlayers.length > 0
+                  ? 'Was the answer correct or wrong?'
+                  : 'Was the answer correct, partially correct or wrong?'}
+              </p>
             </div>
             <div className="flex gap-4 justify-center">
               <button
@@ -1544,6 +1729,15 @@ export default function Game() {
               >
                 ✓ Correct
               </button>
+              {partiallyGuessedPlayers.length === 0 && (
+                <button
+                  type="button"
+                  className="btn btn-warning btn-lg flex-1"
+                  onClick={handlePartiallyRightGuess}
+                >
+                  ~ Teilweise
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-error btn-lg flex-1"
@@ -1565,6 +1759,7 @@ export default function Game() {
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
+          partiallyGuessedPlayers={partiallyGuessedPlayers}
         />
       </div>
     </main>
