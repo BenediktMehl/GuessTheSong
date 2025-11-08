@@ -1,15 +1,15 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GameProvider } from '../../../game/context';
+import { GameProvider, type Player } from '../../../game/context';
 import Game from '../Game';
 
 // Mock the GameProvider to provide a minimal context
 const mockGameContext = {
-  players: [],
-  waitingPlayers: [],
-  guessedPlayers: [],
-  partiallyGuessedPlayers: [],
+  players: [] as Player[],
+  waitingPlayers: [] as Player[],
+  guessedPlayers: [] as Player[],
+  partiallyGuessedPlayers: [] as Player[],
   sessionId: 'test-session',
   status: 'waiting' as const,
   isHost: true,
@@ -216,6 +216,8 @@ describe('Spotify SDK Integration', () => {
     vi.restoreAllMocks();
     notReadyCallback = null;
     stateChangeCallback = null;
+    // Reset mock context state
+    mockGameContext.waitingPlayers = [];
     // Clean up window properties
     // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
     delete (window as any).__spotifyPlayerInstance;
@@ -551,6 +553,7 @@ describe('Spotify SDK Integration', () => {
   it('should update track info when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    // Ensure song is visible (not hidden until buzzed)
     // Disable hide song until buzzed so the song is visible in the test
     localStorage.setItem('hostHideSongUntilBuzzed', 'false');
     const mockTrack = {
@@ -589,7 +592,10 @@ describe('Spotify SDK Integration', () => {
     // Trigger state change
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert
@@ -597,6 +603,69 @@ describe('Spotify SDK Integration', () => {
       expect(screen.getByText('Test Song')).toBeInTheDocument();
       expect(screen.getByText('Test Artist')).toBeInTheDocument();
     });
+  });
+
+  it('should display all artists when a song has multiple artists', async () => {
+    // Arrange
+    localStorage.setItem('access_token', 'test-token-123');
+    // Ensure song is visible (not hidden until buzzed)
+    localStorage.setItem('hostHideSongUntilBuzzed', 'false');
+    // Add a waiting player to ensure song is visible (shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0)
+    mockGameContext.waitingPlayers = [{ id: 'test-player-1', name: 'Test Player', points: 0 }];
+
+    const mockTrack = {
+      id: 'track-456',
+      name: 'Collaboration Song',
+      uri: 'spotify:track:456',
+      artists: [{ name: 'Artist One' }, { name: 'Artist Two' }, { name: 'Artist Three' }],
+      album: {
+        name: 'Collaboration Album',
+        images: [{ url: 'https://example.com/collab-cover.jpg' }],
+      },
+      duration_ms: 180000,
+    };
+
+    const mockState = {
+      paused: false,
+      position: 0,
+      track_window: {
+        current_track: mockTrack,
+      },
+    };
+
+    // Act
+    render(
+      <MemoryRouter>
+        <GameProvider>
+          <Game />
+        </GameProvider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(stateChangeCallback).toBeTruthy();
+    });
+
+    // Trigger state change
+    if (stateChangeCallback) {
+      mockPlayer.getCurrentState.mockResolvedValue(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
+    }
+
+    // Assert - wait for track to be displayed with increased timeout for CI
+    await waitFor(
+      () => {
+        expect(screen.getByText('Collaboration Song')).toBeInTheDocument();
+        expect(screen.getByText('Artist One, Artist Two, Artist Three')).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
+
+    // Cleanup: reset waitingPlayers for other tests
+    mockGameContext.waitingPlayers = [];
   });
 
   it('should update pause state when player_state_changed event fires', async () => {
@@ -635,7 +704,10 @@ describe('Spotify SDK Integration', () => {
 
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert
@@ -682,7 +754,10 @@ describe('Spotify SDK Integration', () => {
     // Set player as active
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     await waitFor(() => {
@@ -760,7 +835,10 @@ describe('Spotify SDK Integration', () => {
 
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     await waitFor(() => {
@@ -814,7 +892,10 @@ describe('Spotify SDK Integration', () => {
 
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert - previous button should not exist
@@ -856,7 +937,10 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger the not_ready callback
     if (notReadyCallback) {
-      notReadyCallback({ device_id: 'test-device-123' });
+      const callback = notReadyCallback;
+      act(() => {
+        callback({ device_id: 'test-device-123' });
+      });
     }
 
     // Assert - verify the logger (console.debug) was called
@@ -947,7 +1031,11 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger error
     if (errorCallback) {
-      (errorCallback as (error: { message: string }) => void)({ message: 'Initialization failed' });
+      act(() => {
+        (errorCallback as (error: { message: string }) => void)({
+          message: 'Initialization failed',
+        });
+      });
     }
 
     // Assert - error message should be displayed
@@ -991,7 +1079,11 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger error
     if (errorCallback) {
-      (errorCallback as (error: { message: string }) => void)({ message: 'Authentication failed' });
+      act(() => {
+        (errorCallback as (error: { message: string }) => void)({
+          message: 'Authentication failed',
+        });
+      });
     }
 
     // Assert - error message should be displayed
@@ -1035,7 +1127,11 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger error
     if (errorCallback) {
-      (errorCallback as (error: { message: string }) => void)({ message: 'Account error' });
+      act(() => {
+        (errorCallback as (error: { message: string }) => void)({
+          message: 'Account error',
+        });
+      });
     }
 
     // Assert - error message should be displayed
