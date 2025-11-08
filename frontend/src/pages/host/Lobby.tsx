@@ -5,13 +5,27 @@ import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
+import {
+  getSelectedPlaylistId,
+  getUserPlaylists,
+  type SpotifyPlaylist,
+  setSelectedPlaylistId,
+} from '../../services/spotify/api';
 import { handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
+import { DEFAULT_PLAYLIST_ID, DEFAULT_PLAYLISTS } from '../../services/spotify/playlists';
+import logger from '../../utils/logger';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showCopyError, setShowCopyError] = useState(false);
   const [spotifyLoginLoading, setSpotifyLoginLoading] = useState(false);
   const [isLoggedInSpotify, setIsLoggedInSpotify] = useState(spotifyIsLoggedIn());
+  const [selectedPlaylistId, setSelectedPlaylistIdState] = useState<string>(
+    getSelectedPlaylistId()
+  );
+  const [availablePlaylists, setAvailablePlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [playlistsError, setPlaylistsError] = useState<string | null>(null);
   const hasTriedToInit = useRef(false); // Track if we've already tried to initialize
   const navigate = useNavigate();
   const gameContext = useGameContext();
@@ -31,12 +45,41 @@ export default function Lobby() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch user playlists when Spotify is connected
+  useEffect(() => {
+    if (isLoggedInSpotify && sessionId) {
+      const fetchPlaylists = async () => {
+        setPlaylistsLoading(true);
+        setPlaylistsError(null);
+        try {
+          const playlists = await getUserPlaylists();
+          setAvailablePlaylists(playlists);
+        } catch (error) {
+          console.error('Error fetching playlists:', error);
+          setPlaylistsError(error instanceof Error ? error.message : 'Failed to fetch playlists');
+        } finally {
+          setPlaylistsLoading(false);
+        }
+      };
+
+      fetchPlaylists();
+    } else {
+      setAvailablePlaylists([]);
+    }
+  }, [isLoggedInSpotify, sessionId]);
+
+  // Handle playlist selection change
+  const handlePlaylistChange = (playlistId: string) => {
+    setSelectedPlaylistIdState(playlistId);
+    setSelectedPlaylistId(playlistId);
+  };
+
   const handleSpotifyLoginClick = async () => {
     setSpotifyLoginLoading(true);
     try {
       await handleSpotifyLogin();
     } catch (error) {
-      console.error('Spotify login error:', error);
+      logger.error('Spotify login error:', error);
       setSpotifyLoginLoading(false);
     }
   };
@@ -48,7 +91,7 @@ export default function Lobby() {
     }
   };
 
-  // Wenn jemand auf /settings kommt, ist er der Host
+  // If someone comes to /settings, they are the host
   useEffect(() => {
     if (!isHost) {
       setIsHost(true);
@@ -90,9 +133,11 @@ export default function Lobby() {
         <div className="alert alert-warning max-w-md flex flex-col gap-2">
           <div>
             <span className="loading loading-spinner loading-sm mr-2"></span>
-            <span className="font-semibold">Stelle Verbindung her...</span>
+            <span className="font-semibold">Establishing connection...</span>
           </div>
-          <p className="text-sm">Bitte warten, während die Verbindung zum Server aufgebaut wird.</p>
+          <p className="text-sm">
+            Please wait while the connection to the server is being established.
+          </p>
         </div>
       ) : wsStatus === 'failed' ? (
         <div className="alert alert-error max-w-md flex flex-col gap-3">
@@ -113,23 +158,23 @@ export default function Lobby() {
                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-semibold">Verbindung konnte nicht aufgebaut werden.</span>
+            <span className="font-semibold">Connection could not be established.</span>
           </div>
-          <p className="text-sm">Bitte lade die Seite neu oder versuche es später nochmal.</p>
+          <p className="text-sm">Please reload the page or try again later.</p>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             <button
               type="button"
               onClick={() => window.location.reload()}
               className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
             >
-              🔄 Neu laden
+              🔄 Reload
             </button>
             <button
               type="button"
               onClick={() => navigate('/')}
               className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
             >
-              ← Zurück
+              ← Back
             </button>
           </div>
         </div>
@@ -138,18 +183,68 @@ export default function Lobby() {
           {/* Spotify Integration */}
           <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
             {isLoggedInSpotify ? (
-              <div className="flex items-center gap-3 w-full justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-success">✓</span>
-                  <span className="font-medium">Connected to Spotify</span>
+              <div className="w-full flex flex-col gap-3">
+                <div className="flex items-center gap-3 w-full justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-success">✓</span>
+                    <span className="font-medium">Connected to Spotify</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-error btn-sm"
+                    onClick={handleSpotifyLogout}
+                  >
+                    Logout
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-error btn-sm"
-                  onClick={handleSpotifyLogout}
-                >
-                  Logout
-                </button>
+
+                {/* Playlist Selection */}
+                <div className="w-full flex flex-col gap-2">
+                  <label htmlFor="playlist-select" className="label">
+                    <span className="label-text font-medium">Select Playlist</span>
+                  </label>
+                  {playlistsLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                      <span className="loading loading-spinner loading-sm"></span>
+                      <span>Loading playlists...</span>
+                    </div>
+                  ) : playlistsError ? (
+                    <div className="alert alert-warning py-2">
+                      <span className="text-sm">{playlistsError}</span>
+                    </div>
+                  ) : (
+                    <select
+                      id="playlist-select"
+                      className="select select-bordered w-full"
+                      value={selectedPlaylistId}
+                      onChange={(e) => handlePlaylistChange(e.target.value)}
+                    >
+                      {/* Default playlists first */}
+                      {DEFAULT_PLAYLISTS.map((playlist) => (
+                        <option key={playlist.id} value={playlist.id}>
+                          {playlist.name} (Default)
+                        </option>
+                      ))}
+                      {/* User playlists */}
+                      {availablePlaylists
+                        .filter((p) => !DEFAULT_PLAYLISTS.some((dp) => dp.id === p.id))
+                        .map((playlist) => (
+                          <option key={playlist.id} value={playlist.id}>
+                            {playlist.name}
+                          </option>
+                        ))}
+                      {/* Show selected playlist even if not in lists yet (in case it's the default) */}
+                      {!availablePlaylists.some((p) => p.id === selectedPlaylistId) &&
+                        !DEFAULT_PLAYLISTS.some((dp) => dp.id === selectedPlaylistId) && (
+                          <option value={selectedPlaylistId}>
+                            {selectedPlaylistId === DEFAULT_PLAYLIST_ID
+                              ? 'Erkennst du den Song? (Default)'
+                              : `Playlist ${selectedPlaylistId}`}
+                          </option>
+                        )}
+                    </select>
+                  )}
+                </div>
               </div>
             ) : (
               <button

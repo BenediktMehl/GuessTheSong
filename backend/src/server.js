@@ -4,17 +4,18 @@ const https = require('node:https');
 const { URL } = require('node:url');
 const WebSocket = require('ws');
 const { USE_TLS, TLS_CERT_PATH, TLS_KEY_PATH, ALLOWED_ORIGINS } = require('./config');
+const logger = require('./logger');
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || '';
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '';
 
 // Log if credentials are configured (without exposing the secret)
 if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET) {
-  console.log('Spotify credentials loaded (Client ID configured)');
+  logger.info('Spotify credentials loaded (Client ID configured)');
 } else {
-  console.warn('Spotify credentials not fully configured. Token exchange will not work.');
-  if (!SPOTIFY_CLIENT_ID) console.warn('  Missing: SPOTIFY_CLIENT_ID');
-  if (!SPOTIFY_CLIENT_SECRET) console.warn('  Missing: SPOTIFY_CLIENT_SECRET');
+  logger.warn('Spotify credentials not fully configured. Token exchange will not work.');
+  if (!SPOTIFY_CLIENT_ID) logger.warn('  Missing: SPOTIFY_CLIENT_ID');
+  if (!SPOTIFY_CLIENT_SECRET) logger.warn('  Missing: SPOTIFY_CLIENT_SECRET');
 }
 
 // Helper function to get CORS headers object
@@ -32,7 +33,7 @@ function getCorsHeaders(req) {
       headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
       headers['Access-Control-Allow-Headers'] = 'Content-Type';
       headers['Access-Control-Allow-Credentials'] = 'true';
-      console.log(`[CORS] Allowing origin: ${origin} (development mode)`);
+      logger.debug({ origin }, 'Allowing origin (development mode)');
       return headers;
     }
 
@@ -43,13 +44,13 @@ function getCorsHeaders(req) {
       headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
       headers['Access-Control-Allow-Headers'] = 'Content-Type';
       headers['Access-Control-Allow-Credentials'] = 'true';
-      console.log(`[CORS] Allowing origin: ${origin} (configured)`);
+      logger.debug({ origin }, 'Allowing origin (configured)');
       return headers;
     }
 
-    console.log(`[CORS] Rejecting origin: ${origin}`);
+    logger.debug({ origin }, 'Rejecting origin');
   } else {
-    console.log('[CORS] No origin header present');
+    logger.debug('No origin header present');
   }
 
   return headers;
@@ -88,7 +89,7 @@ async function handleTokenExchange(req, res) {
       }
 
       if (!redirect_uri) {
-        console.warn(
+        logger.warn(
           'Token exchange request missing redirect_uri. This should be provided by the frontend.'
         );
         res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
@@ -137,7 +138,7 @@ async function handleTokenExchange(req, res) {
         })
       );
     } catch (error) {
-      console.error('Token exchange error:', error);
+      logger.error({ err: error }, 'Token exchange error');
       res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Internal server error', message: error.message }));
     }
@@ -164,7 +165,7 @@ function createHttpServer() {
   }
 
   if (!TLS_CERT_PATH || !TLS_KEY_PATH) {
-    console.error('WS_USE_TLS=true requires WS_TLS_CERT_PATH and WS_TLS_KEY_PATH to be set.');
+    logger.error('WS_USE_TLS=true requires WS_TLS_CERT_PATH and WS_TLS_KEY_PATH to be set.');
     process.exit(1);
   }
 
@@ -176,7 +177,7 @@ function createHttpServer() {
 
     return https.createServer(credentials, handleHttpRequest);
   } catch (error) {
-    console.error('Failed to load TLS credentials:', error);
+    logger.error({ err: error }, 'Failed to load TLS credentials');
     process.exit(1);
   }
 }
@@ -192,7 +193,7 @@ const ws = new WebSocket.Server({
       return;
     }
 
-    console.warn(`Rejecting connection from disallowed origin: ${origin}`);
+    logger.warn({ origin }, 'Rejecting connection from disallowed origin');
     done(false, 403, 'Origin not allowed');
   },
 });

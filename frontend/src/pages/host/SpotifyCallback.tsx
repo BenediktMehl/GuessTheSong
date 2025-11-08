@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import { BACKEND_HTTP_URL } from '../../config';
 import { getRedirectUri } from '../../services/spotify/auth';
+import logger from '../../utils/logger';
 
 export default function SpotifyCallback() {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ export default function SpotifyCallback() {
     const handleCallback = async () => {
       // Log all localStorage items for debugging
       const allLocalStorageKeys = Object.keys(localStorage);
-      console.log('All localStorage items:', {
+      logger.debug('All localStorage items:', {
         spotify_state: localStorage.getItem('spotify_state'),
         spotify_code_verifier: localStorage.getItem('spotify_code_verifier')
           ? 'present'
@@ -27,11 +28,11 @@ export default function SpotifyCallback() {
       const errorParam = urlParams.get('error');
       const state = urlParams.get('state');
 
-      console.log('Spotify callback received:', { code: !!code, errorParam, state });
-      console.log('Current URL:', window.location.href);
+      logger.debug('Spotify callback received:', { code: !!code, errorParam, state });
+      logger.debug('Current URL:', window.location.href);
 
       if (errorParam) {
-        console.error('Spotify login error:', errorParam);
+        logger.error('Spotify login error:', errorParam);
         setError(errorParam);
         return;
       }
@@ -44,7 +45,7 @@ export default function SpotifyCallback() {
       // Verify state - check both localStorage and sessionStorage for compatibility
       const storedState =
         localStorage.getItem('spotify_state') || sessionStorage.getItem('spotify_state');
-      console.log('State verification:', {
+      logger.debug('State verification:', {
         storedState,
         receivedState: state,
         match: storedState === state,
@@ -55,10 +56,10 @@ export default function SpotifyCallback() {
       });
 
       if (!storedState) {
-        console.error('State not found in storage. This might indicate:');
-        console.error('1. localStorage was cleared');
-        console.error('2. Browser privacy mode is blocking storage');
-        console.error('3. The redirect happened in a different context');
+        logger.error('State not found in storage. This might indicate:');
+        logger.error('1. localStorage was cleared');
+        logger.error('2. Browser privacy mode is blocking storage');
+        logger.error('3. The redirect happened in a different context');
         setError(
           "State not found. This might be due to browser privacy settings or storage being cleared. Please try logging in again and ensure you're not in private/incognito mode."
         );
@@ -66,7 +67,7 @@ export default function SpotifyCallback() {
       }
 
       if (storedState !== state) {
-        console.error('State mismatch:', { stored: storedState, received: state });
+        logger.error('State mismatch:', { stored: storedState, received: state });
         setError('State mismatch - possible CSRF attack. Please try logging in again.');
         // Clear stored values to allow retry
         localStorage.removeItem('spotify_code_verifier');
@@ -102,7 +103,7 @@ export default function SpotifyCallback() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          console.error('Token exchange failed:', errorData);
+          logger.error('Token exchange failed:', errorData);
           setError(
             `Token exchange failed: ${errorData.error || 'Unknown error'}. Make sure the backend is running and has SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET configured.`
           );
@@ -121,7 +122,7 @@ export default function SpotifyCallback() {
           localStorage.setItem('access_token_expires_at', expiresAt.toString());
         }
 
-        console.log('Token exchange successful');
+        logger.info('Token exchange successful');
 
         // Clear stored values from both storage locations
         localStorage.removeItem('spotify_code_verifier');
@@ -132,7 +133,7 @@ export default function SpotifyCallback() {
         // Redirect back to settings
         navigate('/settings', { replace: true });
       } catch (error) {
-        console.error('Token exchange error:', error);
+        logger.error('Token exchange error:', error);
         setError(
           `Failed to exchange token: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend is running.`
         );

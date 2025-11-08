@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const logger = require('./logger');
 
 function generateSessionId() {
   // Generates a random 4-letter uppercase session ID
@@ -19,7 +20,7 @@ function sendError(ws, message) {
       })
     );
   } catch (error) {
-    console.error('Failed to send error message:', error);
+    logger.error({ err: error }, 'Failed to send error message');
   }
 }
 

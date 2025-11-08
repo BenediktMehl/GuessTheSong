@@ -4,25 +4,53 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
+import { playBuzzerSound } from '../../game/player/buzzerSound';
+import logger from '../../utils/logger';
+
+const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 export default function Game() {
-  const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
+  const {
+    players,
+    currentPlayerId,
+    waitingPlayers,
+    guessedPlayers,
+    partiallyGuessedPlayers,
+    buzzerNotification,
+    setBuzzerNotification,
+  } = useGameContext();
 
-  // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
+  const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
-    .filter((p) => !waitingPlayerIds.has(p.id) && !guessedPlayerIds.has(p.id))
+    .filter(
+      (p) =>
+        !waitingPlayerIds.has(p.id) &&
+        !guessedPlayerIds.has(p.id) &&
+        !partiallyGuessedPlayerIds.has(p.id)
+    )
     .sort((a, b) => b.points - a.points);
 
   // Find currentPlayer object from currentPlayerId
-  const allPlayers = [...(players || []), ...(waitingPlayers || []), ...(guessedPlayers || [])];
+  const allPlayers = [
+    ...(players || []),
+    ...(waitingPlayers || []),
+    ...(guessedPlayers || []),
+    ...(partiallyGuessedPlayers || []),
+  ];
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;
-  const { buzzerNotification, setBuzzerNotification } = useGameContext();
   const [showJoinedToast, setShowJoinedToast] = useState(true);
   const [buzzerColor, setBuzzerColor] = useState<string>('');
+
+  // Buzzer sound enabled state (default to true, stored in localStorage)
+  const [buzzerSoundEnabled, setBuzzerSoundEnabled] = useState<boolean>(() => {
+    const stored = localStorage.getItem(BUZZER_SOUND_ENABLED_KEY);
+    return stored === null ? true : stored === 'true';
+  });
 
   // Generate a random color for the buzzer on mount
   useEffect(() => {
@@ -42,6 +70,16 @@ export default function Game() {
     setBuzzerColor(randomColor);
   }, []);
 
+  // Persist buzzer sound preference to localStorage
+  useEffect(() => {
+    localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
+  }, [buzzerSoundEnabled]);
+
+  // Toggle buzzer sound
+  const toggleBuzzerSound = useCallback(() => {
+    setBuzzerSoundEnabled((prev) => !prev);
+  }, []);
+
   useEffect(() => {
     if (showJoinedToast) {
       const timer = setTimeout(() => setShowJoinedToast(false), 2000);
@@ -49,15 +87,20 @@ export default function Game() {
     }
   }, [showJoinedToast]);
 
-  // Auto-dismiss buzzer notification after 3 seconds
+  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
   useEffect(() => {
     if (buzzerNotification) {
+      // Play buzzer sound when notification appears (if enabled)
+      if (buzzerSoundEnabled) {
+        playBuzzerSound();
+      }
+
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [buzzerNotification, setBuzzerNotification]);
+  }, [buzzerNotification, setBuzzerNotification, buzzerSoundEnabled]);
 
   // Check if current player is in the waiting queue
   const currentPlayerInQueue = currentPlayerId
@@ -67,16 +110,17 @@ export default function Game() {
   const isCurrentPlayerInQueue = currentPlayerInQueue >= 0;
   const queuePosition = currentPlayerInQueue >= 0 ? currentPlayerInQueue + 1 : null;
 
-  // Check if current player has already guessed
+  // Check if current player has already guessed (either fully or partially)
   const hasCurrentPlayerGuessed = currentPlayerId
-    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId)
+    ? (guessedPlayers || []).some((p) => p.id === currentPlayerId) ||
+      (partiallyGuessedPlayers || []).some((p) => p.id === currentPlayerId)
     : false;
 
   // Check if buzzer should be disabled (already buzzed or already guessed)
   const isBuzzerDisabled = isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId;
 
   const handleBuzz = useCallback(() => {
-    console.log('[Buzzer] handleBuzz called', {
+    logger.debug('[Buzzer] handleBuzz called', {
       isCurrentPlayerInQueue,
       hasCurrentPlayerGuessed,
       currentPlayerId,
@@ -84,7 +128,7 @@ export default function Game() {
 
     // Don't allow buzzing if already in queue or already guessed
     if (isBuzzerDisabled) {
-      console.log('[Buzzer] Buzzer blocked:', {
+      logger.debug('[Buzzer] Buzzer blocked:', {
         isCurrentPlayerInQueue,
         hasCurrentPlayerGuessed,
         currentPlayerId,
@@ -92,15 +136,26 @@ export default function Game() {
       return;
     }
 
+    // Play buzzer sound locally if enabled
+    if (buzzerSoundEnabled) {
+      playBuzzerSound();
+    }
+
     // Send buzz action to host
-    console.log('[Buzzer] Sending buzz action...');
+    logger.debug('[Buzzer] Sending buzz action...');
     const success = sendPlayerBuzzedAction();
     if (!success) {
-      console.error('[Buzzer] Failed to send buzz action');
+      logger.error('[Buzzer] Failed to send buzz action');
     } else {
-      console.log('[Buzzer] Buzz action sent successfully');
+      logger.debug('[Buzzer] Buzz action sent successfully');
     }
-  }, [isBuzzerDisabled, isCurrentPlayerInQueue, hasCurrentPlayerGuessed, currentPlayerId]);
+  }, [
+    isBuzzerDisabled,
+    isCurrentPlayerInQueue,
+    hasCurrentPlayerGuessed,
+    currentPlayerId,
+    buzzerSoundEnabled,
+  ]);
 
   const getGameStateContent = (buzzerColorValue: string) => {
     if (isCurrentPlayerFirst) {
@@ -170,7 +225,60 @@ export default function Game() {
   const gameState = getGameStateContent(buzzerColor);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 relative">
+      {/* Buzzer sound toggle button in upper right corner */}
+      <button
+        type="button"
+        onClick={toggleBuzzerSound}
+        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-10"
+        aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+        title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
+      >
+        {buzzerSoundEnabled ? (
+          // Speaker icon (sound enabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5"
+            aria-hidden="true"
+          >
+            <title>Speaker icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+          </svg>
+        ) : (
+          // Speaker muted icon (sound disabled)
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="2"
+            stroke="currentColor"
+            className="w-5 h-5 opacity-60"
+            aria-hidden="true"
+          >
+            <title>Speaker muted icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 3l18 18"
+              style={{ opacity: 0.75 }}
+            />
+          </svg>
+        )}
+      </button>
+
       {showJoinedToast && (
         <div className="toast toast-top toast-center">
           <div className="alert alert-success">
@@ -183,7 +291,7 @@ export default function Game() {
         <div className="toast toast-top toast-center z-50">
           <div className="alert alert-info shadow-2xl">
             <span>
-              <strong>{buzzerNotification.playerName}</strong> hat den Buzzer gedrückt!
+              <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
             </span>
           </div>
         </div>
@@ -200,6 +308,7 @@ export default function Game() {
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
+          partiallyGuessedPlayers={partiallyGuessedPlayers}
           currentPlayer={currentPlayer}
         />
 
