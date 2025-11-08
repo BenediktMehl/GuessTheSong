@@ -19,6 +19,7 @@ type WebSocketMessage = {
     players?: Array<{ id: string; name: string; points: number }>;
     buzzedPlayers?: Array<{ id: string; name: string; points: number }>;
     guessedPlayers?: Array<{ id: string; name: string; points: number }>;
+    partiallyGuessedPlayers?: Array<{ id: string; name: string; points: number }>;
     [key: string]: unknown;
   };
 };
@@ -270,6 +271,28 @@ export function joinGame(
                 });
                 return synced;
               });
+
+              gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessed) => {
+                if (currentPartiallyGuessed.length === 0) {
+                  return [];
+                }
+                const synced = currentPartiallyGuessed.map((listPlayer) => {
+                  const playerWithPoints = updatedPlayers.find(
+                    (p: Player) => p.id === listPlayer.id
+                  );
+                  if (playerWithPoints) {
+                    console.log(
+                      '[Player] Syncing partially guessed player points:',
+                      listPlayer.name,
+                      listPlayer.points,
+                      '->',
+                      playerWithPoints.points
+                    );
+                  }
+                  return playerWithPoints || listPlayer;
+                });
+                return synced;
+              });
             }
             break;
 
@@ -359,6 +382,51 @@ export function joinGame(
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
 
+          case 'player-guessed-partially':
+            // Player guessed partially - they are moved to partiallyGuessedPlayers list
+            console.log('[Player] Player guessed partially');
+            // The partiallyGuessedPlayersChanged message will handle the state update
+            break;
+
+          case 'partiallyGuessedPlayersChanged':
+            // Partially guessed players list updated
+            if (
+              message.data?.partiallyGuessedPlayers !== undefined &&
+              Array.isArray(message.data.partiallyGuessedPlayers)
+            ) {
+              // Handle empty array (reset) or populated array
+              if (message.data.partiallyGuessedPlayers.length === 0) {
+                // Clear partially guessed list - all players reset for new round
+                console.log('[Player] Clearing partially guessed players list');
+                gameContext.setPartiallyGuessedPlayers([]);
+              } else {
+                // Sync points from main players list to ensure correct points are displayed
+                // Use functional update to get the latest players list
+                gameContext.setPartiallyGuessedPlayers((_currentPartiallyGuessed) => {
+                  const syncedPartiallyGuessedPlayers = message.data.partiallyGuessedPlayers.map(
+                    (listPlayer: Player) => {
+                      // Get latest players list from context
+                      const playerWithPoints = gameContext.players.find(
+                        (p) => p.id === listPlayer.id
+                      );
+                      if (playerWithPoints && playerWithPoints.points !== listPlayer.points) {
+                        console.log(
+                          '[Player] Syncing partially guessed player points:',
+                          listPlayer.name,
+                          listPlayer.points,
+                          '->',
+                          playerWithPoints.points
+                        );
+                      }
+                      return playerWithPoints || listPlayer;
+                    }
+                  );
+                  return syncedPartiallyGuessedPlayers;
+                });
+              }
+            }
+            break;
+
           case 'player-buzzed-notification':
             logger.debug('[Player] Handling player-buzzed-notification:', message);
             handlePlayerBuzzedNotificationForPlayer(gameContext, message);
@@ -419,6 +487,15 @@ function handlePlayerLeftForPlayer(gameContext: GameContextType, playerId: strin
 
   gameContext.setPlayers((currentPlayers) =>
     currentPlayers.filter((player) => player.id !== playerId)
+  );
+  gameContext.setWaitingPlayers((currentWaiting) =>
+    currentWaiting.filter((player) => player.id !== playerId)
+  );
+  gameContext.setGuessedPlayers((currentGuessed) =>
+    currentGuessed.filter((player) => player.id !== playerId)
+  );
+  gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessed) =>
+    currentPartiallyGuessed.filter((player) => player.id !== playerId)
   );
 }
 
