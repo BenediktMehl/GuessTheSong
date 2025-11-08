@@ -556,8 +556,9 @@ export function markPlayerGuessedRight(
   // Broadcast to players
   const success = sendHostAction({
     action: 'player-guessed-right',
-    payload: {
+    data: {
       playerId: firstWaitingPlayer.id,
+      playerName: firstWaitingPlayer.name,
     },
   });
 
@@ -598,8 +599,9 @@ export function markPlayerGuessedPartially(
   // Broadcast to players
   const success = sendHostAction({
     action: 'player-guessed-partially',
-    payload: {
+    data: {
       playerId: firstWaitingPlayer.id,
+      playerName: firstWaitingPlayer.name,
     },
   });
 
@@ -719,8 +721,9 @@ export function markPlayerGuessedWrong(
     // Broadcast the wrong guess action (for consistency, but players will be reset anyway)
     const success = sendHostAction({
       action: 'player-guessed-wrong',
-      payload: {
+      data: {
         playerId: firstWaitingPlayer.id,
+        playerName: firstWaitingPlayer.name,
       },
     });
 
@@ -742,8 +745,9 @@ export function markPlayerGuessedWrong(
   // Broadcast to players (they will update their state via the broadcast)
   const success = sendHostAction({
     action: 'player-guessed-wrong',
-    payload: {
+    data: {
       playerId: firstWaitingPlayer.id,
+      playerName: firstWaitingPlayer.name,
     },
   });
 

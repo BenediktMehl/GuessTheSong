@@ -22,6 +22,13 @@ export type BuzzerNotification = {
   playerName: string;
 } | null;
 
+export type GuessResultNotification = {
+  playerId: string;
+  playerName: string;
+  result: 'correct' | 'partially' | 'wrong';
+  nextPlayerName?: string;
+} | null;
+
 export type PausePlayerCallback = () => void | Promise<void>;
 
 // Global reference to pause function (set by Host Game component)
@@ -47,6 +54,7 @@ export interface GameContextType {
   sessionId: string;
   currentPlayerId: string;
   buzzerNotification: BuzzerNotification;
+  guessResultNotification: GuessResultNotification;
   pausePlayerCallback: PausePlayerCallback | null;
   setIsHost: Dispatch<SetStateAction<boolean>>;
   setPlayers: Dispatch<SetStateAction<Player[]>>;
@@ -59,6 +67,7 @@ export interface GameContextType {
   setSessionId: Dispatch<SetStateAction<string>>;
   setCurrentPlayerId: Dispatch<SetStateAction<string>>;
   setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
+  setGuessResultNotification: Dispatch<SetStateAction<GuessResultNotification>>;
   setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
 }
 
@@ -76,6 +85,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [sessionId, setSessionId] = useState('');
   const [currentPlayerId, setCurrentPlayerId] = useState('');
   const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
+  const [guessResultNotification, setGuessResultNotification] =
+    useState<GuessResultNotification>(null);
   const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
 
   return (
@@ -92,6 +103,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         sessionId,
         currentPlayerId,
         buzzerNotification,
+        guessResultNotification,
         pausePlayerCallback,
         setIsHost,
         setPlayers,
@@ -104,6 +116,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSessionId,
         setCurrentPlayerId,
         setBuzzerNotification,
+        setGuessResultNotification,
         setPausePlayerCallback,
       }}
     >

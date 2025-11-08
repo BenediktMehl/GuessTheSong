@@ -18,6 +18,8 @@ export default function Game() {
     partiallyGuessedPlayers,
     buzzerNotification,
     setBuzzerNotification,
+    guessResultNotification,
+    setGuessResultNotification,
   } = useGameContext();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
@@ -101,6 +103,16 @@ export default function Game() {
       return () => clearTimeout(timer);
     }
   }, [buzzerNotification, setBuzzerNotification, buzzerSoundEnabled]);
+
+  // Auto-dismiss guess result notification after 4 seconds
+  useEffect(() => {
+    if (guessResultNotification) {
+      const timer = setTimeout(() => {
+        setGuessResultNotification(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [guessResultNotification, setGuessResultNotification]);
 
   // Check if current player is in the waiting queue
   const currentPlayerInQueue = currentPlayerId
@@ -292,6 +304,46 @@ export default function Game() {
           <div className="alert alert-info shadow-2xl">
             <span>
               <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
+            </span>
+          </div>
+        </div>
+      )}
+
+      {guessResultNotification && (
+        <div className="toast toast-top toast-center z-50">
+          <div
+            className={`alert shadow-2xl ${
+              guessResultNotification.result === 'correct'
+                ? 'alert-success'
+                : guessResultNotification.result === 'partially'
+                  ? 'alert-warning'
+                  : 'alert-error'
+            }`}
+          >
+            <span>
+              {guessResultNotification.result === 'correct' && (
+                <>
+                  Guess from <strong>{guessResultNotification.playerName}</strong> was correct! Next
+                  song starts now.
+                </>
+              )}
+              {guessResultNotification.result === 'partially' && (
+                <>
+                  Guess from <strong>{guessResultNotification.playerName}</strong> was partially
+                  correct.{' '}
+                  {guessResultNotification.nextPlayerName
+                    ? `${guessResultNotification.nextPlayerName} can guess now.`
+                    : 'Song continues now.'}
+                </>
+              )}
+              {guessResultNotification.result === 'wrong' && (
+                <>
+                  Guess from <strong>{guessResultNotification.playerName}</strong> was wrong.{' '}
+                  {guessResultNotification.nextPlayerName
+                    ? `${guessResultNotification.nextPlayerName} can guess now.`
+                    : 'Song continues now.'}
+                </>
+              )}
             </span>
           </div>
         </div>
