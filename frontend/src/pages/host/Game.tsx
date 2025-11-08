@@ -9,6 +9,12 @@ import {
   resetAllPlayersForNewRound,
 } from '../../game/host';
 import { playBuzzerSound } from '../../game/player/buzzerSound';
+import {
+  getPlaylistTracks,
+  getSelectedPlaylistId,
+  playRandomPlaylistTrack,
+  type SpotifyTrack,
+} from '../../services/spotify/api';
 import logger from '../../utils/logger';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
@@ -131,6 +137,15 @@ export default function Game() {
   const [isSeeking, setIsSeeking] = useState<boolean>(false); // Track if user is actively seeking
   const positionUpdateIntervalRef = useRef<number | null>(null);
 
+  // Playlist-related state
+  const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
+  const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
+  const [playedTrackIds, setPlayedTrackIds] = useState<Set<string>>(new Set());
+  const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(false);
+  const playlistTracksLoadedRef = useRef(false);
+  const gameStartedRef = useRef(false);
+  const firstTrackPlayedRef = useRef(false);
+
   // Enable repeat mode for track (loop single track)
   const enableRepeatMode = useCallback(async (_trackId?: string) => {
     const accessToken = localStorage.getItem('access_token');
@@ -157,6 +172,167 @@ export default function Game() {
       logger.error('[Spotify] Error enabling repeat mode:', error);
     }
   }, []);
+
+  // Load playlist tracks
+  const loadPlaylistTracks = useCallback(
+    async (selectedPlaylistId: string): Promise<SpotifyTrack[]> => {
+      if (playlistTracksLoadedRef.current && playlistTracks.length > 0) {
+        logger.debug('[Spotify] Playlist tracks already loaded');
+        return playlistTracks;
+      }
+
+      setIsLoadingPlaylist(true);
+      try {
+        logger.debug('[Spotify] Loading tracks from playlist:', selectedPlaylistId);
+        const tracks = await getPlaylistTracks(selectedPlaylistId);
+        if (tracks.length === 0) {
+          logger.warn('[Spotify] Playlist has no tracks');
+          setSpotifyError('Selected playlist has no tracks. Please select a different playlist.');
+          setIsLoadingPlaylist(false);
+          return [];
+        }
+        logger.debug(`[Spotify] Loaded ${tracks.length} tracks from playlist`);
+        setPlaylistTracks(tracks);
+        playlistTracksLoadedRef.current = true;
+        setPlayedTrackIds(new Set()); // Reset played tracks when loading new playlist
+        setIsLoadingPlaylist(false);
+        return tracks;
+      } catch (error) {
+        logger.error('[Spotify] Error loading playlist tracks:', error);
+        setSpotifyError(
+          `Failed to load playlist tracks: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+        setIsLoadingPlaylist(false);
+        return [];
+      }
+    },
+    [playlistTracks]
+  );
+
+  // Play next track from playlist
+  const playNextPlaylistTrack = useCallback(async () => {
+    if (!deviceId || !playlistId) {
+      logger.error('[Spotify] No device ID or playlist ID available');
+      return;
+    }
+
+    // Ensure playlist tracks are loaded
+    let tracksToUse = playlistTracks;
+    if (tracksToUse.length === 0) {
+      tracksToUse = await loadPlaylistTracks(playlistId);
+    }
+
+    if (tracksToUse.length === 0) {
+      logger.error('[Spotify] No tracks available to play');
+      return;
+    }
+
+    try {
+      const excludeIds = Array.from(playedTrackIds);
+      const playedTrack = await playRandomPlaylistTrack(
+        deviceId,
+        playlistId,
+        tracksToUse,
+        excludeIds
+      );
+      logger.debug('[Spotify] Playing track from playlist:', playedTrack.name);
+
+      // Add to played tracks
+      setPlayedTrackIds((prev) => new Set([...prev, playedTrack.id]));
+
+      // Enable repeat mode for the track
+      await enableRepeatMode(playedTrack.id);
+    } catch (error) {
+      logger.error('[Spotify] Error playing playlist track:', error);
+      setSpotifyError(
+        `Failed to play track: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }, [deviceId, playlistId, playlistTracks, playedTrackIds, loadPlaylistTracks, enableRepeatMode]);
+
+  // Reset track history when starting a new game
+  useEffect(() => {
+    const currentStatus = gameContext.status;
+    if (currentStatus === 'waiting' && !gameStartedRef.current) {
+      // Game just started
+      gameStartedRef.current = true;
+      firstTrackPlayedRef.current = false;
+      setPlayedTrackIds(new Set());
+      // Reload playlist ID in case it changed
+      const currentPlaylistId = getSelectedPlaylistId();
+      if (currentPlaylistId !== playlistId) {
+        setPlaylistId(currentPlaylistId);
+        playlistTracksLoadedRef.current = false;
+        setPlaylistTracks([]);
+      }
+    } else if (currentStatus === 'notStarted' || currentStatus === 'finished') {
+      // Game ended or not started, reset flags
+      gameStartedRef.current = false;
+      firstTrackPlayedRef.current = false;
+    }
+  }, [gameContext.status, playlistId]);
+
+  // Load playlist ID from localStorage on mount and when it changes
+  useEffect(() => {
+    const currentPlaylistId = getSelectedPlaylistId();
+    if (currentPlaylistId !== playlistId) {
+      setPlaylistId(currentPlaylistId);
+      playlistTracksLoadedRef.current = false;
+      setPlaylistTracks([]);
+      setPlayedTrackIds(new Set());
+    }
+  }, [playlistId]);
+
+  // Play first track when device is ready and game has started
+  useEffect(() => {
+    const playFirstTrack = async () => {
+      // Only play if:
+      // 1. Device is ready
+      // 2. Game has started (status is 'waiting')
+      // 3. We haven't attempted to play the first track yet
+      // 4. We're not currently loading the playlist
+      if (
+        deviceId &&
+        playlistId &&
+        gameContext.status === 'waiting' &&
+        gameStartedRef.current &&
+        !firstTrackPlayedRef.current &&
+        !isLoadingPlaylist
+      ) {
+        firstTrackPlayedRef.current = true; // Mark as attempted to prevent retries
+        logger.debug('[Spotify] Game started, playing first track from playlist');
+        try {
+          // Load tracks if not already loaded
+          let tracksToUse = playlistTracks;
+          if (tracksToUse.length === 0) {
+            tracksToUse = await loadPlaylistTracks(playlistId);
+          }
+
+          // Play first track if we have tracks
+          if (tracksToUse.length > 0) {
+            await playNextPlaylistTrack();
+          } else {
+            // No tracks available, reset flag so we can try again
+            firstTrackPlayedRef.current = false;
+          }
+        } catch (error) {
+          logger.error('[Spotify] Error playing first track:', error);
+          // Reset flag on error so we can retry
+          firstTrackPlayedRef.current = false;
+        }
+      }
+    };
+
+    playFirstTrack();
+  }, [
+    deviceId,
+    playlistId,
+    gameContext.status,
+    isLoadingPlaylist,
+    playlistTracks,
+    loadPlaylistTracks,
+    playNextPlaylistTrack,
+  ]);
 
   // Transfer playback to this device using Spotify Web API
   const transferPlaybackToDevice = useCallback(
@@ -371,12 +547,12 @@ export default function Game() {
 
           // If autoplay is OFF and we have a pending pause, pause the track
           if (pendingPauseRef.current && !state.paused) {
-            console.log('[Spotify] Autoplay is OFF, pausing new track');
+            logger.debug('[Spotify] Autoplay is OFF, pausing new track');
             pendingPauseRef.current = false;
             const currentPlayer = playerInstanceRef.current;
             if (currentPlayer) {
               currentPlayer.togglePlay().catch((error) => {
-                console.error('[Host Game] Error pausing after track change:', error);
+                logger.error('[Host Game] Error pausing after track change:', error);
               });
             }
             // Update state to reflect pause and new track
@@ -569,12 +745,12 @@ export default function Game() {
 
           // If autoplay is OFF and we have a pending pause, pause the track
           if (pendingPauseRef.current && !state.paused) {
-            console.log('[Spotify] Autoplay is OFF, pausing new track');
+            logger.debug('[Spotify] Autoplay is OFF, pausing new track');
             pendingPauseRef.current = false;
             const currentPlayer = playerInstanceRef.current;
             if (currentPlayer) {
               currentPlayer.togglePlay().catch((error) => {
-                console.error('[Host Game] Error pausing after track change:', error);
+                logger.error('[Host Game] Error pausing after track change:', error);
               });
             }
             // Update state to reflect pause
@@ -802,15 +978,67 @@ export default function Game() {
     if (!currentGuessingPlayer) return;
 
     markPlayerGuessedRight(gameContext, async () => {
-      // Play next song
-      if (player) {
+      // Play next song from playlist
+      try {
+        // Set pending pause flag if autoplay is OFF
+        if (!autoplay) {
+          pendingPauseRef.current = true;
+        }
+        await playNextPlaylistTrack();
+        logger.debug('[Host] Playing next song from playlist after correct guess', { autoplay });
+
+        // If autoplay is OFF, pause immediately after a short delay
+        if (!autoplay) {
+          setTimeout(async () => {
+            const currentPlayer = playerInstanceRef.current || player;
+            if (currentPlayer) {
+              try {
+                const state = await currentPlayer.getCurrentState();
+                if (state && !state.paused) {
+                  await currentPlayer.togglePlay();
+                  logger.debug('[Host] Paused next song (autoplay OFF)');
+                }
+              } catch (error) {
+                logger.error('[Host] Error pausing after next track:', error);
+              }
+            }
+          }, 300);
+        }
+      } catch (error) {
+        logger.error('[Host] Error playing next song:', error);
+        pendingPauseRef.current = false;
+      }
+    });
+  }, [currentGuessingPlayer, player, gameContext, autoplay, playNextPlaylistTrack]);
+
+  // Handle wrong guess
+  const handleWrongGuess = useCallback(async () => {
+    if (!currentGuessingPlayer) return;
+
+    markPlayerGuessedWrong(
+      gameContext,
+      async () => {
+        // Resume current song
+        if (player && is_paused) {
+          try {
+            await player.togglePlay();
+            logger.debug('[Host] Resuming song for next player');
+          } catch (error) {
+            logger.error('[Host] Error resuming song:', error);
+          }
+        }
+      },
+      async () => {
+        // Play next song from playlist if no more players can guess
         try {
           // Set pending pause flag if autoplay is OFF
           if (!autoplay) {
             pendingPauseRef.current = true;
           }
-          await player.nextTrack();
-          logger.debug('[Host] Playing next song after correct guess', { autoplay });
+          await playNextPlaylistTrack();
+          logger.debug('[Host] Playing next song from playlist - no more players can guess', {
+            autoplay,
+          });
 
           // If autoplay is OFF, pause immediately after a short delay
           if (!autoplay) {
@@ -834,62 +1062,8 @@ export default function Game() {
           pendingPauseRef.current = false;
         }
       }
-    });
-  }, [currentGuessingPlayer, player, gameContext, autoplay]);
-
-  // Handle wrong guess
-  const handleWrongGuess = useCallback(async () => {
-    if (!currentGuessingPlayer) return;
-
-    markPlayerGuessedWrong(
-      gameContext,
-      async () => {
-        // Resume current song
-        if (player && is_paused) {
-          try {
-            await player.togglePlay();
-            logger.debug('[Host] Resuming song for next player');
-          } catch (error) {
-            logger.error('[Host] Error resuming song:', error);
-          }
-        }
-      },
-      async () => {
-        // Play next song if no more players can guess
-        if (player) {
-          try {
-            // Set pending pause flag if autoplay is OFF
-            if (!autoplay) {
-              pendingPauseRef.current = true;
-            }
-            await player.nextTrack();
-            logger.debug('[Host] Playing next song - no more players can guess', { autoplay });
-
-            // If autoplay is OFF, pause immediately after a short delay
-            if (!autoplay) {
-              setTimeout(async () => {
-                const currentPlayer = playerInstanceRef.current || player;
-                if (currentPlayer) {
-                  try {
-                    const state = await currentPlayer.getCurrentState();
-                    if (state && !state.paused) {
-                      await currentPlayer.togglePlay();
-                      logger.debug('[Host] Paused next song (autoplay OFF)');
-                    }
-                  } catch (error) {
-                    logger.error('[Host] Error pausing after next track:', error);
-                  }
-                }
-              }, 300);
-            }
-          } catch (error) {
-            logger.error('[Host] Error playing next song:', error);
-            pendingPauseRef.current = false;
-          }
-        }
-      }
     );
-  }, [currentGuessingPlayer, player, is_paused, gameContext, autoplay]);
+  }, [currentGuessingPlayer, player, is_paused, gameContext, autoplay, playNextPlaylistTrack]);
 
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
@@ -1223,37 +1397,35 @@ export default function Game() {
                     logger.debug('[Host Game] Next button clicked - resetting all players');
                     resetAllPlayersForNewRound(gameContext);
 
-                    // Go to next track
-                    if (player) {
-                      try {
-                        // Set pending pause flag if autoplay is OFF
-                        if (!autoplay) {
-                          pendingPauseRef.current = true;
-                        }
-                        await player.nextTrack();
-                        logger.debug('[Host Game] Next track started', { autoplay });
-
-                        // If autoplay is OFF, pause immediately after a short delay
-                        if (!autoplay) {
-                          setTimeout(async () => {
-                            const currentPlayer = playerInstanceRef.current || player;
-                            if (currentPlayer) {
-                              try {
-                                const state = await currentPlayer.getCurrentState();
-                                if (state && !state.paused) {
-                                  await currentPlayer.togglePlay();
-                                  logger.debug('[Host Game] Paused next track (autoplay OFF)');
-                                }
-                              } catch (error) {
-                                logger.error('[Host Game] Error pausing after next track:', error);
-                              }
-                            }
-                          }, 300);
-                        }
-                      } catch (error) {
-                        logger.error('[Host Game] Error going to next track:', error);
-                        pendingPauseRef.current = false;
+                    // Go to next track from playlist
+                    try {
+                      // Set pending pause flag if autoplay is OFF
+                      if (!autoplay) {
+                        pendingPauseRef.current = true;
                       }
+                      await playNextPlaylistTrack();
+                      logger.debug('[Host Game] Next track from playlist started', { autoplay });
+
+                      // If autoplay is OFF, pause immediately after a short delay
+                      if (!autoplay) {
+                        setTimeout(async () => {
+                          const currentPlayer = playerInstanceRef.current || player;
+                          if (currentPlayer) {
+                            try {
+                              const state = await currentPlayer.getCurrentState();
+                              if (state && !state.paused) {
+                                await currentPlayer.togglePlay();
+                                logger.debug('[Host Game] Paused next track (autoplay OFF)');
+                              }
+                            } catch (error) {
+                              logger.error('[Host Game] Error pausing after next track:', error);
+                            }
+                          }
+                        }, 300);
+                      }
+                    } catch (error) {
+                      logger.error('[Host Game] Error going to next track:', error);
+                      pendingPauseRef.current = false;
                     }
                   }}
                   disabled={!player}

@@ -78,7 +78,8 @@ export async function handleSpotifyLogin(): Promise<void> {
 
   // Build authorization URL
   // Note: scope must be space-separated, URLSearchParams will encode it properly
-  const scope = 'streaming user-read-email user-read-private';
+  const scope =
+    'streaming user-read-email user-read-private playlist-read-private playlist-read-collaborative';
   const params = new URLSearchParams();
   params.append('response_type', 'code');
   params.append('client_id', SPOTIFY_CLIENT_ID);
