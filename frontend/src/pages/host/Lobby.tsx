@@ -161,24 +161,24 @@ export default function Lobby() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6">
+    <main className="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 gap-3 sm:gap-6">
       {/* ...existing connection status UI... */}
       {wsStatus === 'connecting' || wsStatus === 'closed' ? (
         <div className="alert alert-warning max-w-md flex flex-col gap-2">
           <div>
             <span className="loading loading-spinner loading-sm mr-2"></span>
-            <span className="font-semibold">Establishing connection...</span>
+            <span className="font-semibold text-sm sm:text-base">Establishing connection...</span>
           </div>
-          <p className="text-sm">
+          <p className="text-xs sm:text-sm">
             Please wait while the connection to the server is being established.
           </p>
         </div>
       ) : wsStatus === 'failed' ? (
-        <div className="alert alert-error max-w-md flex flex-col gap-3">
+        <div className="alert alert-error max-w-md flex flex-col gap-2 sm:gap-3">
           <div>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current shrink-0 h-6 w-6 inline mr-2"
+              className="stroke-current shrink-0 h-5 w-5 sm:h-6 sm:w-6 inline mr-2"
               fill="none"
               viewBox="0 0 24 24"
               role="img"
@@ -192,9 +192,11 @@ export default function Lobby() {
                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-semibold">Connection could not be established.</span>
+            <span className="font-semibold text-sm sm:text-base">
+              Connection could not be established.
+            </span>
           </div>
-          <p className="text-sm">Please reload the page or try again later.</p>
+          <p className="text-xs sm:text-sm">Please reload the page or try again later.</p>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             <button
               type="button"
@@ -215,17 +217,17 @@ export default function Lobby() {
       ) : sessionId ? (
         <>
           {/* Spotify Integration */}
-          <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
+          <Card className="w-full max-w-md" bodyClassName="items-center gap-2 sm:gap-3">
             {isLoggedInSpotify ? (
-              <div className="w-full flex flex-col gap-3">
-                <div className="flex items-center gap-3 w-full justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-success">✓</span>
-                    <span className="font-medium">Connected to Spotify</span>
+              <div className="w-full flex flex-col gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 w-full justify-between">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-success text-sm sm:text-base">✓</span>
+                    <span className="font-medium text-xs sm:text-sm">Connected to Spotify</span>
                   </div>
                   <button
                     type="button"
-                    className="btn btn-outline btn-error btn-sm"
+                    className="btn btn-outline btn-error btn-xs sm:btn-sm"
                     onClick={handleSpotifyLogout}
                   >
                     Logout
@@ -233,23 +235,25 @@ export default function Lobby() {
                 </div>
 
                 {/* Playlist Selection */}
-                <div className="w-full flex flex-col gap-2">
-                  <label htmlFor="playlist-select" className="label">
-                    <span className="label-text font-medium">Select Playlist</span>
+                <div className="w-full flex flex-col gap-1.5 sm:gap-2">
+                  <label htmlFor="playlist-select" className="label py-1">
+                    <span className="label-text font-medium text-xs sm:text-sm">
+                      Select Playlist
+                    </span>
                   </label>
                   {playlistsLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-base-content/70">
                       <span className="loading loading-spinner loading-sm"></span>
                       <span>Loading playlists...</span>
                     </div>
                   ) : playlistsError ? (
-                    <div className="alert alert-warning py-2">
-                      <span className="text-sm">{playlistsError}</span>
+                    <div className="alert alert-warning py-1.5 sm:py-2">
+                      <span className="text-xs sm:text-sm">{playlistsError}</span>
                     </div>
                   ) : (
                     <select
                       id="playlist-select"
-                      className="select select-bordered w-full"
+                      className="select select-bordered w-full select-sm sm:select-md text-xs sm:text-sm"
                       value={selectedPlaylistId}
                       onChange={(e) => handlePlaylistChange(e.target.value)}
                       disabled={playlistValidationLoading}
@@ -281,14 +285,14 @@ export default function Lobby() {
                   )}
                   {/* Playlist validation indicator */}
                   {playlistValidationLoading && (
-                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-base-content/70">
                       <span className="loading loading-spinner loading-sm"></span>
                       <span>Validating playlist...</span>
                     </div>
                   )}
                   {playlistValidationError && !playlistValidationLoading && (
-                    <div className="alert alert-warning py-2">
-                      <span className="text-sm">{playlistValidationError}</span>
+                    <div className="alert alert-warning py-1.5 sm:py-2">
+                      <span className="text-xs sm:text-sm">{playlistValidationError}</span>
                     </div>
                   )}
                 </div>
@@ -296,7 +300,7 @@ export default function Lobby() {
             ) : (
               <button
                 type="button"
-                className={`btn btn-success w-full ${spotifyLoginLoading ? 'loading' : ''}`}
+                className={`btn btn-success w-full btn-sm sm:btn-md ${spotifyLoginLoading ? 'loading' : ''}`}
                 onClick={handleSpotifyLoginClick}
                 disabled={spotifyLoginLoading}
               >
@@ -334,7 +338,7 @@ export default function Lobby() {
           )}
 
           {/* Game control buttons */}
-          <div className="w-full max-w-md flex flex-col gap-3 mt-4">
+          <div className="w-full max-w-md flex flex-col gap-2 sm:gap-3 mt-2 sm:mt-4">
             <button
               type="button"
               onClick={() => {
@@ -351,7 +355,7 @@ export default function Lobby() {
                   navigate('/hostgame');
                 }
               }}
-              className={`btn btn-lg w-full ${
+              className={`btn btn-sm sm:btn-md md:btn-lg w-full ${
                 isGameRunning ? 'btn-primary' : 'btn-success'
               } ${players.length < 2 || !isLoggedInSpotify ? 'btn-disabled' : ''}`}
               disabled={players.length < 2 || !isLoggedInSpotify}
@@ -362,7 +366,7 @@ export default function Lobby() {
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="btn btn-outline btn-error"
+              className="btn btn-outline btn-error btn-sm sm:btn-md"
             >
               Cancel & Leave
             </button>

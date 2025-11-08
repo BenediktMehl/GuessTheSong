@@ -21,24 +21,26 @@ function PlayerItem({
 }) {
   return (
     <li
-      className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
+      className={`flex items-center justify-between p-1.5 sm:p-2 rounded-lg transition-colors ${
         isCurrentPlayer
           ? 'bg-success/25 border-2 border-success/60 drop-shadow-[4px_4px_6px_rgba(0,0,0,0.4)]'
           : 'bg-white/90 hover:bg-white drop-shadow-[2px_2px_4px_rgba(0,0,0,0.3)]'
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {showTrophy && (
-          <span className="text-lg" role="img" aria-label="Trophy">
+          <span className="text-base sm:text-lg" role="img" aria-label="Trophy">
             🏆
           </span>
         )}
-        <span className="font-medium text-sm">
+        <span className="font-medium text-xs sm:text-sm">
           {player.name}
-          {isCurrentPlayer && <span className="ml-2 text-success text-xs font-bold">(You)</span>}
+          {isCurrentPlayer && (
+            <span className="ml-1.5 sm:ml-2 text-success text-xs font-bold">(You)</span>
+          )}
         </span>
       </div>
-      <span className="badge badge-primary badge-sm bg-opacity-90">{player.points}</span>
+      <span className="badge badge-primary badge-sm bg-opacity-90 text-xs">{player.points}</span>
     </li>
   );
 }
@@ -63,8 +65,8 @@ function PlayerSection({
   return (
     <>
       {showDivider && (
-        <div className="border-t border-gray-300 pt-2 mt-2">
-          <h4 className="text-xs font-semibold text-base-content/70 mb-1.5">{title}</h4>
+        <div className="border-t border-gray-300 pt-1.5 sm:pt-2 mt-1.5 sm:mt-2">
+          <h4 className="text-xs font-semibold text-base-content/70 mb-1 sm:mb-1.5">{title}</h4>
         </div>
       )}
       {players.map((player) => {
@@ -126,17 +128,17 @@ export default function PlayersLobby({
 
   return (
     <Card
-      className="w-full max-w-md max-h-[60vh] flex flex-col"
-      bodyClassName="flex flex-col flex-1 gap-3 overflow-hidden"
+      className="w-full max-w-md max-h-[50vh] sm:max-h-[60vh] flex flex-col"
+      bodyClassName="flex flex-col flex-1 gap-2 sm:gap-3 overflow-hidden"
     >
       {totalPlayers === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-3">
-          <div className="text-3xl mb-2">👥</div>
+        <div className="flex flex-col items-center justify-center text-center py-2 sm:py-3">
+          <div className="text-2xl sm:text-3xl mb-1.5 sm:mb-2">👥</div>
           <p className="text-xs text-base-content/60">Waiting for players...</p>
         </div>
       ) : (
-        <div className="overflow-y-auto flex-1 min-h-0 p-4">
-          <ul className="space-y-1.5">
+        <div className="overflow-y-auto flex-1 min-h-0 p-2 sm:p-4">
+          <ul className="space-y-1 sm:space-y-1.5">
             {hasActiveGuessing ? (
               <>
                 {nowGuessing.length > 0 && (
@@ -205,10 +207,10 @@ export default function PlayersLobby({
       )}
 
       {totalPlayers < minPlayers && (
-        <div className="alert alert-warning bg-opacity-80 py-2 shadow-lg">
+        <div className="alert alert-warning bg-opacity-80 py-1.5 sm:py-2 shadow-lg">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="stroke-current shrink-0 h-4 w-4"
+            className="stroke-current shrink-0 h-3 w-3 sm:h-4 sm:w-4"
             fill="none"
             viewBox="0 0 24 24"
             role="img"
@@ -222,7 +224,7 @@ export default function PlayersLobby({
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-          <span className="text-sm">Need {minPlayers}+ players</span>
+          <span className="text-xs sm:text-sm">Need {minPlayers}+ players</span>
         </div>
       )}
     </Card>

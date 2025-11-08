@@ -62,13 +62,15 @@ export default function Join() {
   };
 
   return (
-    <main className="h-screen flex flex-col items-center justify-start p-2 gap-2 overflow-y-auto">
-      <Card className="w-full max-w-md" bodyClassName="gap-4">
-        <p className="text-sm text-base-content text-center">Enter the game code to join a game</p>
-        <form onSubmit={handleJoin} className="flex flex-col gap-4">
+    <main className="h-screen flex flex-col items-center justify-start p-2 sm:p-4 gap-2 sm:gap-4 overflow-y-auto">
+      <Card className="w-full max-w-md" bodyClassName="gap-3 sm:gap-4">
+        <p className="text-xs sm:text-sm text-base-content text-center">
+          Enter the game code to join a game
+        </p>
+        <form onSubmit={handleJoin} className="flex flex-col gap-3 sm:gap-4">
           <div className="form-control">
             <label htmlFor="game-code" className="label justify-center py-1">
-              <span className="label-text text-sm font-semibold">Game Code</span>
+              <span className="label-text text-xs sm:text-sm font-semibold">Game Code</span>
             </label>
             <input
               id="game-code"
@@ -77,7 +79,7 @@ export default function Join() {
               onChange={handleRoomChange}
               maxLength={4}
               required
-              className="input input-bordered input-md uppercase tracking-[0.5em] text-center font-mono text-3xl font-bold text-primary bg-white shadow-lg"
+              className="input input-bordered input-sm sm:input-md uppercase tracking-[0.5em] text-center font-mono text-2xl sm:text-3xl font-bold text-primary bg-white shadow-lg"
               style={{ textTransform: 'uppercase' }}
               placeholder="A1B2"
               inputMode="text"
@@ -88,7 +90,7 @@ export default function Join() {
 
           <div className="form-control">
             <label htmlFor="player-name" className="label justify-center py-1">
-              <span className="label-text text-sm font-semibold">Your Name</span>
+              <span className="label-text text-xs sm:text-sm font-semibold">Your Name</span>
             </label>
             <input
               id="player-name"
@@ -97,7 +99,7 @@ export default function Join() {
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               maxLength={16}
-              className="input input-bordered input-md text-center text-lg bg-white shadow-lg"
+              className="input input-bordered input-sm sm:input-md text-center text-base sm:text-lg bg-white shadow-lg"
               placeholder="Enter your name"
               inputMode="text"
             />
@@ -105,7 +107,7 @@ export default function Join() {
 
           <button
             type="submit"
-            className="btn btn-success btn-md text-base mt-2 shadow-xl"
+            className="btn btn-success btn-sm sm:btn-md text-sm sm:text-base mt-2 shadow-xl"
             disabled={room.length !== 4}
           >
             🎮 Join Game
@@ -116,7 +118,7 @@ export default function Join() {
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="btn btn-sm btn-outline btn-ghost mt-8"
+        className="btn btn-xs sm:btn-sm btn-outline btn-ghost mt-4 sm:mt-8"
       >
         ← Back to Home
       </button>
