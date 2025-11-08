@@ -1135,7 +1135,7 @@ export default function Game() {
                   <div className="text-center">
                     <div className="font-bold text-lg">{current_track.name}</div>
                     <div className="text-sm text-base-content/70">
-                      {current_track.artists[0]?.name || ''}
+                      {(current_track.artists || []).map(artist => artist.name).join(', ')}
                     </div>
                     <div className="text-xs text-base-content/60">
                       {'name' in current_track.album && typeof current_track.album.name === 'string'
