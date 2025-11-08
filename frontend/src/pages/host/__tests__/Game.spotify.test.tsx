@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
@@ -543,7 +543,10 @@ describe('Spotify SDK Integration', () => {
     // Trigger state change
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert
@@ -592,7 +595,10 @@ describe('Spotify SDK Integration', () => {
     // Trigger state change
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert
@@ -638,7 +644,10 @@ describe('Spotify SDK Integration', () => {
 
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert
@@ -685,7 +694,10 @@ describe('Spotify SDK Integration', () => {
     // Set player as active
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     await waitFor(() => {
@@ -738,7 +750,10 @@ describe('Spotify SDK Integration', () => {
 
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     await waitFor(() => {
@@ -792,7 +807,10 @@ describe('Spotify SDK Integration', () => {
 
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      stateChangeCallback(mockState);
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert - previous button should not exist
@@ -834,7 +852,10 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger the not_ready callback
     if (notReadyCallback) {
-      notReadyCallback({ device_id: 'test-device-123' });
+      const callback = notReadyCallback;
+      act(() => {
+        callback({ device_id: 'test-device-123' });
+      });
     }
 
     // Assert - verify the console log was called
@@ -924,7 +945,11 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger error
     if (errorCallback) {
-      (errorCallback as (error: { message: string }) => void)({ message: 'Initialization failed' });
+      act(() => {
+        (errorCallback as (error: { message: string }) => void)({
+          message: 'Initialization failed',
+        });
+      });
     }
 
     // Assert - error message should be displayed
@@ -968,7 +993,11 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger error
     if (errorCallback) {
-      (errorCallback as (error: { message: string }) => void)({ message: 'Authentication failed' });
+      act(() => {
+        (errorCallback as (error: { message: string }) => void)({
+          message: 'Authentication failed',
+        });
+      });
     }
 
     // Assert - error message should be displayed
@@ -1012,7 +1041,11 @@ describe('Spotify SDK Integration', () => {
 
     // Trigger error
     if (errorCallback) {
-      (errorCallback as (error: { message: string }) => void)({ message: 'Account error' });
+      act(() => {
+        (errorCallback as (error: { message: string }) => void)({
+          message: 'Account error',
+        });
+      });
     }
 
     // Assert - error message should be displayed
