@@ -686,9 +686,15 @@ export function markPlayerGuessedWrong(
     // This is the last player - don't move to guessedPlayers, just reset everything for next song
     logger.info('[Host] Last player guessed wrong - resetting all players for next song');
 
+    // Save last song if provided
+    if (lastSong) {
+      gameContext.setLastSong(lastSong);
+      sendLastSongChangedAction(lastSong);
+    }
+
     // Award 0.5 points to partiallyGuessedPlayers if there are any
     if (gameContext.partiallyGuessedPlayers.length > 0) {
-      console.log(
+      logger.info(
         '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
       );
       gameContext.setPlayers((currentPlayers) => {
@@ -701,7 +707,7 @@ export function markPlayerGuessedWrong(
           }
           return player;
         });
-        console.log('[Host] Updated player points after partial points awarded:', updatedPlayers);
+        logger.debug('[Host] Updated player points after partial points awarded:', updatedPlayers);
         sendPlayersChangedAction(updatedPlayers);
         return updatedPlayers;
       });

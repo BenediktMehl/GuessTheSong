@@ -174,7 +174,7 @@ export default function Game() {
           name: track.name,
           artists: track.artists.map((artist) => artist.name),
         };
-        console.log('[Host Game] Saving last song:', lastSong);
+        logger.debug('[Host Game] Saving last song:', lastSong);
         setLastSong(lastSong);
         sendLastSongChangedAction(lastSong);
       }
@@ -893,7 +893,9 @@ export default function Game() {
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
             // Song looped - save as last song and pause it
-            logger.debug('[Spotify] Song looped (second time started), saving as last song and pausing');
+            logger.debug(
+              '[Spotify] Song looped (second time started), saving as last song and pausing'
+            );
             saveLastSong(state.track_window.current_track);
             hasLoopedRef.current = true;
             if (!state.paused) {
@@ -1056,7 +1058,9 @@ export default function Game() {
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
               // Song looped - save as last song and pause it
-              logger.debug('[Host Game] Song looped (detected in interval), saving as last song and pausing');
+              logger.debug(
+                '[Host Game] Song looped (detected in interval), saving as last song and pausing'
+              );
               if (state?.track_window?.current_track) {
                 saveLastSong(state.track_window.current_track);
               }
@@ -1134,7 +1138,15 @@ export default function Game() {
         pendingPauseRef.current = false;
       }
     });
-  }, [currentGuessingPlayer, player, gameContext, autoplay, playNextPlaylistTrack]);
+  }, [
+    currentGuessingPlayer,
+    player,
+    gameContext,
+    current_track,
+    saveLastSong,
+    autoplay,
+    playNextPlaylistTrack,
+  ]);
 
   // Handle partially right guess
   const handlePartiallyRightGuess = useCallback(async () => {
@@ -1214,7 +1226,15 @@ export default function Game() {
       },
       lastSongInfo
     );
-  }, [currentGuessingPlayer, player, is_paused, gameContext, autoplay, playNextPlaylistTrack, current_track]);
+  }, [
+    currentGuessingPlayer,
+    player,
+    is_paused,
+    gameContext,
+    current_track,
+    autoplay,
+    playNextPlaylistTrack,
+  ]);
 
   // Create pause function that can be called from anywhere
   const pausePlayerFunction = useCallback(async () => {
