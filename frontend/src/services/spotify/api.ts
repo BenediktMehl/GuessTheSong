@@ -248,27 +248,93 @@ export async function validatePlaylistHasTracks(playlistId: string): Promise<boo
 }
 
 /**
- * Stop current Spotify playback
+ * Prepare playlist context (transfer playback, enable shuffle)
+ * This prepares the device so the playlist can start instantly when needed
+ * Note: We don't set the playlist context here because Spotify requires playback to be active
+ * to set a context. We'll set it when the game starts.
  */
-export async function stopPlayback(deviceId?: string): Promise<void> {
+export async function preparePlaylistContext(deviceId: string, playlistId: string): Promise<void> {
   const token = getAccessToken();
   if (!token) {
     throw new Error('No access token available');
   }
 
-  const deviceParam = deviceId ? `?device_id=${deviceId}` : '';
-  const response = await fetch(`${SPOTIFY_API_BASE}/me/player/pause${deviceParam}`, {
+  // Ensure playback is transferred to this device
+  try {
+    const transferResponse = await fetch(`${SPOTIFY_API_BASE}/me/player`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        device_ids: [deviceId],
+        play: false, // Don't start playback yet
+      }),
+    });
+
+    if (transferResponse.status === 204) {
+      logger.debug('[Spotify] Playback transferred to device');
+    } else if (transferResponse.status === 404) {
+      // 404 is okay - no active device to transfer from
+      logger.debug('[Spotify] No active device to transfer from (this is okay)');
+    } else {
+      const error = await transferResponse.json().catch(() => ({ message: 'Unknown error' }));
+      logger.warn('[Spotify] Failed to transfer playback:', error);
+      // Non-critical, continue
+    }
+  } catch (error) {
+    logger.warn('[Spotify] Error transferring playback:', error);
+    // Non-critical, continue
+  }
+
+  // Enable shuffle (this can be done even without active playback)
+  try {
+    await enableShuffle(deviceId, true);
+    logger.debug('[Spotify] Shuffle enabled for playlist:', playlistId);
+  } catch (error) {
+    logger.warn('[Spotify] Failed to enable shuffle, continuing anyway:', error);
+    // Non-critical, continue
+  }
+
+  // Note: We don't set the playlist context here because Spotify requires active playback
+  // to set a context. The context will be set when playPlaylist is called at game start.
+  // Since shuffle is already enabled and the device is ready, starting playback will be instant.
+  logger.debug('[Spotify] Playlist preparation complete (device ready, shuffle enabled)');
+}
+
+/**
+ * Pause playback on the specified device
+ */
+export async function pausePlayback(deviceId?: string): Promise<void> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('No access token available');
+  }
+
+  const url = deviceId
+    ? `${SPOTIFY_API_BASE}/me/player/pause?device_id=${deviceId}`
+    : `${SPOTIFY_API_BASE}/me/player/pause`;
+
+  const response = await fetch(url, {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
 
-  // 404 means no active playback, which is fine
+  // 204 is success, 404 means no active device (which is okay)
   if (!response.ok && response.status !== 404) {
     const error = await response.json().catch(() => ({ message: 'Unknown error' }));
     throw new Error(
-      `Failed to stop playback: ${response.status} - ${error.message || response.statusText}`
+      `Failed to pause playback: ${response.status} - ${error.message || response.statusText}`
     );
   }
+}
+
+/**
+ * Stop current Spotify playback (alias for pausePlayback for compatibility)
+ */
+export async function stopPlayback(deviceId?: string): Promise<void> {
+  return pausePlayback(deviceId);
 }
