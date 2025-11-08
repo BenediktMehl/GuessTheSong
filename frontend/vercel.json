@@ -1,0 +1,36 @@
+{
+  "rewrites": [
+    {
+      "source": "/join",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/lobby",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/spotifycallback",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/hostgame",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/play",
+      "destination": "/index.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/((?!join|lobby|spotifycallback|settings|hostgame|play|_next|.*\\..*).*)",
+      "destination": "/",
+      "permanent": false
+    }
+  ]
+}
+

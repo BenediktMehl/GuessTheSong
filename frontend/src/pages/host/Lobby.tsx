@@ -135,11 +135,6 @@ export default function Lobby() {
         </div>
       ) : sessionId ? (
         <>
-          <PlayersLobby
-            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
-            minPlayers={2}
-          />
-
           {/* Spotify Integration */}
           <Card className="w-full max-w-md" bodyClassName="items-center gap-3">
             {isLoggedInSpotify ? (
@@ -173,6 +168,11 @@ export default function Lobby() {
             showCopyLink={true}
             onCopy={handleCopyLink}
             onCopyError={handleCopyError}
+          />
+
+          <PlayersLobby
+            notGuessedPlayers={[...(players || [])].sort((a, b) => b.points - a.points)}
+            minPlayers={2}
           />
 
           {showCopiedToast && (
