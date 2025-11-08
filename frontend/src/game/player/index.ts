@@ -1,4 +1,5 @@
 import { WS_URL } from '../../config';
+import logger from '../../utils/logger';
 import type { GameContextType, Player } from '../context';
 
 // WebSocket message types
@@ -158,7 +159,7 @@ export function joinGame(
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        console.log('[Player] Received message:', message);
+        logger.debug('[Player] Received message:', message);
 
         switch (message.action) {
           case 'join-success': {
@@ -175,7 +176,7 @@ export function joinGame(
 
             // Set initial players list if provided
             if (message.payload.players && Array.isArray(message.payload.players)) {
-              console.log('Setting initial players list:', message.payload.players);
+              logger.debug('Setting initial players list:', message.payload.players);
               gameContext.setPlayers(message.payload.players);
             }
 
@@ -188,7 +189,7 @@ export function joinGame(
               | 'finished'
               | undefined;
             if (gameStatus) {
-              console.log('Setting game status from join-success:', gameStatus);
+              logger.debug('Setting game status from join-success:', gameStatus);
               gameContext.setStatus(gameStatus);
             } else {
               // Default to 'notStarted' if no status provided (backwards compatibility)
@@ -213,14 +214,14 @@ export function joinGame(
 
           case 'game-started':
             // Game has been started by the host
-            console.log('Game started!');
+            logger.info('Game started!');
             gameContext.setStatus('waiting');
             break;
 
           case 'playersChanged':
             // Players list updated (points, etc.)
             if (message.data?.players && Array.isArray(message.data.players)) {
-              console.log('[Player] Players list updated, syncing points');
+              logger.debug('[Player] Players list updated, syncing points');
               const updatedPlayers = message.data.players;
               gameContext.setPlayers(updatedPlayers);
 
@@ -235,7 +236,7 @@ export function joinGame(
                     (p: Player) => p.id === listPlayer.id
                   );
                   if (playerWithPoints) {
-                    console.log(
+                    logger.debug(
                       '[Player] Syncing waiting player points:',
                       listPlayer.name,
                       listPlayer.points,
@@ -257,7 +258,7 @@ export function joinGame(
                     (p: Player) => p.id === listPlayer.id
                   );
                   if (playerWithPoints) {
-                    console.log(
+                    logger.debug(
                       '[Player] Syncing guessed player points:',
                       listPlayer.name,
                       listPlayer.points,
@@ -281,7 +282,7 @@ export function joinGame(
               // Handle empty array (reset) or populated array
               if (message.data.buzzedPlayers.length === 0) {
                 // Clear waiting list - all players reset for new round
-                console.log('[Player] Clearing waiting players list');
+                logger.debug('[Player] Clearing waiting players list');
                 gameContext.setWaitingPlayers([]);
               } else {
                 // Sync points from main players list to ensure correct points are displayed
@@ -294,7 +295,7 @@ export function joinGame(
                         (p) => p.id === listPlayer.id
                       );
                       if (playerWithPoints && playerWithPoints.points !== listPlayer.points) {
-                        console.log(
+                        logger.debug(
                           '[Player] Syncing waiting player points:',
                           listPlayer.name,
                           listPlayer.points,
@@ -320,7 +321,7 @@ export function joinGame(
               // Handle empty array (reset) or populated array
               if (message.data.guessedPlayers.length === 0) {
                 // Clear guessed list - all players reset for new round
-                console.log('[Player] Clearing guessed players list');
+                logger.debug('[Player] Clearing guessed players list');
                 gameContext.setGuessedPlayers([]);
               } else {
                 // Sync points from main players list to ensure correct points are displayed
@@ -333,7 +334,7 @@ export function joinGame(
                         (p) => p.id === listPlayer.id
                       );
                       if (playerWithPoints && playerWithPoints.points !== listPlayer.points) {
-                        console.log(
+                        logger.debug(
                           '[Player] Syncing guessed player points:',
                           listPlayer.name,
                           listPlayer.points,
@@ -354,35 +355,35 @@ export function joinGame(
             // Player guessed right - reset all lists for new round
             // The host sends empty arrays via waitingPlayersChanged and guessedPlayersChanged,
             // but we also handle this message explicitly to ensure cleanup
-            console.log('[Player] Player guessed right - resetting lists');
+            logger.info('[Player] Player guessed right - resetting lists');
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
 
           case 'player-buzzed-notification':
-            console.log('[Player] Handling player-buzzed-notification:', message);
+            logger.debug('[Player] Handling player-buzzed-notification:', message);
             handlePlayerBuzzedNotificationForPlayer(gameContext, message);
             break;
 
           case 'join-failed':
-            console.error('Failed to join game:', message.payload.reason);
+            logger.error('Failed to join game:', message.payload.reason);
             resolve({ success: false });
             break;
 
           case 'session-closed':
-            console.log('Game session closed:', message.payload.reason);
+            logger.info('Game session closed:', message.payload.reason);
             alert(`The game session has ended: ${message.payload.reason}`);
             window.location.href = '/';
             break;
 
           case 'error':
-            console.error('Server error:', message.payload.message);
+            logger.error('Server error:', message.payload.message);
             break;
 
           default:
-            console.log('Unknown message action:', message.action);
+            logger.warn('Unknown message action:', message.action);
         }
       } catch (error) {
-        console.error('Error processing message:', error);
+        logger.error('Error processing message:', error);
       }
     };
   });
@@ -393,7 +394,7 @@ function handlePlayerJoinedForPlayer(gameContext: GameContextType, msg: WebSocke
   const playerName = msg.payload?.name;
 
   if (!playerId || !playerName) {
-    console.error('Invalid player data: missing playerId or name', msg.payload);
+    logger.error('Invalid player data: missing playerId or name', msg.payload);
     return;
   }
 
@@ -402,7 +403,7 @@ function handlePlayerJoinedForPlayer(gameContext: GameContextType, msg: WebSocke
     name: playerName,
     points: 0,
   };
-  console.log('Player joined (player perspective):', newPlayer);
+  logger.debug('Player joined (player perspective):', newPlayer);
 
   gameContext.setPlayers((currentPlayers) => {
     // Check if player already exists (avoid duplicates)
@@ -414,7 +415,7 @@ function handlePlayerJoinedForPlayer(gameContext: GameContextType, msg: WebSocke
 }
 
 function handlePlayerLeftForPlayer(gameContext: GameContextType, playerId: string) {
-  console.log('Player left (player perspective):', playerId);
+  logger.debug('Player left (player perspective):', playerId);
 
   gameContext.setPlayers((currentPlayers) =>
     currentPlayers.filter((player) => player.id !== playerId)
@@ -425,27 +426,27 @@ function handlePlayerBuzzedNotificationForPlayer(
   gameContext: GameContextType,
   msg: WebSocketMessage
 ) {
-  console.log('[Player] handlePlayerBuzzedNotificationForPlayer called', { msg });
+  logger.debug('[Player] handlePlayerBuzzedNotificationForPlayer called', { msg });
   // Broadcast messages use 'data' instead of 'payload'
   const playerId = msg.data?.playerId;
   const playerName = msg.data?.playerName;
 
-  console.log('[Player] Notification data:', { playerId, playerName });
+  logger.debug('[Player] Notification data:', { playerId, playerName });
 
   if (playerId && playerName) {
-    console.log('[Player] Setting buzzer notification');
+    logger.debug('[Player] Setting buzzer notification');
     gameContext.setBuzzerNotification({
       playerId,
       playerName,
     });
   } else {
-    console.warn('[Player] Missing playerId or playerName in notification');
+    logger.warn('[Player] Missing playerId or playerName in notification');
   }
 }
 
 export function sendPlayerAction(action: string, payload?: Record<string, unknown>) {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    console.error('[PlayerAction] WebSocket is not connected');
+    logger.error('[PlayerAction] WebSocket is not connected');
     return false;
   }
 
@@ -458,12 +459,12 @@ export function sendPlayerAction(action: string, payload?: Record<string, unknow
         localTimestamp: Date.now(),
       },
     };
-    console.log('[PlayerAction] Sending message:', message);
+    logger.debug('[PlayerAction] Sending message:', message);
     ws.send(JSON.stringify(message));
-    console.log('[PlayerAction] Message sent successfully');
+    logger.debug('[PlayerAction] Message sent successfully');
     return true;
   } catch (error) {
-    console.error('[PlayerAction] Error sending action:', error);
+    logger.error('[PlayerAction] Error sending action:', error);
     return false;
   }
 }

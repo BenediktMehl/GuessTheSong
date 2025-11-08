@@ -6,6 +6,7 @@ import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { startGame, useGameInitializer } from '../../game/host';
 import { handleSpotifyLogin, logoutSpotify, spotifyIsLoggedIn } from '../../services/spotify/auth';
+import logger from '../../utils/logger';
 
 export default function Lobby() {
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -36,7 +37,7 @@ export default function Lobby() {
     try {
       await handleSpotifyLogin();
     } catch (error) {
-      console.error('Spotify login error:', error);
+      logger.error('Spotify login error:', error);
       setSpotifyLoginLoading(false);
     }
   };

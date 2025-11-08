@@ -1,4 +1,5 @@
 const { sessions, disconnectedPlayers, deleteSession } = require('../sessions');
+const logger = require('../logger');
 
 // Don't remove immediately - give grace period for reconnection
 const RECONNECT_GRACE_PERIOD_MS = 180000; // 3 minutes
@@ -7,8 +8,9 @@ function handlePlayerDisconnect(ws, sessionId) {
   const playerId = ws.playerId;
 
   if (sessions[sessionId] && playerId) {
-    console.log(
-      `Player ${playerId} disconnected from session ${sessionId}. Grace period: ${RECONNECT_GRACE_PERIOD_MS / 1000}s`
+    logger.info(
+      { playerId, sessionId, gracePeriod: RECONNECT_GRACE_PERIOD_MS / 1000 },
+      'Player disconnected (grace period started)'
     );
 
     // Store disconnected player info
@@ -26,7 +28,7 @@ function handlePlayerDisconnect(ws, sessionId) {
 
         const activeSession = sessions[sessionId];
         if (activeSession) {
-          console.log(`Player ${playerId} removed from session ${sessionId} after timeout`);
+          logger.info({ playerId, sessionId }, 'Player removed from session after timeout');
 
           // Notify host that player left
           const host = activeSession.host;
@@ -75,7 +77,7 @@ function handleGameHostDisconnect(_ws, sessionId) {
       playerWs.close();
     });
     deleteSession(sessionId);
-    console.log(`Session deleted: ${sessionId}. Open sessions: ${Object.keys(sessions).length}`);
+    logger.info({ sessionId, openSessions: Object.keys(sessions).length }, 'Session deleted');
   }
 }
 
