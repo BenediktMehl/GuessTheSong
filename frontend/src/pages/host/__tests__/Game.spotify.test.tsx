@@ -6,7 +6,6 @@ import Game from '../Game';
 
 // Mock the GameProvider to provide a minimal context
 const mockGameContext = {
-
   players: [] as Player[],
   waitingPlayers: [] as Player[],
   guessedPlayers: [] as Player[],
