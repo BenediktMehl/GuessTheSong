@@ -66,6 +66,18 @@ vi.mock('../../../components/Card', () => ({
   ),
 }));
 
+// Mock playlist API functions
+const mockGetPlaylistTracks = vi.fn();
+const mockPlayRandomPlaylistTrack = vi.fn();
+const mockGetSelectedPlaylistId = vi.fn(() => 'default-playlist-id');
+
+vi.mock('../../../services/spotify/api', () => ({
+  getPlaylistTracks: (...args: unknown[]) => mockGetPlaylistTracks(...args),
+  playRandomPlaylistTrack: (...args: unknown[]) => mockPlayRandomPlaylistTrack(...args),
+  getSelectedPlaylistId: (...args: unknown[]) => mockGetSelectedPlaylistId(...args),
+  setSelectedPlaylistId: vi.fn(),
+}));
+
 interface MockPlayer {
   connect: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
@@ -106,6 +118,31 @@ describe('Spotify SDK Integration', () => {
   beforeEach(() => {
     // Clear localStorage
     localStorage.clear();
+
+    // Reset playlist API mocks
+    mockGetPlaylistTracks.mockClear();
+    mockPlayRandomPlaylistTrack.mockClear();
+    mockGetSelectedPlaylistId.mockClear();
+    // Mock default behavior
+    mockGetPlaylistTracks.mockResolvedValue([
+      {
+        id: 'track-1',
+        name: 'Test Track 1',
+        uri: 'spotify:track:1',
+        artists: [{ name: 'Artist 1' }],
+        album: { name: 'Album 1', images: [] },
+        duration_ms: 200000,
+      },
+    ]);
+    mockPlayRandomPlaylistTrack.mockResolvedValue({
+      id: 'track-1',
+      name: 'Test Track 1',
+      uri: 'spotify:track:1',
+      artists: [{ name: 'Artist 1' }],
+      album: { name: 'Album 1', images: [] },
+      duration_ms: 200000,
+    });
+    mockGetSelectedPlaylistId.mockReturnValue('default-playlist-id');
 
     // Setup mock player
     mockPlayer = {
@@ -653,9 +690,10 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
-  it('should call nextTrack when next button is clicked', async () => {
+  it('should call playNextPlaylistTrack when next button is clicked', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    localStorage.setItem('spotify_selected_playlist_id', 'test-playlist-id');
     const mockState = {
       paused: false,
       position: 0,
@@ -674,6 +712,17 @@ describe('Spotify SDK Integration', () => {
       },
     };
 
+    // Setup device ID by simulating ready event
+    let readyCallback: ((data: { device_id: string }) => void) | null = null;
+    mockPlayer.addListener.mockImplementation((event: string, callback: unknown) => {
+      if (event === 'ready') {
+        readyCallback = callback as (data: { device_id: string }) => void;
+      } else if (event === 'player_state_changed') {
+        stateChangeCallback = callback as (state: SpotifyPlaybackState) => void;
+      }
+      return true;
+    });
+
     // Act
     render(
       <MemoryRouter>
@@ -682,6 +731,16 @@ describe('Spotify SDK Integration', () => {
         </GameProvider>
       </MemoryRouter>
     );
+
+    // Wait for player to initialize and trigger ready event
+    await waitFor(() => {
+      expect(mockPlayer.addListener).toHaveBeenCalledWith('ready', expect.any(Function));
+    });
+
+    // Trigger ready event with device ID
+    if (readyCallback) {
+      readyCallback({ device_id: 'test-device-id' });
+    }
 
     await waitFor(() => {
       expect(stateChangeCallback).toBeTruthy();
@@ -703,7 +762,7 @@ describe('Spotify SDK Integration', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockPlayer.nextTrack).toHaveBeenCalled();
+      expect(mockPlayRandomPlaylistTrack).toHaveBeenCalled();
     });
   });
 
