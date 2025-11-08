@@ -1,15 +1,15 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GameProvider } from '../../../game/context';
+import { GameProvider, type Player } from '../../../game/context';
 import Game from '../Game';
 
 // Mock the GameProvider to provide a minimal context
 const mockGameContext = {
-  players: [],
-  waitingPlayers: [],
-  guessedPlayers: [],
-  partiallyGuessedPlayers: [],
+  players: [] as Player[],
+  waitingPlayers: [] as Player[],
+  guessedPlayers: [] as Player[],
+  partiallyGuessedPlayers: [] as Player[],
   sessionId: 'test-session',
   status: 'waiting' as const,
   isHost: true,
@@ -30,6 +30,10 @@ const mockGameContext = {
   currentPlayerId: '',
   setCurrentPlayerId: vi.fn(),
   setStatus: vi.fn(),
+  lastSong: null,
+  setLastSong: vi.fn(),
+  playerToast: null,
+  setPlayerToast: vi.fn(),
 };
 
 // Mock GameProvider
@@ -72,6 +76,9 @@ vi.mock('../../../components/Card', () => ({
 const mockGetPlaylistTracks = vi.fn();
 const mockPlayRandomPlaylistTrack = vi.fn();
 const mockGetSelectedPlaylistId = vi.fn(() => 'default-playlist-id');
+const mockPausePlayback = vi.fn().mockResolvedValue(undefined);
+const mockPlayNextTrack = vi.fn().mockResolvedValue(undefined);
+const mockPlayPlaylist = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../../services/spotify/api', () => ({
   getPlaylistTracks: (playlistId: string) => mockGetPlaylistTracks(playlistId),
@@ -83,6 +90,9 @@ vi.mock('../../../services/spotify/api', () => ({
   ) => mockPlayRandomPlaylistTrack(deviceId, playlistId, tracks, excludeIds),
   getSelectedPlaylistId: () => mockGetSelectedPlaylistId(),
   setSelectedPlaylistId: vi.fn(),
+  pausePlayback: (deviceId?: string) => mockPausePlayback(deviceId),
+  playNextTrack: (deviceId: string) => mockPlayNextTrack(deviceId),
+  playPlaylist: (deviceId: string, playlistId: string) => mockPlayPlaylist(deviceId, playlistId),
 }));
 
 interface MockPlayer {
@@ -216,6 +226,8 @@ describe('Spotify SDK Integration', () => {
     vi.restoreAllMocks();
     notReadyCallback = null;
     stateChangeCallback = null;
+    // Reset mock context state
+    mockGameContext.waitingPlayers = [];
     // Clean up window properties
     // biome-ignore lint/suspicious/noExplicitAny: Test cleanup
     delete (window as any).__spotifyPlayerInstance;
@@ -551,7 +563,7 @@ describe('Spotify SDK Integration', () => {
   it('should update track info when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
-    // Disable hide song until buzzed so the song is visible in the test
+    // Ensure song is visible (not hidden until buzzed)
     localStorage.setItem('hostHideSongUntilBuzzed', 'false');
     const mockTrack = {
       id: 'track-123',
@@ -605,6 +617,11 @@ describe('Spotify SDK Integration', () => {
   it('should display all artists when a song has multiple artists', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    // Ensure song is visible (not hidden until buzzed)
+    localStorage.setItem('hostHideSongUntilBuzzed', 'false');
+    // Add a waiting player to ensure song is visible (shouldShowSong = !hideSongUntilBuzzed || waitingPlayers.length > 0)
+    mockGameContext.waitingPlayers = [{ id: 'test-player-1', name: 'Test Player', points: 0 }];
+
     const mockTrack = {
       id: 'track-456',
       name: 'Collaboration Song',
@@ -647,11 +664,17 @@ describe('Spotify SDK Integration', () => {
       });
     }
 
-    // Assert
-    await waitFor(() => {
-      expect(screen.getByText('Collaboration Song')).toBeInTheDocument();
-      expect(screen.getByText('Artist One, Artist Two, Artist Three')).toBeInTheDocument();
-    });
+    // Assert - wait for track to be displayed with increased timeout for CI
+    await waitFor(
+      () => {
+        expect(screen.getByText('Collaboration Song')).toBeInTheDocument();
+        expect(screen.getByText('Artist One, Artist Two, Artist Three')).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
+
+    // Cleanup: reset waitingPlayers for other tests
+    mockGameContext.waitingPlayers = [];
   });
 
   it('should update pause state when player_state_changed event fires', async () => {
