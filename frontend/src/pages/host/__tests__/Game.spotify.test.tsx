@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameProvider } from '../../../game/context';
@@ -66,6 +66,23 @@ vi.mock('../../../components/Card', () => ({
   ),
 }));
 
+// Mock playlist API functions
+const mockGetPlaylistTracks = vi.fn();
+const mockPlayRandomPlaylistTrack = vi.fn();
+const mockGetSelectedPlaylistId = vi.fn(() => 'default-playlist-id');
+
+vi.mock('../../../services/spotify/api', () => ({
+  getPlaylistTracks: (playlistId: string) => mockGetPlaylistTracks(playlistId),
+  playRandomPlaylistTrack: (
+    deviceId: string,
+    playlistId: string,
+    tracks: unknown[],
+    excludeIds: string[] = []
+  ) => mockPlayRandomPlaylistTrack(deviceId, playlistId, tracks, excludeIds),
+  getSelectedPlaylistId: () => mockGetSelectedPlaylistId(),
+  setSelectedPlaylistId: vi.fn(),
+}));
+
 interface MockPlayer {
   connect: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
@@ -106,6 +123,31 @@ describe('Spotify SDK Integration', () => {
   beforeEach(() => {
     // Clear localStorage
     localStorage.clear();
+
+    // Reset playlist API mocks
+    mockGetPlaylistTracks.mockClear();
+    mockPlayRandomPlaylistTrack.mockClear();
+    mockGetSelectedPlaylistId.mockClear();
+    // Mock default behavior
+    mockGetPlaylistTracks.mockResolvedValue([
+      {
+        id: 'track-1',
+        name: 'Test Track 1',
+        uri: 'spotify:track:1',
+        artists: [{ name: 'Artist 1' }],
+        album: { name: 'Album 1', images: [] },
+        duration_ms: 200000,
+      },
+    ]);
+    mockPlayRandomPlaylistTrack.mockResolvedValue({
+      id: 'track-1',
+      name: 'Test Track 1',
+      uri: 'spotify:track:1',
+      artists: [{ name: 'Artist 1' }],
+      album: { name: 'Album 1', images: [] },
+      duration_ms: 200000,
+    });
+    mockGetSelectedPlaylistId.mockReturnValue('default-playlist-id');
 
     // Setup mock player
     mockPlayer = {
@@ -241,7 +283,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
 
@@ -507,6 +549,8 @@ describe('Spotify SDK Integration', () => {
   it('should update track info when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    // Disable hide song until buzzed so the song is visible in the test
+    localStorage.setItem('hostHideSongUntilBuzzed', 'false');
     const mockTrack = {
       id: 'track-123',
       name: 'Test Song',
@@ -653,9 +697,10 @@ describe('Spotify SDK Integration', () => {
     });
   });
 
-  it('should call nextTrack when next button is clicked', async () => {
+  it('should call playNextPlaylistTrack when next button is clicked', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    localStorage.setItem('spotify_selected_playlist_id', 'test-playlist-id');
     const mockState = {
       paused: false,
       position: 0,
@@ -674,6 +719,17 @@ describe('Spotify SDK Integration', () => {
       },
     };
 
+    // Setup device ID by simulating ready event
+    let readyCallback: ((data: { device_id: string }) => void) | null = null;
+    mockPlayer.addListener.mockImplementation((event: string, callback: unknown) => {
+      if (event === 'ready') {
+        readyCallback = callback as (data: { device_id: string }) => void;
+      } else if (event === 'player_state_changed') {
+        stateChangeCallback = callback as (state: SpotifyPlaybackState) => void;
+      }
+      return true;
+    });
+
     // Act
     render(
       <MemoryRouter>
@@ -682,6 +738,19 @@ describe('Spotify SDK Integration', () => {
         </GameProvider>
       </MemoryRouter>
     );
+
+    // Wait for player to initialize and trigger ready event
+    await waitFor(() => {
+      expect(mockPlayer.addListener).toHaveBeenCalledWith('ready', expect.any(Function));
+    });
+
+    // Trigger ready event with device ID
+    await act(async () => {
+      const cb = readyCallback;
+      if (cb) {
+        cb({ device_id: 'test-device-id' });
+      }
+    });
 
     await waitFor(() => {
       expect(stateChangeCallback).toBeTruthy();
@@ -703,7 +772,7 @@ describe('Spotify SDK Integration', () => {
 
     // Assert
     await waitFor(() => {
-      expect(mockPlayer.nextTrack).toHaveBeenCalled();
+      expect(mockPlayRandomPlaylistTrack).toHaveBeenCalled();
     });
   });
 
@@ -756,7 +825,7 @@ describe('Spotify SDK Integration', () => {
   it('should handle not_ready event', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     // Act
     render(
@@ -788,10 +857,11 @@ describe('Spotify SDK Integration', () => {
       notReadyCallback({ device_id: 'test-device-123' });
     }
 
-    // Assert - verify the console log was called
+    // Assert - verify the logger (console.debug) was called
     await waitFor(
       () => {
         expect(consoleSpy).toHaveBeenCalledWith(
+          '[DEBUG]',
           '[Spotify] Device ID has gone offline',
           'test-device-123'
         );
@@ -881,7 +951,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
   });
@@ -925,7 +995,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
   });
@@ -969,7 +1039,7 @@ describe('Spotify SDK Integration', () => {
     // Assert - error message should be displayed
     await waitFor(() => {
       expect(
-        screen.getByText(/Etwas ist mit der Spotify-Verbindung schiefgelaufen/i)
+        screen.getByText(/Something went wrong with the Spotify connection/i)
       ).toBeInTheDocument();
     });
   });

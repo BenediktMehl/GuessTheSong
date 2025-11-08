@@ -1,5 +1,6 @@
 const { sessions, disconnectedPlayers } = require('../sessions');
 const { generatePlayerId } = require('../utils');
+const logger = require('../logger');
 
 function handleJoin(ws, serverPayload) {
   // Accept sessionId in any case (upper/lower)
@@ -23,7 +24,10 @@ function handleJoin(ws, serverPayload) {
 
     // Verify the player was in this session
     if (disconnectedPlayer.sessionId === normalizedSessionId) {
-      console.log(`Player ${reconnectPlayerId} reconnecting to session ${normalizedSessionId}`);
+      logger.info(
+        { playerId: reconnectPlayerId, sessionId: normalizedSessionId },
+        'Player reconnecting'
+      );
 
       // Cancel the removal timeout
       clearTimeout(disconnectedPlayer.timeout);
@@ -50,7 +54,7 @@ function handleJoin(ws, serverPayload) {
         })
       );
 
-      console.log(`Player ${reconnectPlayerId} successfully reconnected`);
+      logger.info({ playerId: reconnectPlayerId }, 'Player successfully reconnected');
       return;
     }
   }
@@ -113,8 +117,12 @@ function handleJoin(ws, serverPayload) {
     })
   );
 
-  console.log(
-    `Player joined session ${normalizedSessionId}. Players in session: ${sessions[normalizedSessionId].players.size}`
+  logger.info(
+    {
+      sessionId: normalizedSessionId,
+      playerCount: sessions[normalizedSessionId].players.size,
+    },
+    'Player joined session'
   );
 
   // Notify host that a new player joined
