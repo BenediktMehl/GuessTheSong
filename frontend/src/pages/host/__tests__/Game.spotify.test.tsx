@@ -25,8 +25,6 @@ const mockGameContext = {
   setMusicHostLoggedIn: vi.fn(),
   buzzerNotification: null,
   setBuzzerNotification: vi.fn(),
-  playerToast: null,
-  setPlayerToast: vi.fn(),
   pausePlayerCallback: null,
   setPausePlayerCallback: vi.fn(),
   currentPlayerId: '',

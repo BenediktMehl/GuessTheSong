@@ -24,7 +24,7 @@
     "indentWidth": 2,
     "lineEnding": "lf",
     "lineWidth": 100,
-    "formatWithErrors": false
+    "formatWithErrors": true
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {

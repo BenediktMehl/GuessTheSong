@@ -1,6 +1,5 @@
 import logger from '../../utils/logger';
 import { DEFAULT_PLAYLIST_ID } from './playlists';
-import logger from '../../utils/logger';
 
 const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
 

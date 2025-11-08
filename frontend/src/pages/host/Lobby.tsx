@@ -8,7 +8,6 @@ import { startGame, useGameInitializer } from '../../game/host';
 import {
   getSelectedPlaylistId,
   getUserPlaylists,
-  validatePlaylistHasTracks,
   type SpotifyPlaylist,
   setSelectedPlaylistId,
   validatePlaylistHasTracks,
