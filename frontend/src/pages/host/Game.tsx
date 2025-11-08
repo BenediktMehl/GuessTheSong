@@ -156,6 +156,22 @@ export default function Game() {
   const gameStartedRef = useRef(false);
   const firstTrackPlayedRef = useRef(false);
 
+  // Helper function to save current track as last song
+  const saveLastSong = useCallback(
+    (track: typeof current_track) => {
+      if (track?.name && track.artists && track.artists.length > 0) {
+        const lastSong = {
+          name: track.name,
+          artists: track.artists.map((artist) => artist.name),
+        };
+        logger.debug('[Host Game] Saving last song:', lastSong);
+        setLastSong(lastSong);
+        sendLastSongChangedAction(lastSong);
+      }
+    },
+    [setLastSong, sendLastSongChangedAction]
+  );
+
   // Enable repeat mode for track (loop single track)
   const enableRepeatMode = useCallback(async (_trackId?: string) => {
     const accessToken = localStorage.getItem('access_token');
@@ -846,8 +862,9 @@ export default function Game() {
             position < duration * 0.1 && // Now near the start (<10%)
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
-            // Song looped - pause it
-            logger.debug('[Spotify] Song looped (second time started), pausing');
+            // Song looped - save as last song and pause it
+            logger.debug('[Spotify] Song looped (second time started), saving as last song and pausing');
+            saveLastSong(state.track_window.current_track);
             hasLoopedRef.current = true;
             if (!state.paused) {
               const currentPlayer = playerInstanceRef.current;
@@ -1008,8 +1025,11 @@ export default function Game() {
               newPosition < currentDuration * 0.1 && // Now near the start (<10%)
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
-              // Song looped - pause it
-              logger.debug('[Host Game] Song looped (detected in interval), pausing');
+              // Song looped - save as last song and pause it
+              logger.debug('[Host Game] Song looped (detected in interval), saving as last song and pausing');
+              if (state && state.track_window && state.track_window.current_track) {
+                saveLastSong(state.track_window.current_track);
+              }
               hasLoopedRef.current = true;
               await currentPlayer.togglePlay();
               setPaused(true);
@@ -1047,6 +1067,11 @@ export default function Game() {
   const handleRightGuess = useCallback(async () => {
     if (!currentGuessingPlayer) return;
 
+    // Save current track as last song before resetting players
+    if (current_track && current_track.name) {
+      saveLastSong(current_track);
+    }
+
     markPlayerGuessedRight(gameContext, async () => {
       // Play next song from playlist
       try {
@@ -1079,7 +1104,7 @@ export default function Game() {
         pendingPauseRef.current = false;
       }
     });
-  }, [currentGuessingPlayer, player, gameContext, autoplay, playNextPlaylistTrack]);
+  }, [currentGuessingPlayer, player, gameContext, autoplay, playNextPlaylistTrack, current_track, saveLastSong]);
 
   // Handle partially right guess
   const handlePartiallyRightGuess = useCallback(async () => {
