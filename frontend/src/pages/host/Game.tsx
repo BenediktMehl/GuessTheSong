@@ -8,13 +8,13 @@ import {
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
 } from '../../game/host';
+import { playBuzzerSound } from '../../game/player/buzzerSound';
 import {
   getPlaylistTracks,
   getSelectedPlaylistId,
   playRandomPlaylistTrack,
   type SpotifyTrack,
 } from '../../services/spotify/api';
-import { playBuzzerSound } from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
