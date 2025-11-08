@@ -109,6 +109,7 @@ export default function Game() {
     }
   }, [buzzerNotification, setBuzzerNotification, buzzerSoundEnabled]);
 
+
   // Check if current player is in the waiting queue
   const currentPlayerInQueue = currentPlayerId
     ? (waitingPlayers || []).findIndex((p) => p.id === currentPlayerId)
