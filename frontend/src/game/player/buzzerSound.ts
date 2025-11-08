@@ -84,7 +84,7 @@ export function playBuzzerSound(): void {
 export function setBuzzerSoundMuted(muted: boolean): void {
   // Update global mute state
   isMuted = muted;
-  
+
   // Also update audioElement if it exists
   if (audioElement) {
     audioElement.muted = muted;
@@ -95,4 +95,3 @@ export function setBuzzerSoundMuted(muted: boolean): void {
     }
   }
 }
-

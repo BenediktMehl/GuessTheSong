@@ -2,10 +2,10 @@
 // Do not edit manually. Add/remove MP3 files in public/buzzer-sounds/ instead.
 
 export const BUZZER_SOUNDS: string[] = [
-  "/buzzer-sounds/apartment-buzzer-doorbell-sound-325245.mp3",
-  "/buzzer-sounds/buzzer-or-wrong-answer-20582.mp3",
-  "/buzzer-sounds/incorrect-buzzer-sound-147336.mp3",
-  "/buzzer-sounds/scary-monster-growl-roar-6-199381.mp3",
-  "/buzzer-sounds/vegan-fart-voice-110-12597.mp3",
-  "/buzzer-sounds/wrong-47985.mp3"
+  '/buzzer-sounds/apartment-buzzer-doorbell-sound-325245.mp3',
+  '/buzzer-sounds/buzzer-or-wrong-answer-20582.mp3',
+  '/buzzer-sounds/incorrect-buzzer-sound-147336.mp3',
+  '/buzzer-sounds/scary-monster-growl-roar-6-199381.mp3',
+  '/buzzer-sounds/vegan-fart-voice-110-12597.mp3',
+  '/buzzer-sounds/wrong-47985.mp3',
 ];
