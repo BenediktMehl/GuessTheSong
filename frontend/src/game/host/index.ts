@@ -715,6 +715,12 @@ export function markPlayerGuessedWrong(
       });
     }
 
+    // Save last song if provided
+    if (lastSong) {
+      gameContext.setLastSong(lastSong);
+      sendLastSongChangedAction(lastSong);
+    }
+
     // Remove player from waiting list without adding to guessed list
     gameContext.setWaitingPlayers((currentWaitingPlayers) => {
       const newWaitingPlayers = currentWaitingPlayers.slice(1);
