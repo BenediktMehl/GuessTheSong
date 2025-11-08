@@ -24,6 +24,11 @@ export type BuzzerNotification = {
 
 export type PausePlayerCallback = () => void | Promise<void>;
 
+export type LastSong = {
+  name: string;
+  artists: string[];
+} | null;
+
 // Global reference to pause function (set by Host Game component)
 let globalPausePlayer: PausePlayerCallback | null = null;
 
@@ -47,6 +52,7 @@ export interface GameContextType {
   currentPlayerId: string;
   buzzerNotification: BuzzerNotification;
   pausePlayerCallback: PausePlayerCallback | null;
+  lastSong: LastSong;
   setIsHost: Dispatch<SetStateAction<boolean>>;
   setPlayers: Dispatch<SetStateAction<Player[]>>;
   setWaitingPlayers: Dispatch<SetStateAction<Player[]>>;
@@ -58,6 +64,7 @@ export interface GameContextType {
   setCurrentPlayerId: Dispatch<SetStateAction<string>>;
   setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
   setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
+  setLastSong: Dispatch<SetStateAction<LastSong>>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -74,6 +81,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentPlayerId, setCurrentPlayerId] = useState('');
   const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
   const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
+  const [lastSong, setLastSong] = useState<LastSong>(null);
 
   return (
     <GameContext.Provider
@@ -89,6 +97,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         currentPlayerId,
         buzzerNotification,
         pausePlayerCallback,
+        lastSong,
         setIsHost,
         setPlayers,
         setWaitingPlayers,
@@ -100,6 +109,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCurrentPlayerId,
         setBuzzerNotification,
         setPausePlayerCallback,
+        setLastSong,
       }}
     >
       {children}

@@ -358,6 +358,15 @@ export function joinGame(
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
 
+          case 'lastSongChanged':
+            // Last song info updated (when a song ends)
+            if (message.data?.lastSong !== undefined) {
+              const lastSong = message.data.lastSong;
+              console.log('[Player] Last song changed:', lastSong);
+              gameContext.setLastSong(lastSong);
+            }
+            break;
+
           case 'player-buzzed-notification':
             console.log('[Player] Handling player-buzzed-notification:', message);
             handlePlayerBuzzedNotificationForPlayer(gameContext, message);

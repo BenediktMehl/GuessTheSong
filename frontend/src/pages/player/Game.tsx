@@ -2,11 +2,13 @@ import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
+import { LastSongCard } from '../../components/LastSongCard';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
 
 export default function Game() {
-  const { players, currentPlayerId, waitingPlayers, guessedPlayers } = useGameContext();
+  const { players, currentPlayerId, waitingPlayers, guessedPlayers, lastSong } =
+    useGameContext();
 
   // Calculate notGuessedPlayers (players not in waiting or guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
@@ -196,6 +198,12 @@ export default function Game() {
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
+        <LastSongCard
+          lastSong={lastSong}
+          waitingPlayersCount={waitingPlayers?.length || 0}
+          guessedPlayersCount={guessedPlayers?.length || 0}
+        />
+
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
           waitingPlayers={waitingPlayers}

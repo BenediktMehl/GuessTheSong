@@ -520,7 +520,8 @@ export function markPlayerGuessedRight(
 export function markPlayerGuessedWrong(
   gameContext: GameContextType,
   onResumeSong?: () => void,
-  onNextSong?: () => void
+  onNextSong?: () => void,
+  lastSong?: { name: string; artists: string[] } | null
 ): boolean {
   const firstWaitingPlayer = gameContext.waitingPlayers[0];
   if (!firstWaitingPlayer) {
@@ -551,6 +552,12 @@ export function markPlayerGuessedWrong(
   if (isLastPlayer) {
     // This is the last player - don't move to guessedPlayers, just reset everything for next song
     console.log('[Host] Last player guessed wrong - resetting all players for next song');
+
+    // Save last song if provided
+    if (lastSong) {
+      gameContext.setLastSong(lastSong);
+      sendLastSongChangedAction(lastSong);
+    }
 
     // Remove player from waiting list without adding to guessed list
     gameContext.setWaitingPlayers((currentWaitingPlayers) => {
@@ -715,6 +722,15 @@ function sendBuzzerNotificationAction(playerId: string, playerName: string) {
     data: {
       playerId,
       playerName,
+    },
+  });
+}
+
+export function sendLastSongChangedAction(lastSong: { name: string; artists: string[] } | null) {
+  return sendHostAction({
+    action: 'lastSongChanged',
+    data: {
+      lastSong,
     },
   });
 }
