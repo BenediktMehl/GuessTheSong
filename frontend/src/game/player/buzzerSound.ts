@@ -38,8 +38,16 @@ export function initializeBuzzerSound(): void {
 export function playBuzzerSound(): void {
   // Try to play MP3 file if one was selected
   if (selectedBuzzerSound && audioElement) {
+    // Don't play if muted
+    if (audioElement.muted) {
+      return;
+    }
+
     try {
       // Reset the audio to the beginning in case it's still playing
+      if (!audioElement.paused) {
+        audioElement.pause();
+      }
       audioElement.currentTime = 0;
       
       // Play the audio
@@ -68,6 +76,21 @@ export function playBuzzerSound(): void {
 
   // Fallback to Web Audio API if no MP3 file is available
   playWebAudioBuzzerSound();
+}
+
+/**
+ * Sets the muted state of the buzzer audio
+ * @param muted - Whether the audio should be muted
+ */
+export function setBuzzerSoundMuted(muted: boolean): void {
+  if (audioElement) {
+    audioElement.muted = muted;
+    // If muting and audio is playing, stop it
+    if (muted && !audioElement.paused) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    }
+  }
 }
 
 /**

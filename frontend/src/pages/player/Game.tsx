@@ -4,7 +4,7 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { sendPlayerBuzzedAction } from '../../game/player';
-import { initializeBuzzerSound, playBuzzerSound } from '../../game/player/buzzerSound';
+import { initializeBuzzerSound, playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import logger from '../../utils/logger';
 
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
@@ -75,9 +75,11 @@ export default function Game() {
     initializeBuzzerSound();
   }, []);
 
-  // Persist buzzer sound preference to localStorage
+  // Persist buzzer sound preference to localStorage and sync with audio object
   useEffect(() => {
     localStorage.setItem(BUZZER_SOUND_ENABLED_KEY, buzzerSoundEnabled.toString());
+    // Sync mute state with audio object (muted when sound is disabled)
+    setBuzzerSoundMuted(!buzzerSoundEnabled);
   }, [buzzerSoundEnabled]);
 
   // Toggle buzzer sound
@@ -234,8 +236,12 @@ export default function Game() {
       {/* Buzzer sound toggle button in upper right corner */}
       <button
         type="button"
-        onClick={toggleBuzzerSound}
-        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-10"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleBuzzerSound();
+        }}
+        className="absolute top-4 right-4 btn btn-circle btn-sm bg-base-100/90 hover:bg-base-100 border border-base-300 shadow-lg z-50 pointer-events-auto"
         aria-label={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
         title={buzzerSoundEnabled ? 'Disable buzzer sound' : 'Enable buzzer sound'}
       >
