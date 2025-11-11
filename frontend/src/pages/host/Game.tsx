@@ -1213,6 +1213,107 @@ export default function Game() {
     }
   }, [buzzerNotification, setBuzzerNotification]);
 
+  // Auto-advance to next song when no players can guess anymore
+  // This handles the case where players are in no clue list and all others have guessed
+  const autoAdvanceTriggeredRef = useRef(false);
+  useEffect(() => {
+    // Only check during active game (not in lobby or finished state)
+    if (status !== 'waiting' && status !== 'listening' && status !== 'guessing') {
+      autoAdvanceTriggeredRef.current = false;
+      return;
+    }
+
+    // Check if no players are waiting and no players can still guess
+    const hasWaitingPlayers = waitingPlayers && waitingPlayers.length > 0;
+    const hasNotGuessedPlayers = notGuessedPlayers && notGuessedPlayers.length > 0;
+
+    // If there are waiting players or players who can still guess, reset the trigger
+    if (hasWaitingPlayers || hasNotGuessedPlayers) {
+      autoAdvanceTriggeredRef.current = false;
+      return;
+    }
+
+    // All players have either guessed, partially guessed, or are in no clue list
+    // Only trigger once per round to avoid multiple advances
+    if (!autoAdvanceTriggeredRef.current && players && players.length > 0) {
+      autoAdvanceTriggeredRef.current = true;
+      logger.info('[Host Game] No players can guess anymore - auto-advancing to next song', {
+        waitingPlayers: waitingPlayers?.length || 0,
+        guessedPlayers: guessedPlayers?.length || 0,
+        partiallyGuessedPlayers: partiallyGuessedPlayers?.length || 0,
+        noCluePlayers: noCluePlayers?.length || 0,
+        notGuessedPlayers: notGuessedPlayers?.length || 0,
+      });
+
+      // Save current track as last song before resetting players
+      if (current_track?.name) {
+        saveLastSong(current_track);
+      }
+
+      // Reset all players (this clears both waiting and guessed lists)
+      // This will also award 0.5 points to partially guessed players if there are any
+      const pointsAwarded = resetAllPlayersForNewRound(gameContext);
+
+      // If no points were awarded, send toast notification
+      if (!pointsAwarded) {
+        sendNoPointsToastAction();
+      }
+
+      // Play next song from playlist
+      const advanceToNextSong = async () => {
+        try {
+          // Set pending pause flag if autoplay is OFF
+          if (!autoplay) {
+            pendingPauseRef.current = true;
+          }
+          await playNextPlaylistTrack();
+          logger.debug('[Host Game] Auto-advanced to next song', { autoplay });
+
+          // If autoplay is OFF, pause immediately after a short delay
+          if (!autoplay) {
+            setTimeout(async () => {
+              const currentPlayer = playerInstanceRef.current || player;
+              if (currentPlayer) {
+                try {
+                  const state = await currentPlayer.getCurrentState();
+                  if (state && !state.paused) {
+                    await currentPlayer.togglePlay();
+                    logger.debug('[Host Game] Paused next song (autoplay OFF)');
+                  }
+                } catch (error) {
+                  logger.error('[Host Game] Error pausing after next track:', error);
+                }
+              }
+            }, 300);
+          }
+        } catch (error) {
+          logger.error('[Host Game] Error auto-advancing to next song:', error);
+          pendingPauseRef.current = false;
+          autoAdvanceTriggeredRef.current = false; // Reset on error so it can retry
+        }
+      };
+
+      // Small delay to ensure state updates are processed
+      setTimeout(() => {
+        advanceToNextSong();
+      }, 100);
+    }
+  }, [
+    status,
+    waitingPlayers,
+    notGuessedPlayers,
+    players,
+    guessedPlayers,
+    partiallyGuessedPlayers,
+    noCluePlayers,
+    current_track,
+    saveLastSong,
+    gameContext,
+    autoplay,
+    playNextPlaylistTrack,
+    player,
+  ]);
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 gap-3 sm:gap-6 relative">
       {/* Buzzer sound toggle button in upper right corner */}

@@ -305,11 +305,14 @@ export function useGameInitializer() {
 
       // Close WebSocket connection after a short delay to allow message to be sent
       // Backend will also close it after processing delete-session, but this is a fallback
-      setTimeout(() => {
-        if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-          ws.close();
-        }
-      }, messageSent ? 100 : 0);
+      setTimeout(
+        () => {
+          if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+            ws.close();
+          }
+        },
+        messageSent ? 100 : 0
+      );
     } else {
       logger.warn('[Host] No WebSocket connection available for delete-session');
     }
@@ -917,19 +920,21 @@ export function markPlayerGuessedPartially(
 
     // Calculate who can still guess after this partial answer
     // Exclude: current waiting player (will be moved to partiallyGuessed), current guessed players,
-    // other waiting players, and partially guessed players (including the one being added)
+    // other waiting players, partially guessed players (including the one being added), and no clue players
     const currentWaitingPlayerIds = new Set(gameContext.waitingPlayers.map((p) => p.id));
     const guessedPlayerIds = new Set(gameContext.guessedPlayers.map((p) => p.id));
     const partiallyGuessedPlayerIds = new Set(
       [...gameContext.partiallyGuessedPlayers, firstWaitingPlayer].map((p) => p.id)
     );
+    const noCluePlayerIds = new Set(gameContext.noCluePlayers.map((p) => p.id));
 
     const notGuessedPlayersAfterUpdate = gameContext.players.filter(
       (p) =>
         p.id !== firstWaitingPlayer.id &&
         !guessedPlayerIds.has(p.id) &&
         !currentWaitingPlayerIds.has(p.id) &&
-        !partiallyGuessedPlayerIds.has(p.id)
+        !partiallyGuessedPlayerIds.has(p.id) &&
+        !noCluePlayerIds.has(p.id)
     );
 
     if (remainingWaitingAfterUpdate > 0) {
@@ -972,17 +977,19 @@ export function markPlayerGuessedWrong(
 
   // Calculate players who can still guess AFTER this wrong guess
   // Exclude: current waiting player (will be moved to guessed), current guessed players,
-  // partially guessed players, and other waiting players
+  // partially guessed players, other waiting players, and no clue players
   const currentWaitingPlayerIds = new Set(gameContext.waitingPlayers.map((p) => p.id));
   const guessedPlayerIds = new Set(gameContext.guessedPlayers.map((p) => p.id));
   const partiallyGuessedPlayerIds = new Set(gameContext.partiallyGuessedPlayers.map((p) => p.id));
+  const noCluePlayerIds = new Set(gameContext.noCluePlayers.map((p) => p.id));
   // After moving first waiting player to guessed, who can still guess?
   const notGuessedPlayersAfterUpdate = gameContext.players.filter(
     (p) =>
       p.id !== firstWaitingPlayer.id &&
       !guessedPlayerIds.has(p.id) &&
       !partiallyGuessedPlayerIds.has(p.id) &&
-      !currentWaitingPlayerIds.has(p.id)
+      !currentWaitingPlayerIds.has(p.id) &&
+      !noCluePlayerIds.has(p.id)
   );
 
   // Check if this is the last player (all will have guessed wrong after this)
