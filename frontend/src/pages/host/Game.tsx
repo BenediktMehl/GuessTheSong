@@ -882,7 +882,7 @@ export default function Game() {
         playerInstanceRef.current = undefined;
       }
     };
-  }, [transferPlaybackToDevice, enableRepeatMode, saveLastSong, setLastSong]);
+  }, [transferPlaybackToDevice, enableRepeatMode, saveLastSong, setLastSong, gameContext]);
 
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
@@ -1031,7 +1031,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [isSeeking, is_active, is_paused, player, saveLastSong, trackDuration]);
+  }, [isSeeking, is_active, is_paused, player, saveLastSong, trackDuration, gameContext]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =

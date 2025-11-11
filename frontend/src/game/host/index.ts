@@ -526,7 +526,7 @@ export function awardPartialPointsIfRoundEnded(gameContext: GameContextType): vo
     );
     // Store the list of partially guessed players before clearing
     const partiallyGuessedPlayersToAward = [...gameContext.partiallyGuessedPlayers];
-    
+
     // Award points
     gameContext.setPlayers((currentPlayers) => {
       const updatedPlayers = currentPlayers.map((player) => {
@@ -542,7 +542,7 @@ export function awardPartialPointsIfRoundEnded(gameContext: GameContextType): vo
       sendPlayersChangedAction(updatedPlayers);
       return updatedPlayers;
     });
-    
+
     // Clear the partially guessed players list to prevent duplicate point awards
     // This makes the function idempotent - subsequent calls won't award points again
     gameContext.setPartiallyGuessedPlayers([]);
