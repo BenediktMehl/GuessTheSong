@@ -11,6 +11,7 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
   sendNoPointsToastAction,
+  useGameInitializer,
 } from '../../game/host';
 import { setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
@@ -107,6 +108,7 @@ export default function Game() {
     status,
   } = gameContext;
   const navigate = useNavigate();
+  const { endGame } = useGameInitializer();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
@@ -1655,6 +1657,17 @@ export default function Game() {
           guessedPlayers={guessedPlayers}
           partiallyGuessedPlayers={partiallyGuessedPlayers}
         />
+
+        <button
+          type="button"
+          onClick={() => {
+            endGame();
+            navigate('/');
+          }}
+          className="btn btn-sm btn-outline btn-error"
+        >
+          Leave Lobby
+        </button>
       </div>
     </main>
   );
