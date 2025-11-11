@@ -10,6 +10,7 @@ import {
   markPlayerGuessedWrong,
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
+  sendNoPointsToastAction,
 } from '../../game/host';
 import { setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
@@ -1517,7 +1518,12 @@ export default function Game() {
                   onClick={async () => {
                     // Reset all players to default list before going to next song
                     logger.debug('[Host Game] Next button clicked - resetting all players');
-                    resetAllPlayersForNewRound(gameContext);
+                    const pointsAwarded = resetAllPlayersForNewRound(gameContext);
+
+                    // If no points were awarded, send toast notification
+                    if (!pointsAwarded) {
+                      sendNoPointsToastAction();
+                    }
 
                     // Go to next track from playlist
                     try {
