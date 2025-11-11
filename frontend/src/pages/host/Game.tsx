@@ -10,7 +10,7 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
 } from '../../game/host';
-import { playBuzzerSound, setBuzzerSoundMuted } from '../../game/player/buzzerSound';
+import { setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
   getSelectedPlaylistId,
   pausePlayback,
@@ -1218,20 +1218,15 @@ export default function Game() {
     setBuzzerSoundEnabled((prev) => !prev);
   }, []);
 
-  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
+  // Auto-dismiss buzzer notification after 3 seconds
   useEffect(() => {
     if (buzzerNotification) {
-      // Play buzzer sound when notification appears (if enabled)
-      if (buzzerSoundEnabled) {
-        playBuzzerSound();
-      }
-
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [buzzerNotification, buzzerSoundEnabled, setBuzzerNotification]);
+  }, [buzzerNotification, setBuzzerNotification]);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 gap-3 sm:gap-6 relative">
