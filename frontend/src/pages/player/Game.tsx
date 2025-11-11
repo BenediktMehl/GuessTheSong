@@ -1,11 +1,12 @@
 import appConfig from '@app-config';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
-import { sendPlayerBuzzedAction } from '../../game/player';
+import { leaveGame, sendPlayerBuzzedAction } from '../../game/player';
 import {
   initializeBuzzerSound,
   playBuzzerSound,
@@ -16,6 +17,7 @@ import logger from '../../utils/logger';
 const BUZZER_SOUND_ENABLED_KEY = 'buzzerSoundEnabled';
 
 export default function Game() {
+  const gameContext = useGameContext();
   const {
     players,
     currentPlayerId,
@@ -27,7 +29,8 @@ export default function Game() {
     playerToast,
     setPlayerToast,
     lastSong,
-  } = useGameContext();
+  } = gameContext;
+  const navigate = useNavigate();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
@@ -402,6 +405,17 @@ export default function Game() {
             </button>
           </div>
         </Card>
+
+        <button
+          type="button"
+          onClick={() => {
+            leaveGame(gameContext);
+            navigate('/join');
+          }}
+          className="btn btn-sm btn-outline btn-error"
+        >
+          Leave Lobby
+        </button>
       </div>
     </main>
   );
