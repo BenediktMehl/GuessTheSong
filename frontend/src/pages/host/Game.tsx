@@ -1098,7 +1098,8 @@ export default function Game() {
 
     markPlayerGuessedPartially(gameContext, async () => {
       // Resume current song if there are more players who can guess
-      if (player && is_paused) {
+      // Only auto-resume if autoplay is enabled
+      if (player && is_paused && autoplay) {
         try {
           await player.togglePlay();
           console.log('[Host] Resuming song for next player after partial answer');
@@ -1107,7 +1108,7 @@ export default function Game() {
         }
       }
     });
-  }, [currentGuessingPlayer, gameContext, is_paused, player]);
+  }, [currentGuessingPlayer, gameContext, is_paused, player, autoplay]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
@@ -1117,7 +1118,8 @@ export default function Game() {
       gameContext,
       async () => {
         // Resume current song
-        if (player && is_paused) {
+        // Only auto-resume if autoplay is enabled
+        if (player && is_paused && autoplay) {
           try {
             await player.togglePlay();
             logger.debug('[Host] Resuming song for next player');
