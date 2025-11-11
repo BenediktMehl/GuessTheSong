@@ -130,8 +130,8 @@ export default function SpotifyCallback() {
         sessionStorage.removeItem('spotify_code_verifier');
         sessionStorage.removeItem('spotify_state');
 
-        // Redirect back to settings
-        navigate('/settings', { replace: true });
+        // Redirect back to host lobby
+        navigate('/host-lobby', { replace: true });
       } catch (error) {
         logger.error('Token exchange error:', error);
         setError(
@@ -156,7 +156,7 @@ export default function SpotifyCallback() {
             <button
               type="button"
               className="btn btn-outline"
-              onClick={() => navigate('/settings', { replace: true })}
+              onClick={() => navigate('/host-lobby', { replace: true })}
             >
               Go Back
             </button>

@@ -2,7 +2,7 @@ import appConfig from '@app-config';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 import { useGameContext } from '../game/context';
 import HostGame from './host/Game';
-import Settings from './host/Lobby';
+import HostLobby from './host/Lobby';
 import SpotifyCallback from './host/SpotifyCallback';
 import Game from './player/Game';
 import Join from './player/Join';
@@ -14,7 +14,7 @@ function Welcome() {
 
   const hostAGameClickHandler = () => {
     setIsHost(true);
-    navigate('/settings');
+    navigate('/host-lobby');
   };
 
   const joinAGameClickHandler = () => {
@@ -59,7 +59,7 @@ export function App() {
         <Route path="/join" element={<Join />} />
         <Route path="/lobby" element={<PlayerLobby />} />
         <Route path="/spotifycallback" element={<SpotifyCallback />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/host-lobby" element={<HostLobby />} />
         <Route path="/hostgame" element={<HostGame />} />
         <Route path="/play" element={<Game />} />
         <Route path="*" element={<Navigate to="/" />} />
