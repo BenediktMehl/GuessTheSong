@@ -46,6 +46,8 @@ let hasFailed = false; // Track if we've permanently failed
 // Track if we've shown a new song toast to avoid duplicates
 let newSongToastShown = false;
 let newSongToastTimeout: number | null = null;
+// Track if we're expecting a new song (set when player-guessed-right is received)
+let expectingNewSong = false;
 
 // Helper function to show toast notification
 function showToast(
@@ -358,15 +360,17 @@ export function joinGame(
                 // Clear waiting list - all players reset for new round
                 logger.debug('[Player] Clearing waiting players list');
                 gameContext.setWaitingPlayers([]);
-                // Check if all lists are cleared (for new song detection)
+                // Only show new song toast if we're expecting a new song (not just a wrong guess)
                 // Use a small delay to allow other state updates to complete
                 setTimeout(() => {
                   if (
+                    expectingNewSong &&
                     gameContext.waitingPlayers.length === 0 &&
                     gameContext.guessedPlayers.length === 0 &&
                     gameContext.partiallyGuessedPlayers.length === 0
                   ) {
                     showNewSongToast(gameContext);
+                    expectingNewSong = false; // Clear flag after showing toast
                   }
                 }, 200);
               } else {
@@ -409,15 +413,17 @@ export function joinGame(
                 // Clear guessed list - all players reset for new round
                 logger.debug('[Player] Clearing guessed players list');
                 gameContext.setGuessedPlayers([]);
-                // Check if all lists are cleared (for new song detection)
+                // Only show new song toast if we're expecting a new song (not just a wrong guess)
                 // Use a small delay to allow other state updates to complete
                 setTimeout(() => {
                   if (
+                    expectingNewSong &&
                     gameContext.waitingPlayers.length === 0 &&
                     gameContext.guessedPlayers.length === 0 &&
                     gameContext.partiallyGuessedPlayers.length === 0
                   ) {
                     showNewSongToast(gameContext);
+                    expectingNewSong = false; // Clear flag after showing toast
                   }
                 }, 200);
               } else {
@@ -452,27 +458,23 @@ export function joinGame(
             // Player guessed right - reset all lists for new round
             // The host sends empty arrays via waitingPlayersChanged and guessedPlayersChanged,
             // but we also handle this message explicitly to ensure cleanup
-            logger.info('[Player] Player guessed right - resetting lists');
+            logger.info('[Player] Player guessed right - resetting lists', message);
             const rightPlayerId = message.data?.playerId || message.payload?.playerId;
             const rightPlayerName =
               message.data?.playerName || getPlayerName(gameContext, rightPlayerId);
-            showToast(
-              gameContext,
-              `Guess from ${rightPlayerName} was correct! Next song starts now.`,
-              'success',
-              4000
-            );
-            // Show new song toast after the success toast dismisses (lists will be cleared by separate messages)
-            setTimeout(() => {
-              showNewSongToast(gameContext);
-            }, 4200);
+            const toastMessage = `${rightPlayerName} guessed correctly! Next song starts now.`;
+            logger.info('[Player] Showing success toast:', toastMessage);
+            showToast(gameContext, toastMessage, 'success', 4000);
+            // Set flag to indicate we're expecting a new song
+            // The list clearing handlers will show the new song toast when lists are cleared
+            expectingNewSong = true;
             // Lists will be cleared by waitingPlayersChanged and guessedPlayersChanged messages
             break;
           }
 
           case 'player-guessed-partially': {
             // Player guessed partially - they are moved to partiallyGuessedPlayers list
-            console.log('[Player] Player guessed partially');
+            logger.info('[Player] Player guessed partially', message);
             const partialPlayerId = message.data?.playerId || message.payload?.playerId;
             const partialPlayerName =
               message.data?.playerName || getPlayerName(gameContext, partialPlayerId);
@@ -481,8 +483,9 @@ export function joinGame(
             setTimeout(() => {
               const nextWaitingPlayer = gameContext.waitingPlayers[0];
               const toastMessage = nextWaitingPlayer
-                ? `Guess from ${partialPlayerName} was partially correct. ${nextWaitingPlayer.name} can guess now.`
-                : `Guess from ${partialPlayerName} was partially correct. Song continues now.`;
+                ? `${partialPlayerName} guessed partially correct. ${nextWaitingPlayer.name} can guess now.`
+                : `${partialPlayerName} guessed partially correct. Song continues now.`;
+              logger.info('[Player] Showing warning toast:', toastMessage);
               showToast(gameContext, toastMessage, 'warning', 4000);
             }, 100);
             // The partiallyGuessedPlayersChanged message will handle the state update
@@ -491,7 +494,7 @@ export function joinGame(
 
           case 'player-guessed-wrong': {
             // Player guessed wrong - they are moved to guessedPlayers list
-            logger.info('[Player] Player guessed wrong');
+            logger.info('[Player] Player guessed wrong', message);
             const wrongPlayerId = message.data?.playerId || message.payload?.playerId;
             const wrongPlayerName =
               message.data?.playerName || getPlayerName(gameContext, wrongPlayerId);
@@ -500,8 +503,9 @@ export function joinGame(
             setTimeout(() => {
               const nextWaitingPlayer = gameContext.waitingPlayers[0];
               const toastMessage = nextWaitingPlayer
-                ? `Guess from ${wrongPlayerName} was wrong. ${nextWaitingPlayer.name} can guess now.`
-                : `Guess from ${wrongPlayerName} was wrong. Song continues now.`;
+                ? `${wrongPlayerName} guessed wrong. ${nextWaitingPlayer.name} can guess now.`
+                : `${wrongPlayerName} guessed wrong. Song continues now.`;
+              logger.info('[Player] Showing error toast:', toastMessage);
               showToast(gameContext, toastMessage, 'error', 4000);
             }, 100);
             // The waitingPlayersChanged and guessedPlayersChanged messages will handle the state update
@@ -520,15 +524,17 @@ export function joinGame(
                 // Clear partially guessed list - all players reset for new round
                 console.log('[Player] Clearing partially guessed players list');
                 gameContext.setPartiallyGuessedPlayers([]);
-                // Check if all lists are cleared (for new song detection)
+                // Only show new song toast if we're expecting a new song (not just a wrong guess)
                 // Use a small delay to allow other state updates to complete
                 setTimeout(() => {
                   if (
+                    expectingNewSong &&
                     gameContext.waitingPlayers.length === 0 &&
                     gameContext.guessedPlayers.length === 0 &&
                     gameContext.partiallyGuessedPlayers.length === 0
                   ) {
                     showNewSongToast(gameContext);
+                    expectingNewSong = false; // Clear flag after showing toast
                   }
                 }, 200);
               } else {
