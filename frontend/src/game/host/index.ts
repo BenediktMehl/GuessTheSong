@@ -308,6 +308,8 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
       `[Host] Player with ID ${waitingPlayerId} not found in context. Creating from message.`
     );
     if (waitingPlayerName && typeof waitingPlayerName === 'string') {
+      // Create new player with 0 points (they're new to the game)
+      // The actual points will be synced when adding to waiting list from the main players list
       const newPlayer: Player = {
         id: waitingPlayerId,
         name: waitingPlayerName,
@@ -317,6 +319,7 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
       // Also add to players list if we have the name
       gameContext.setPlayers((currentPlayers) => {
         if (currentPlayers.some((p) => p.id === waitingPlayerId)) {
+          // Player already exists, don't overwrite
           return currentPlayers;
         }
         return [...currentPlayers, newPlayer];
@@ -367,27 +370,50 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
   logger.debug('[Host] Broadcast notification sent:', broadcastSuccess);
 
   // At this point, waitingPlayer is guaranteed to be defined
-  const finalWaitingPlayer = waitingPlayer;
+  // Store the player ID and name for use in the functional update
+  const waitingPlayerIdToAdd = waitingPlayer.id;
+  const waitingPlayerNameToAdd = waitingPlayer.name;
 
   gameContext.setWaitingPlayers((currentWaitingPlayers) => {
     // Check if player is already in waiting list
-    if (currentWaitingPlayers.some((p) => p.id === finalWaitingPlayer.id)) {
+    if (currentWaitingPlayers.some((p) => p.id === waitingPlayerIdToAdd)) {
       logger.debug('[Host] Player already in waiting list');
       return currentWaitingPlayers;
     }
 
     // Get the player with current points from the main players list
+    // Access gameContext.players directly to ensure we get the latest state
     // This ensures we have the most up-to-date points when adding to waiting list
-    const playerWithCurrentPoints = gameContext.players.find((p) => p.id === finalWaitingPlayer.id);
-    const playerToAdd = playerWithCurrentPoints || finalWaitingPlayer;
+    const playerWithCurrentPoints = gameContext.players.find((p) => p.id === waitingPlayerIdToAdd);
 
-    const newWaitingPlayers = [...currentWaitingPlayers, playerToAdd];
-    logger.debug(
-      '[Host] Updating waiting players:',
-      newWaitingPlayers.map((p) => ({ name: p.name, points: p.points }))
-    );
-    sendWaitingPlayersChangedAction(newWaitingPlayers);
-    return newWaitingPlayers;
+    if (playerWithCurrentPoints) {
+      // Use the player from the main list with their current points
+      const newWaitingPlayers = [...currentWaitingPlayers, playerWithCurrentPoints];
+      logger.debug(
+        '[Host] Updating waiting players with current points:',
+        newWaitingPlayers.map((p) => ({ name: p.name, points: p.points }))
+      );
+      sendWaitingPlayersChangedAction(newWaitingPlayers);
+      return newWaitingPlayers;
+    } else {
+      // Fallback: player not found in main list (shouldn't happen, but handle gracefully)
+      logger.warn(
+        `[Host] Player ${waitingPlayerIdToAdd} not found in main players list when adding to waiting list`
+      );
+      // Create player object with name, but preserve points from waitingPlayer if available
+      const fallbackPlayer: Player = {
+        id: waitingPlayerIdToAdd,
+        name: waitingPlayerNameToAdd,
+        points: waitingPlayer.points, // Use points from the initially found/created player
+      };
+      const newWaitingPlayers = [...currentWaitingPlayers, fallbackPlayer];
+      logger.debug(
+        '[Host] Updating waiting players with fallback:',
+        newWaitingPlayers.map((p) => ({ name: p.name, points: p.points }))
+      );
+      sendWaitingPlayersChangedAction(newWaitingPlayers);
+      return newWaitingPlayers;
+    }
   });
 }
 
