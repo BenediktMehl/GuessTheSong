@@ -321,11 +321,7 @@ export default function Game() {
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
-        <LastSongCard
-          lastSong={lastSong}
-          waitingPlayersCount={waitingPlayers?.length || 0}
-          guessedPlayersCount={guessedPlayers?.length || 0}
-        />
+        <LastSongCard lastSong={lastSong} />
 
         <PlayersLobby
           notGuessedPlayers={notGuessedPlayers}
