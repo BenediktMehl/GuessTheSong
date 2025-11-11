@@ -4,6 +4,7 @@ import { Card } from '../../components/Card';
 import PlayersLobby from '../../components/PlayersLobby';
 import { setGlobalPausePlayer, useGameContext } from '../../game/context';
 import {
+  awardPartialPointsIfRoundEnded,
   markPlayerGuessedPartially,
   markPlayerGuessedRight,
   markPlayerGuessedWrong,
@@ -831,10 +832,12 @@ export default function Game() {
             position < duration * 0.1 && // Now near the start (<10%)
             !hasLoopedRef.current // Haven't detected loop yet
           ) {
-            // Song looped - save as last song and pause it
+            // Song looped - award partial points if any players partially guessed, then save as last song and pause
             logger.debug(
-              '[Spotify] Song looped (second time started), saving as last song and pausing'
+              '[Spotify] Song looped (second time started), awarding partial points and pausing'
             );
+            // Award 0.5 points to partially guessed players if the round ended without a correct guess
+            awardPartialPointsIfRoundEnded(gameContext);
             saveLastSong(state.track_window.current_track);
             hasLoopedRef.current = true;
             if (!state.paused) {
@@ -879,7 +882,7 @@ export default function Game() {
         playerInstanceRef.current = undefined;
       }
     };
-  }, [transferPlaybackToDevice, enableRepeatMode, saveLastSong, setLastSong]);
+  }, [transferPlaybackToDevice, enableRepeatMode, saveLastSong, setLastSong, gameContext]);
 
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
@@ -996,10 +999,12 @@ export default function Game() {
               newPosition < currentDuration * 0.1 && // Now near the start (<10%)
               !hasLoopedRef.current // Haven't detected loop yet
             ) {
-              // Song looped - save as last song and pause it
+              // Song looped - award partial points if any players partially guessed, then save as last song and pause
               logger.debug(
-                '[Host Game] Song looped (detected in interval), saving as last song and pausing'
+                '[Host Game] Song looped (detected in interval), awarding partial points and pausing'
               );
+              // Award 0.5 points to partially guessed players if the round ended without a correct guess
+              awardPartialPointsIfRoundEnded(gameContext);
               if (state?.track_window?.current_track) {
                 saveLastSong(state.track_window.current_track);
               }
@@ -1026,7 +1031,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [isSeeking, is_active, is_paused, player, saveLastSong, trackDuration]);
+  }, [isSeeking, is_active, is_paused, player, saveLastSong, trackDuration, gameContext]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =

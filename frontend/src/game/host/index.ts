@@ -542,6 +542,41 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
   logger.info('[Host] All players reset after right guess - ready for next song');
 }
 
+// Award 0.5 points to partially guessed players if the round ended without a correct guess
+// This function is idempotent - it only awards points to players in the partiallyGuessedPlayers list
+// Once points are awarded and the list is cleared, calling this again won't award duplicate points
+export function awardPartialPointsIfRoundEnded(gameContext: GameContextType): void {
+  if (gameContext.partiallyGuessedPlayers.length > 0) {
+    logger.info(
+      '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
+    );
+    // Store the list of partially guessed players before clearing
+    const partiallyGuessedPlayersToAward = [...gameContext.partiallyGuessedPlayers];
+
+    // Award points
+    gameContext.setPlayers((currentPlayers) => {
+      const updatedPlayers = currentPlayers.map((player) => {
+        const partiallyGuessedPlayer = partiallyGuessedPlayersToAward.find(
+          (p) => p.id === player.id
+        );
+        if (partiallyGuessedPlayer) {
+          return { ...player, points: player.points + 0.5 };
+        }
+        return player;
+      });
+      logger.debug('[Host] Updated player points after partial points awarded:', updatedPlayers);
+      sendPlayersChangedAction(updatedPlayers);
+      return updatedPlayers;
+    });
+
+    // Clear the partially guessed players list to prevent duplicate point awards
+    // This makes the function idempotent - subsequent calls won't award points again
+    gameContext.setPartiallyGuessedPlayers([]);
+    sendPartiallyGuessedPlayersChangedAction([]);
+    logger.debug('[Host] Cleared partially guessed players list after awarding points');
+  }
+}
+
 // Reset all players to default state (clear waiting and guessed lists)
 export function resetAllPlayersForNewRound(gameContext: GameContextType) {
   logger.debug('[Host] Resetting all players for new round');
@@ -551,6 +586,10 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType) {
     partiallyGuessedCount: gameContext.partiallyGuessedPlayers?.length ?? 0,
     totalPlayers: gameContext.players.length,
   });
+
+  // Award 0.5 points to partially guessed players before resetting
+  // This handles cases where the round ends without all players guessing (e.g., song loops, Next button)
+  awardPartialPointsIfRoundEnded(gameContext);
 
   // Clear lists locally
   gameContext.setWaitingPlayers([]);
@@ -720,33 +759,6 @@ export function markPlayerGuessedWrong(
       sendLastSongChangedAction(lastSong);
     }
 
-    // Award 0.5 points to partiallyGuessedPlayers if there are any
-    if (gameContext.partiallyGuessedPlayers.length > 0) {
-      logger.info(
-        '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
-      );
-      gameContext.setPlayers((currentPlayers) => {
-        const updatedPlayers = currentPlayers.map((player) => {
-          const partiallyGuessedPlayer = gameContext.partiallyGuessedPlayers.find(
-            (p) => p.id === player.id
-          );
-          if (partiallyGuessedPlayer) {
-            return { ...player, points: player.points + 0.5 };
-          }
-          return player;
-        });
-        logger.debug('[Host] Updated player points after partial points awarded:', updatedPlayers);
-        sendPlayersChangedAction(updatedPlayers);
-        return updatedPlayers;
-      });
-    }
-
-    // Save last song if provided
-    if (lastSong) {
-      gameContext.setLastSong(lastSong);
-      sendLastSongChangedAction(lastSong);
-    }
-
     // Remove player from waiting list without adding to guessed list
     gameContext.setWaitingPlayers((currentWaitingPlayers) => {
       const newWaitingPlayers = currentWaitingPlayers.slice(1);
@@ -755,6 +767,7 @@ export function markPlayerGuessedWrong(
     });
 
     // Reset all players (this clears both waiting and guessed lists)
+    // This will also award 0.5 points to partially guessed players if there are any
     resetAllPlayersForNewRound(gameContext);
 
     // Broadcast the wrong guess action (for consistency, but players will be reset anyway)
