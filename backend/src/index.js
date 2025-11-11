@@ -16,7 +16,7 @@ if (fs.existsSync(envLocalPath)) {
 const { httpServer, ws } = require('./server');
 const { PORT, HOST, USE_TLS } = require('./config');
 const { sendError } = require('./utils');
-const { sessions, disconnectedPlayers, cleanupForTests } = require('./sessions');
+const { sessions, disconnectedPlayers, disconnectedHosts, cleanupForTests } = require('./sessions');
 const { handleJoin } = require('./handlers/join');
 const { handleCreate } = require('./handlers/create');
 const { handlePlayerAction } = require('./handlers/player-action');
@@ -46,7 +46,7 @@ ws.on('connection', (ws) => {
           break;
         case 'create':
           logger.debug('Handling create');
-          handleCreate(ws);
+          handleCreate(ws, serverPayload);
           break;
         case 'player-action':
           logger.debug('Handling player-action');

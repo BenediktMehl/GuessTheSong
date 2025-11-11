@@ -34,11 +34,35 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 3;
 let hasFailed = false; // Track if we've permanently failed
 
+// localStorage keys for host session persistence
+const HOST_SESSION_ID_KEY = 'host_sessionId';
+const HOST_HOST_ID_KEY = 'host_hostId';
+
+// Helper functions for localStorage
+export function getStoredHostSession(): { sessionId: string; hostId: string } | null {
+  const sessionId = localStorage.getItem(HOST_SESSION_ID_KEY);
+  const hostId = localStorage.getItem(HOST_HOST_ID_KEY);
+  if (sessionId && hostId) {
+    return { sessionId, hostId };
+  }
+  return null;
+}
+
+function storeHostSession(sessionId: string, hostId: string): void {
+  localStorage.setItem(HOST_SESSION_ID_KEY, sessionId);
+  localStorage.setItem(HOST_HOST_ID_KEY, hostId);
+}
+
+function clearHostSession(): void {
+  localStorage.removeItem(HOST_SESSION_ID_KEY);
+  localStorage.removeItem(HOST_HOST_ID_KEY);
+}
+
 // Convert to a custom hook
 export function useGameInitializer() {
   const gameContext = useGameContext();
 
-  const initGame = useCallback(() => {
+  const initGame = useCallback((sessionId?: string, hostId?: string) => {
     // Check if we've already permanently failed
     if (hasFailed) {
       gameContext.setWsStatus('failed');
@@ -75,8 +99,19 @@ export function useGameInitializer() {
       hasFailed = false; // Reset failed flag on success
 
       if (ws) {
-        logger.debug('[Host] Sending create action');
-        ws.send(JSON.stringify({ serverAction: 'create' }));
+        // If reconnecting, send hostId; otherwise create new session
+        if (sessionId && hostId) {
+          logger.debug('[Host] Attempting to reconnect with sessionId and hostId');
+          ws.send(
+            JSON.stringify({
+              serverAction: 'create',
+              serverPayload: { hostId: hostId },
+            })
+          );
+        } else {
+          logger.debug('[Host] Creating new session');
+          ws.send(JSON.stringify({ serverAction: 'create' }));
+        }
       }
     };
 
@@ -88,8 +123,14 @@ export function useGameInitializer() {
         // Handle messages based on action rather than type
         switch (msg.action) {
           case 'created':
-            logger.info('Session created with ID:', msg.payload.sessionId);
-            gameContext.setSessionId(msg.payload.sessionId);
+            const createdSessionId = msg.payload.sessionId;
+            const createdHostId = msg.payload.hostId;
+            logger.info('Session created with ID:', createdSessionId, 'hostId:', createdHostId);
+            gameContext.setSessionId(createdSessionId);
+            // Store session data in localStorage for reconnection
+            if (createdSessionId && createdHostId) {
+              storeHostSession(createdSessionId, createdHostId);
+            }
             break;
 
           case 'player-joined':
@@ -191,6 +232,8 @@ export function useGameInitializer() {
     reconnectAttempts = 0; // Reset attempts when manually ending
     hasFailed = false; // Reset failed flag
     gameContext.setWsStatus('closed');
+    // Clear stored session data when explicitly ending the game
+    clearHostSession();
     logger.info('Game ended and WebSocket connection closed');
   }, [gameContext]);
 

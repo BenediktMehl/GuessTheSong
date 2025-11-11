@@ -4,7 +4,7 @@ import { Card } from '../../components/Card';
 import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
-import { startGame, useGameInitializer } from '../../game/host';
+import { getStoredHostSession, startGame, useGameInitializer } from '../../game/host';
 import {
   getSelectedPlaylistId,
   getUserPlaylists,
@@ -34,7 +34,7 @@ export default function Lobby() {
   const gameContext = useGameContext();
   const { players, sessionId, status, isHost, setIsHost, wsStatus } = gameContext;
   const isGameRunning = status !== 'notStarted' && status !== 'finished';
-  const { initGame } = useGameInitializer();
+  const { initGame, endGame } = useGameInitializer();
 
   // Check Spotify login status periodically
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function Lobby() {
     }
   };
 
-  // If someone comes to /settings, they are the host
+  // If someone comes to /host-lobby, they are the host
   useEffect(() => {
     if (!isHost) {
       setIsHost(true);
@@ -140,7 +140,19 @@ export default function Lobby() {
     if (hasTriedToInit.current) return;
 
     hasTriedToInit.current = true;
-    initGame();
+
+    // Check for stored session data for reconnection
+    const storedSession = getStoredHostSession();
+    if (storedSession) {
+      logger.debug('[Lobby] Found stored session, attempting to reconnect', {
+        sessionId: storedSession.sessionId,
+        hostId: storedSession.hostId,
+      });
+      initGame(storedSession.sessionId, storedSession.hostId);
+    } else {
+      logger.debug('[Lobby] No stored session found, creating new session');
+      initGame();
+    }
   }, [sessionId, initGame]);
 
   // Reset the flag when we successfully get a session or when component unmounts
@@ -365,7 +377,10 @@ export default function Lobby() {
 
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => {
+                endGame();
+                navigate('/');
+              }}
               className="btn btn-outline btn-error btn-sm sm:btn-md"
             >
               Cancel & Leave

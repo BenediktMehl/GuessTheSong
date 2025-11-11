@@ -1,4 +1,4 @@
-const { sessions, disconnectedPlayers, deleteSession } = require('../sessions');
+const { sessions, disconnectedPlayers, disconnectedHosts, deleteSession } = require('../sessions');
 const logger = require('../logger');
 
 // Don't remove immediately - give grace period for reconnection
@@ -64,9 +64,54 @@ function handlePlayerDisconnect(ws, sessionId) {
   }
 }
 
-function handleGameHostDisconnect(_ws, sessionId) {
-  if (sessions[sessionId]) {
-    // Notify all players in the session
+function handleGameHostDisconnect(ws, sessionId) {
+  const hostId = ws.hostId;
+
+  if (sessions[sessionId] && hostId) {
+    logger.info(
+      { hostId, sessionId, gracePeriod: RECONNECT_GRACE_PERIOD_MS / 1000 },
+      'Host disconnected (grace period started)'
+    );
+
+    // Store disconnected host info
+    const session = sessions[sessionId];
+    if (!session) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      // After grace period, delete session if host hasn't reconnected
+      if (disconnectedHosts.has(hostId)) {
+        disconnectedHosts.delete(hostId);
+
+        const activeSession = sessions[sessionId];
+        if (activeSession) {
+          logger.info({ hostId, sessionId }, 'Session deleted after host timeout');
+
+          // Notify all players in the session
+          activeSession.players.forEach((playerWs) => {
+            playerWs.send(
+              JSON.stringify({
+                action: 'session-closed',
+                payload: { reason: 'Host disconnected' },
+              })
+            );
+            playerWs.close();
+          });
+          deleteSession(sessionId);
+        }
+      }
+    }, RECONNECT_GRACE_PERIOD_MS);
+
+    disconnectedHosts.set(hostId, {
+      ws,
+      sessionId,
+      disconnectTime: Date.now(),
+      timeout,
+    });
+  } else if (sessions[sessionId] && !hostId) {
+    // Legacy case: host without hostId - delete immediately
+    logger.warn({ sessionId }, 'Host disconnected without hostId - deleting session immediately');
     sessions[sessionId].players.forEach((playerWs) => {
       playerWs.send(
         JSON.stringify({

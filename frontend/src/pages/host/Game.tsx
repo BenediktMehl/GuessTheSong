@@ -1368,7 +1368,7 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/host-lobby')}
               >
                 Back to Lobby
               </button>
