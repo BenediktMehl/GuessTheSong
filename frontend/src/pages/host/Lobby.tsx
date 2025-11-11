@@ -781,14 +781,29 @@ export default function Lobby() {
               onClick={() => {
                 // Logout from Spotify when leaving
                 logoutSpotify();
-                // Disconnect player if it exists
+                // Disconnect Spotify player instance from Lobby.tsx
                 if (playerInstanceRef.current) {
-                  playerInstanceRef.current.disconnect();
-                  playerInstanceRef.current = undefined;
+                  try {
+                    playerInstanceRef.current.disconnect();
+                    playerInstanceRef.current = undefined;
+                    logger.info('[Host Lobby] Disconnected Spotify player instance');
+                  } catch (error) {
+                    logger.error('[Host Lobby] Error disconnecting Spotify player:', error);
+                  }
                 }
                 if (window.spotifyPlayerInstance) {
-                  window.spotifyPlayerInstance = undefined;
+                  try {
+                    window.spotifyPlayerInstance.disconnect();
+                    window.spotifyPlayerInstance = undefined;
+                    logger.info('[Host Lobby] Disconnected Spotify player instance from window');
+                  } catch (error) {
+                    logger.error(
+                      '[Host Lobby] Error disconnecting Spotify player from window:',
+                      error
+                    );
+                  }
                 }
+                // End game (disconnects Spotify, sends delete-session, closes WebSocket)
                 endGame();
                 navigate('/');
               }}

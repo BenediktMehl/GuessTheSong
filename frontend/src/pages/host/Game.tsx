@@ -11,6 +11,7 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
   sendNoPointsToastAction,
+  useGameInitializer,
 } from '../../game/host';
 import { setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
@@ -101,6 +102,7 @@ export default function Game() {
     waitingPlayers,
     guessedPlayers,
     partiallyGuessedPlayers,
+    noCluePlayers,
     buzzerNotification,
     setBuzzerNotification,
     setPausePlayerCallback,
@@ -108,17 +110,20 @@ export default function Game() {
     status,
   } = gameContext;
   const navigate = useNavigate();
+  const { endGame } = useGameInitializer();
 
-  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, partially guessed, or no clue arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
   const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
+  const noCluePlayerIds = new Set((noCluePlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
     .filter(
       (p) =>
         !waitingPlayerIds.has(p.id) &&
         !guessedPlayerIds.has(p.id) &&
-        !partiallyGuessedPlayerIds.has(p.id)
+        !partiallyGuessedPlayerIds.has(p.id) &&
+        !noCluePlayerIds.has(p.id)
     )
     .sort((a, b) => b.points - a.points);
   const [player, setPlayer] = useState<SpotifyPlayer | undefined>(undefined);
@@ -1343,7 +1348,21 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/host-lobby')}
+                onClick={() => {
+                  // Disconnect Spotify player instance from Game.tsx
+                  if (playerInstanceRef.current) {
+                    try {
+                      playerInstanceRef.current.disconnect();
+                      playerInstanceRef.current = undefined;
+                      logger.info('[Host Game] Disconnected Spotify player instance');
+                    } catch (error) {
+                      logger.error('[Host Game] Error disconnecting Spotify player:', error);
+                    }
+                  }
+                  // End game (disconnects Spotify, sends delete-session, closes WebSocket)
+                  endGame();
+                  navigate('/host-lobby');
+                }}
               >
                 Back to Lobby
               </button>
@@ -1378,7 +1397,21 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/host-lobby')}
+                onClick={() => {
+                  // Disconnect Spotify player instance from Game.tsx
+                  if (playerInstanceRef.current) {
+                    try {
+                      playerInstanceRef.current.disconnect();
+                      playerInstanceRef.current = undefined;
+                      logger.info('[Host Game] Disconnected Spotify player instance');
+                    } catch (error) {
+                      logger.error('[Host Game] Error disconnecting Spotify player:', error);
+                    }
+                  }
+                  // End game (disconnects Spotify, sends delete-session, closes WebSocket)
+                  endGame();
+                  navigate('/host-lobby');
+                }}
               >
                 Back to Lobby
               </button>
@@ -1670,7 +1703,19 @@ export default function Game() {
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
           partiallyGuessedPlayers={partiallyGuessedPlayers}
+          noCluePlayers={noCluePlayers}
         />
+
+        <button
+          type="button"
+          onClick={() => {
+            endGame();
+            navigate('/');
+          }}
+          className="btn btn-sm btn-outline btn-error"
+        >
+          Leave Lobby
+        </button>
       </div>
     </main>
   );

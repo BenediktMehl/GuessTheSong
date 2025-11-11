@@ -2,7 +2,7 @@
 
 /**
  * Setup script to create .env.local from .env.example
- * 
+ *
  * Usage:
  *   node setup-env.js <client-id> <client-secret>
  *   or
@@ -107,4 +107,3 @@ function main() {
 }
 
 main();
-

@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * Wait for game code to appear in the UI
@@ -11,11 +11,14 @@ export async function waitForGameCode(page: Page): Promise<string> {
 
   // Extract game code from the page
   // The game code is displayed in a span with font-mono class
-  const gameCodeElement = page.locator('.font-mono').filter({ hasText: /^[A-F0-9]{4}$/ }).first();
-  
+  const gameCodeElement = page
+    .locator('.font-mono')
+    .filter({ hasText: /^[A-F0-9]{4}$/ })
+    .first();
+
   // Wait for it to be visible
   await gameCodeElement.waitFor({ state: 'visible', timeout: 10000 });
-  
+
   const gameCode = await gameCodeElement.textContent();
 
   if (!gameCode || gameCode.trim().length !== 4) {
@@ -73,8 +76,10 @@ export async function clickBuzzer(page: Page): Promise<void> {
   // Look for button with aria-label containing "buzzer" or "guess"
   try {
     // First try to find by aria-label
-    const buzzerByLabel = page.locator('button[aria-label*="buzzer" i], button[aria-label*="guess" i]').filter({ hasNot: page.locator('[disabled]') });
-    if (await buzzerByLabel.count() > 0) {
+    const buzzerByLabel = page
+      .locator('button[aria-label*="buzzer" i], button[aria-label*="guess" i]')
+      .filter({ hasNot: page.locator('[disabled]') });
+    if ((await buzzerByLabel.count()) > 0) {
       await buzzerByLabel.first().click({ timeout: 5000 });
       return;
     }
@@ -85,7 +90,7 @@ export async function clickBuzzer(page: Page): Promise<void> {
   // Find all non-disabled buttons and get their sizes
   const buttons = page.locator('button:not([disabled])');
   const buttonCount = await buttons.count();
-  
+
   if (buttonCount === 0) {
     throw new Error('No enabled buttons found on page');
   }
@@ -122,14 +127,21 @@ export async function waitForBuzzerNotification(page: Page, playerName: string):
   // The notification shows: "<strong>{playerName}</strong> pressed the buzzer!"
   // Look for the player name first (might be in a strong tag)
   await page.waitForSelector(`text=${playerName}`, { timeout: 15000 });
-  
+
   // Then verify the notification text is visible
   // The text might be split across elements, so look for either the player name or "buzzer" text
-  const notificationVisible = await page.locator(`text=${playerName}`).isVisible().catch(() => false);
+  const notificationVisible = await page
+    .locator(`text=${playerName}`)
+    .isVisible()
+    .catch(() => false);
   if (!notificationVisible) {
     // Fallback: look for "buzzer" text in the notification area
     await page.waitForSelector('.toast, .alert', { timeout: 5000 });
-    const buzzerText = await page.locator('text=/buzzer/i').first().isVisible().catch(() => false);
+    const buzzerText = await page
+      .locator('text=/buzzer/i')
+      .first()
+      .isVisible()
+      .catch(() => false);
     if (!buzzerText) {
       throw new Error(`Buzzer notification for ${playerName} not found`);
     }
@@ -150,18 +162,20 @@ export async function waitForPlayerInLobby(page: Page, playerName: string): Prom
 export async function clickStartGame(page: Page): Promise<void> {
   // Wait for start game button to be visible and enabled
   // The button text is "🎮 Start Game" and requires at least 2 players and Spotify login
-  await page.waitForSelector('button:has-text("Start Game")', { 
+  await page.waitForSelector('button:has-text("Start Game")', {
     timeout: 15000,
-    state: 'visible'
+    state: 'visible',
   });
-  
+
   // Wait for button to be enabled (requires at least 2 players and Spotify connected)
   // The button is disabled if players.length < 2 or !isLoggedInSpotify
-  const startButton = page.locator('button:has-text("Start Game")').filter({ hasNot: page.locator('[disabled]') });
-  
+  const startButton = page
+    .locator('button:has-text("Start Game")')
+    .filter({ hasNot: page.locator('[disabled]') });
+
   // Wait for button to be enabled
   await startButton.waitFor({ state: 'visible', timeout: 15000 });
-  
+
   // Click the start game button
   await startButton.click();
 
@@ -198,26 +212,30 @@ export async function verifySongPlaying(page: Page): Promise<boolean> {
   if (playerState.playing && !playerState.paused) {
     try {
       // Wait for UI to update - look for PAUSE button (song is playing) or track info
-      await page.waitForSelector('button:has-text("PAUSE"), button:has-text("PLAY")', { 
-        timeout: 5000 
+      await page.waitForSelector('button:has-text("PAUSE"), button:has-text("PLAY")', {
+        timeout: 5000,
       });
-      
+
       // Check if PAUSE button is visible (indicates playing)
       const pauseButton = page.locator('button:has-text("PAUSE")');
       const pauseVisible = await pauseButton.isVisible().catch(() => false);
-      
+
       if (pauseVisible) {
         return true;
       }
-      
+
       // Also check if track name is visible (alternative indicator)
       if (playerState.trackName) {
-        const trackVisible = await page.locator(`text=/${playerState.trackName}/i`).first().isVisible().catch(() => false);
+        const trackVisible = await page
+          .locator(`text=/${playerState.trackName}/i`)
+          .first()
+          .isVisible()
+          .catch(() => false);
         if (trackVisible) {
           return true;
         }
       }
-      
+
       // If player state says playing but UI doesn't show it yet, give it a moment
       // The UI might be updating asynchronously
       await page.waitForTimeout(1000);
@@ -229,7 +247,7 @@ export async function verifySongPlaying(page: Page): Promise<boolean> {
       return playerState.playing && !playerState.paused;
     }
   }
-  
+
   // Player state says not playing
   return false;
 }
@@ -258,12 +276,9 @@ export async function verifySongPaused(page: Page): Promise<boolean> {
  * Set selected playlist in localStorage (for host)
  */
 export async function setSelectedPlaylist(page: Page, playlistId: string): Promise<void> {
-  await page.addInitScript(
-    (id) => {
-      localStorage.setItem('spotify_selected_playlist_id', id);
-    },
-    playlistId
-  );
+  await page.addInitScript((id) => {
+    localStorage.setItem('spotify_selected_playlist_id', id);
+  }, playlistId);
 }
 
 /**
@@ -274,4 +289,3 @@ export async function waitForWebSocketConnection(page: Page): Promise<void> {
   // This is indicated by the UI being ready (no loading states)
   await page.waitForLoadState('networkidle', { timeout: 10000 });
 }
-

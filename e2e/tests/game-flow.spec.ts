@@ -1,18 +1,18 @@
-import { test, expect, Browser } from '@playwright/test';
-import { startBackendServer, startFrontendServer, stopServers } from '../helpers/server';
-import { mockSpotifySDK, simulateSpotifyPlaying, getPauseCallCount } from '../helpers/spotify-mock';
+import { Browser, expect, test } from '@playwright/test';
 import {
-  waitForGameCode,
-  joinGameAsPlayer,
   clickBuzzer,
-  waitForBuzzerNotification,
-  waitForPlayerInLobby,
   clickStartGame,
-  verifySongPlaying,
-  verifySongPaused,
+  joinGameAsPlayer,
   setSelectedPlaylist,
+  verifySongPaused,
+  verifySongPlaying,
+  waitForBuzzerNotification,
+  waitForGameCode,
+  waitForPlayerInLobby,
   waitForWebSocketConnection,
 } from '../helpers/browser';
+import { startBackendServer, startFrontendServer, stopServers } from '../helpers/server';
+import { getPauseCallCount, mockSpotifySDK, simulateSpotifyPlaying } from '../helpers/spotify-mock';
 
 test.describe('Game Flow E2E', () => {
   let backendPort: number;
@@ -66,21 +66,21 @@ test.describe('Game Flow E2E', () => {
     // Step 1: Host creates game
     console.log('Step 1: Host creates game');
     await hostPage.goto(`http://127.0.0.1:${frontendPort}/`);
-    
+
     // Wait for page to load
     await hostPage.waitForLoadState('networkidle');
-    
+
     // Navigate to host lobby (click "Host a Game" button)
     // The welcome page has a "Host a Game" button
     await hostPage.click('button:has-text("Host a Game")', { timeout: 10000 });
-    
+
     // Wait for navigation to settings/lobby page
     await hostPage.waitForURL(/\/settings/, { timeout: 10000 });
     await hostPage.waitForLoadState('networkidle');
 
     // Wait for WebSocket connection and game creation
     await waitForWebSocketConnection(hostPage);
-    
+
     // Wait a bit for game to be created
     await hostPage.waitForTimeout(2000);
 
@@ -108,24 +108,26 @@ test.describe('Game Flow E2E', () => {
 
     // Step 4: Host starts game
     console.log('Step 4: Host starts game');
-    
+
     // Wait for Spotify to be connected and at least 2 players to be present
     // The start game button requires: players.length >= 2 && isLoggedInSpotify
     // We have 2 players and mocked Spotify, so wait for button to be enabled
     await hostPage.waitForTimeout(3000); // Wait for Spotify connection to be established
-    
+
     // Verify both players are still visible
     await expect(hostPage.locator('text=Player1')).toBeVisible();
     await expect(hostPage.locator('text=Player2')).toBeVisible();
-    
+
     // Wait for start game button to be enabled (not disabled)
     // The button text is "🎮 Start Game"
-    const startButton = hostPage.locator('button:has-text("Start Game")').filter({ hasNot: hostPage.locator('[disabled]') });
+    const startButton = hostPage
+      .locator('button:has-text("Start Game")')
+      .filter({ hasNot: hostPage.locator('[disabled]') });
     await startButton.waitFor({ state: 'visible', timeout: 20000 });
-    
+
     // Click start game button
     await clickStartGame(hostPage);
-    
+
     // Wait for game page to load
     // The route is /hostgame, not /host/game
     await hostPage.waitForURL(/\/hostgame/, { timeout: 15000 });
@@ -141,24 +143,24 @@ test.describe('Game Flow E2E', () => {
       // Players might still be on lobby page, refresh or wait
       console.log('Players may still be on lobby page, continuing...');
     }
-    
+
     // Wait for players' pages to be ready
     await player1Page.waitForLoadState('networkidle');
     await player2Page.waitForLoadState('networkidle');
 
     // Step 5: Verify song is playing
     console.log('Step 5: Verify song is playing');
-    
+
     // Wait for Spotify player to be ready
     // The game automatically starts playback when device is ready and game status is 'waiting'
     // Wait for the player to initialize and start playback
     await hostPage.waitForTimeout(5000); // Give time for Spotify player to initialize
-    
+
     // The game should automatically call playPlaylist when device is ready
     // But we can also simulate playback to ensure it's playing
     // First, check if playback has started automatically
     let isPlaying = await verifySongPlaying(hostPage);
-    
+
     // If not playing, simulate it (the game should have started it, but we ensure it's playing)
     if (!isPlaying) {
       console.log('Song not playing yet, simulating playback...');
@@ -166,29 +168,29 @@ test.describe('Game Flow E2E', () => {
       await hostPage.waitForTimeout(2000);
       isPlaying = await verifySongPlaying(hostPage);
     }
-    
+
     // Verify song is playing
     expect(isPlaying).toBe(true);
     console.log('Song is playing - verified');
 
     // Step 6: Player2 buzzes
     console.log('Step 6: Player2 buzzes');
-    
+
     // Get initial pause call count (should be 0 if song is playing)
     const initialPauseCount = await getPauseCallCount(hostPage);
     console.log(`Initial pause call count: ${initialPauseCount}`);
-    
+
     // Click buzzer button on player2 page
     await clickBuzzer(player2Page);
     console.log('Buzzer clicked by Player2');
-    
+
     // Wait for buzzer notification on host page
     await waitForBuzzerNotification(hostPage, 'Player2');
     console.log('Buzzer notification received on host');
 
     // Step 7: Verify song stopped
     console.log('Step 7: Verify song stopped');
-    
+
     // Check if pause callback is registered before waiting
     const pauseCallbackInfo = await hostPage.evaluate(() => {
       // Check if pause callback is registered in context
@@ -198,13 +200,13 @@ test.describe('Game Flow E2E', () => {
       return { hasPlayer: hasPauseCallback };
     });
     console.log('Pause callback info:', pauseCallbackInfo);
-    
+
     // Wait for pause callback to be executed
     // The pause callback is called when buzzer notification is received in handlePlayerBuzzed
     // The pause callback should call player.togglePlay() which pauses the playback
     // Give it time for the WebSocket message to be processed and pause callback to execute
     await hostPage.waitForTimeout(2000);
-    
+
     // Check if pause was automatically called by the pause callback
     // If not, it might be because the callback isn't registered yet or there's a timing issue
     // In that case, we verify that the pause mechanism works by checking if we can pause manually
@@ -221,13 +223,15 @@ test.describe('Game Flow E2E', () => {
       }
       return null;
     });
-    
+
     // If pause wasn't called automatically, the pause callback might not be registered yet
     // This can happen if the player isn't active yet. In a real scenario, the pause callback
     // should be registered when the player becomes active. For the test, we verify the pause
     // mechanism works by manually pausing if needed, but ideally the callback should work.
     if (!playerStateBeforeManual?.paused && pauseCountBeforeManual === initialPauseCount) {
-      console.log('Pause callback may not have been called automatically, manually pausing to verify mechanism works');
+      console.log(
+        'Pause callback may not have been called automatically, manually pausing to verify mechanism works'
+      );
       // Manually trigger pause to verify the mechanism works
       await hostPage.evaluate(async () => {
         const player = (window as any).__mockSpotifyPlayer;
@@ -240,18 +244,20 @@ test.describe('Game Flow E2E', () => {
       });
       await hostPage.waitForTimeout(1000); // Wait for UI to update
     }
-    
+
     // Verify pause was called (check pause call count increased)
     const finalPauseCount = await getPauseCallCount(hostPage);
     console.log(`Final pause call count: ${finalPauseCount}, initial: ${initialPauseCount}`);
-    
+
     // Check the player state directly
     const playerState = await hostPage.evaluate(async () => {
       const player = (window as any).__mockSpotifyPlayer;
       if (player) {
         try {
           const state = await player.getCurrentState();
-          return state ? { paused: state.paused, hasTrack: !!state.track_window?.current_track } : null;
+          return state
+            ? { paused: state.paused, hasTrack: !!state.track_window?.current_track }
+            : null;
         } catch (e) {
           return null;
         }
@@ -259,7 +265,7 @@ test.describe('Game Flow E2E', () => {
       return null;
     });
     console.log('Player state after buzz:', playerState);
-    
+
     // Verify song is paused in UI
     // Check if play button is visible (indicates song is paused)
     const isPaused = await verifySongPaused(hostPage);
@@ -272,4 +278,3 @@ test.describe('Game Flow E2E', () => {
     await player2Context.close();
   });
 });
-

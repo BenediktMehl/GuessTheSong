@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'child_process';
+import { type ChildProcess, spawn } from 'child_process';
 import { resolve as pathResolve } from 'path';
 
 // Use process.cwd() to get the repo root when running from the repo root
@@ -13,11 +13,7 @@ let frontendServer: ChildProcess | null = null;
 /**
  * Wait for a server to be ready by checking if it responds to HTTP requests
  */
-async function waitForServer(
-  url: string,
-  timeout = 30000,
-  interval = 500
-): Promise<void> {
+async function waitForServer(url: string, timeout = 30000, interval = 500): Promise<void> {
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
@@ -62,7 +58,7 @@ export async function startBackendServer(port: number): Promise<number> {
     // Node.js will automatically look for node_modules in the cwd and parent directories
     // Using absolute path to node to ensure it works in CI
     const nodeExecutable = process.execPath; // Use the same node that's running the tests
-    
+
     backendServer = spawn(nodeExecutable, ['index.js'], {
       cwd: backendDir, // This ensures node looks for node_modules in backend/
       env,
@@ -159,15 +155,19 @@ export async function startFrontendServer(port: number): Promise<number> {
       ...env,
       VITE_PORT: port.toString(),
     };
-    
+
     // Use npx vite which will find vite in frontend/node_modules/.bin
     // The --yes flag prevents npx from prompting if the package isn't installed
-    frontendServer = spawn('npx', ['--yes', '--prefix', frontendDir, 'vite', '--port', port.toString(), '--host', '127.0.0.1'], {
-      cwd: frontendDir, // Run from frontend directory
-      env: devEnv,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-    });
+    frontendServer = spawn(
+      'npx',
+      ['--yes', '--prefix', frontendDir, 'vite', '--port', port.toString(), '--host', '127.0.0.1'],
+      {
+        cwd: frontendDir, // Run from frontend directory
+        env: devEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+      }
+    );
 
     let serverReady = false;
     let outputBuffer = '';
@@ -289,4 +289,3 @@ export async function stopServers(): Promise<void> {
 
   await Promise.all(promises);
 }
-

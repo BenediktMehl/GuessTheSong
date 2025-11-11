@@ -1,4 +1,4 @@
-import { Page, BrowserContext } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 
 /**
  * Mock Spotify Web Playback SDK and API in the browser
@@ -7,7 +7,7 @@ import { Page, BrowserContext } from '@playwright/test';
 export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Promise<void> {
   // Get the context (either directly or from the page)
   const context = 'pages' in pageOrContext ? pageOrContext : (pageOrContext as Page).context();
-  
+
   // Use addInitScript on the context to ensure it runs before page loads
   await context.addInitScript(() => {
     // Mock localStorage access token
@@ -106,13 +106,15 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
           }
 
           // Trigger state change event immediately and asynchronously
-          const state = this.currentTrack ? {
-            paused: this.isPaused,
-            position: this.position,
-            track_window: {
-              current_track: this.currentTrack,
-            },
-          } : null;
+          const state = this.currentTrack
+            ? {
+                paused: this.isPaused,
+                position: this.position,
+                track_window: {
+                  current_track: this.currentTrack,
+                },
+              }
+            : null;
 
           // Trigger synchronously first
           if (state) {
@@ -160,14 +162,16 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
           // Trigger state change event immediately and asynchronously
           // This ensures the UI gets updated
           const stateChangeListeners = this.listeners.get('player_state_changed') || [];
-          const state = this.currentTrack ? {
-            paused: this.isPaused,
-            position: this.position,
-            track_window: {
-              current_track: this.currentTrack,
-            },
-          } : null;
-          
+          const state = this.currentTrack
+            ? {
+                paused: this.isPaused,
+                position: this.position,
+                track_window: {
+                  current_track: this.currentTrack,
+                },
+              }
+            : null;
+
           // Trigger synchronously first (some listeners might need immediate update)
           if (state) {
             stateChangeListeners.forEach((listener) => {
@@ -178,7 +182,7 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
               }
             });
           }
-          
+
           // Also trigger asynchronously to ensure all listeners get it
           setTimeout(() => {
             if (state) {
@@ -205,7 +209,7 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
               current_track: this.currentTrack,
             },
           };
-          
+
           // Trigger synchronously first
           stateChangeListeners.forEach((listener) => {
             try {
@@ -214,7 +218,7 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
               // Ignore errors in listeners
             }
           });
-          
+
           // Also trigger asynchronously to ensure all listeners get it
           setTimeout(() => {
             stateChangeListeners.forEach((listener) => {
@@ -246,7 +250,7 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
 
     // Prevent the real Spotify SDK script from loading by intercepting script creation
     const originalCreateElement = document.createElement.bind(document);
-    document.createElement = function(tagName: string, options?: ElementCreationOptions) {
+    document.createElement = (tagName: string, options?: ElementCreationOptions) => {
       if (tagName === 'script') {
         const script = originalCreateElement(tagName, options) as HTMLScriptElement;
         // Intercept script src assignment
@@ -302,7 +306,10 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
         );
       }
 
-      if (urlString.startsWith('https://api.spotify.com/v1/playlists/') && urlString.includes('/tracks')) {
+      if (
+        urlString.startsWith('https://api.spotify.com/v1/playlists/') &&
+        urlString.includes('/tracks')
+      ) {
         return new Response(
           JSON.stringify({
             items: [
@@ -365,7 +372,10 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
         return new Response(null, { status: 204 });
       }
 
-      if (urlString.startsWith('https://api.spotify.com/v1/me/player') && options?.method === 'PUT') {
+      if (
+        urlString.startsWith('https://api.spotify.com/v1/me/player') &&
+        options?.method === 'PUT'
+      ) {
         // Mock player transfer endpoint
         return new Response(null, { status: 204 });
       }

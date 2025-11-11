@@ -129,6 +129,13 @@ export function useGameInitializer() {
               const createdHostId = msg.payload.hostId;
               logger.info('Session created with ID:', createdSessionId, 'hostId:', createdHostId);
               gameContext.setSessionId(createdSessionId);
+
+              // If players list is present (reconnection case), restore the player list
+              if (msg.payload.players && Array.isArray(msg.payload.players)) {
+                logger.debug('[Host] Restoring players list on reconnection:', msg.payload.players);
+                gameContext.setPlayers(msg.payload.players);
+              }
+
               // Store session data in localStorage for reconnection
               if (createdSessionId && createdHostId) {
                 storeHostSession(createdSessionId, createdHostId);
@@ -144,6 +151,11 @@ export function useGameInitializer() {
             case 'player-buzzed':
               logger.debug('[Host] Handling player-buzzed action:', msg);
               handlePlayerBuzzed(gameContext, msg);
+              break;
+
+            case 'player-no-clue':
+              logger.debug('[Host] Handling player-no-clue action:', msg);
+              handlePlayerNoClue(gameContext, msg);
               break;
 
             case 'player-guessed-wrong':
@@ -231,9 +243,77 @@ export function useGameInitializer() {
   );
 
   const endGame = useCallback(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.close();
+    // Disconnect Spotify player instances first
+    // Check window.spotifyPlayerInstance (from Lobby.tsx)
+    if (window.spotifyPlayerInstance) {
+      try {
+        window.spotifyPlayerInstance.disconnect();
+        window.spotifyPlayerInstance = undefined;
+        logger.info('[Host] Disconnected Spotify player instance from window');
+      } catch (error) {
+        logger.error('[Host] Error disconnecting Spotify player from window:', error);
+      }
     }
+
+    // Send delete-session message to backend before closing WebSocket
+    // Try to send the message if WebSocket is open
+    let messageSent = false;
+    if (ws) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(
+            JSON.stringify({
+              serverAction: 'delete-session',
+              serverPayload: {},
+            })
+          );
+          messageSent = true;
+          logger.info('[Host] Sent delete-session message to backend');
+        } catch (error) {
+          logger.error('[Host] Error sending delete-session message:', error);
+        }
+      } else if (ws.readyState === WebSocket.CONNECTING) {
+        // If still connecting, wait for it to open, then send
+        const openHandler = () => {
+          try {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  serverAction: 'delete-session',
+                  serverPayload: {},
+                })
+              );
+              logger.info('[Host] Sent delete-session message to backend after connection opened');
+              ws.removeEventListener('open', openHandler);
+            }
+          } catch (error) {
+            logger.error('[Host] Error sending delete-session message after open:', error);
+          }
+        };
+        ws.addEventListener('open', openHandler, { once: true });
+        // Fallback: if connection doesn't open within 1 second, just close
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.CONNECTING) {
+            logger.warn('[Host] WebSocket still connecting, closing without delete-session');
+            ws.removeEventListener('open', openHandler);
+            ws.close();
+          }
+        }, 1000);
+      } else {
+        logger.warn('[Host] WebSocket not in OPEN or CONNECTING state:', ws.readyState);
+      }
+
+      // Close WebSocket connection after a short delay to allow message to be sent
+      // Backend will also close it after processing delete-session, but this is a fallback
+      setTimeout(() => {
+        if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+          ws.close();
+        }
+      }, messageSent ? 100 : 0);
+    } else {
+      logger.warn('[Host] No WebSocket connection available for delete-session');
+    }
+
     reconnectAttempts = 0; // Reset attempts when manually ending
     hasFailed = false; // Reset failed flag
     gameContext.setWsStatus('closed');
@@ -282,6 +362,9 @@ function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
   );
   gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessedPlayers) =>
     currentPartiallyGuessedPlayers.filter((player) => player.id !== playerId)
+  );
+  gameContext.setNoCluePlayers((currentNoClue) =>
+    currentNoClue.filter((player) => player.id !== playerId)
   );
 }
 
@@ -467,6 +550,102 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
   });
 }
 
+function handlePlayerNoClue(gameContext: GameContextType, msg: WebSocketMessage) {
+  logger.debug('[Host] handlePlayerNoClue called', { msg, players: gameContext.players });
+
+  const noCluePlayerId = msg.payload?.playerId;
+  const noCluePlayerName = msg.payload?.playerName;
+  logger.debug('[Host] No clue player ID:', noCluePlayerId, 'Name:', noCluePlayerName);
+
+  if (!noCluePlayerId || typeof noCluePlayerId !== 'string') {
+    logger.error('[Host] No playerId in message payload:', msg);
+    return;
+  }
+
+  // Try to find player in context first
+  let noCluePlayer: Player | undefined = gameContext.players.find(
+    (player) => player.id === noCluePlayerId
+  );
+
+  // If player not found in context, create a temporary player object from the message
+  if (!noCluePlayer) {
+    logger.warn(
+      `[Host] Player with ID ${noCluePlayerId} not found in context. Creating from message.`
+    );
+    if (noCluePlayerName && typeof noCluePlayerName === 'string') {
+      const newPlayer: Player = {
+        id: noCluePlayerId,
+        name: noCluePlayerName,
+        points: 0,
+      };
+      noCluePlayer = newPlayer;
+      // Also add to players list if we have the name
+      gameContext.setPlayers((currentPlayers) => {
+        if (currentPlayers.some((p) => p.id === noCluePlayerId)) {
+          return currentPlayers;
+        }
+        return [...currentPlayers, newPlayer];
+      });
+    } else {
+      logger.error(
+        `[Host] Cannot create player object - missing player name. Available players:`,
+        gameContext.players
+      );
+      return;
+    }
+  }
+
+  if (!noCluePlayer) {
+    logger.error('[Host] Failed to get or create no clue player');
+    return;
+  }
+
+  logger.debug('[Host] Found/created player:', noCluePlayer);
+
+  // Store the player ID and name for use in the functional update
+  const noCluePlayerIdToAdd = noCluePlayer.id;
+  const noCluePlayerNameToAdd = noCluePlayer.name;
+
+  gameContext.setNoCluePlayers((currentNoCluePlayers) => {
+    // Check if player is already in no clue list
+    if (currentNoCluePlayers.some((p) => p.id === noCluePlayerIdToAdd)) {
+      logger.debug('[Host] Player already in no clue list');
+      return currentNoCluePlayers;
+    }
+
+    // Get the player with current points from the main players list
+    const playerWithCurrentPoints = gameContext.players.find((p) => p.id === noCluePlayerIdToAdd);
+
+    if (playerWithCurrentPoints) {
+      // Use the player from the main list with their current points
+      const newNoCluePlayers = [...currentNoCluePlayers, playerWithCurrentPoints];
+      logger.debug(
+        '[Host] Updating no clue players with current points:',
+        newNoCluePlayers.map((p) => ({ name: p.name, points: p.points }))
+      );
+      sendNoCluePlayersChangedAction(newNoCluePlayers);
+      return newNoCluePlayers;
+    } else {
+      // Fallback: player not found in main list (shouldn't happen, but handle gracefully)
+      logger.warn(
+        `[Host] Player ${noCluePlayerIdToAdd} not found in main players list when adding to no clue list`
+      );
+      const fallbackPlayer: Player = {
+        id: noCluePlayerIdToAdd,
+        name: noCluePlayerNameToAdd,
+        points: noCluePlayer.points,
+      };
+      const newNoCluePlayers = [...currentNoCluePlayers, fallbackPlayer];
+      logger.debug(
+        '[Host] Updating no clue players with fallback:',
+        newNoCluePlayers.map((p) => ({ name: p.name, points: p.points }))
+      );
+      sendNoCluePlayersChangedAction(newNoCluePlayers);
+      return newNoCluePlayers;
+    }
+  });
+}
+
 function handlePlayerGuessedWrong(gameContext: GameContextType) {
   gameContext.setWaitingPlayers((currentWaitingPlayers) => {
     const firstWaitingPlayer = currentWaitingPlayers[0];
@@ -579,6 +758,10 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
     gameContext.setPartiallyGuessedPlayers([]);
     sendPartiallyGuessedPlayersChangedAction([]);
 
+    // Clear no clue players list
+    gameContext.setNoCluePlayers([]);
+    sendNoCluePlayersChangedAction([]);
+
     // Reset all lists - all players can buzz again for next song
     sendWaitingPlayersChangedAction([]);
     sendGuessedPlayersChangedAction([]);
@@ -649,11 +832,13 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType): boolea
   gameContext.setWaitingPlayers([]);
   gameContext.setGuessedPlayers([]);
   gameContext.setPartiallyGuessedPlayers([]);
+  gameContext.setNoCluePlayers([]);
 
   // Broadcast to all players so they also reset their lists
   sendWaitingPlayersChangedAction([]);
   sendGuessedPlayersChangedAction([]);
   sendPartiallyGuessedPlayersChangedAction([]);
+  sendNoCluePlayersChangedAction([]);
 
   logger.debug('[Host] All players reset - waiting and guessed lists cleared');
   return pointsAwarded;
@@ -984,6 +1169,15 @@ function sendPartiallyGuessedPlayersChangedAction(partiallyGuessedPlayers: Playe
     action: 'partiallyGuessedPlayersChanged',
     data: {
       partiallyGuessedPlayers,
+    },
+  });
+}
+
+function sendNoCluePlayersChangedAction(noCluePlayers: Player[]) {
+  return sendHostAction({
+    action: 'noCluePlayersChanged',
+    data: {
+      noCluePlayers,
     },
   });
 }
