@@ -154,7 +154,6 @@ export default function Join() {
               required
               className="input input-bordered input-sm sm:input-md uppercase tracking-[0.5em] text-center font-mono text-2xl sm:text-3xl font-bold text-primary bg-white shadow-lg"
               style={{ textTransform: 'uppercase' }}
-              placeholder="A1B2"
               inputMode="text"
             />
           </div>
