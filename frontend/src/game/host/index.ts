@@ -384,9 +384,7 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
     // Get the player with current points from the main players list
     // Access gameContext.players directly to ensure we get the latest state
     // This ensures we have the most up-to-date points when adding to waiting list
-    const playerWithCurrentPoints = gameContext.players.find(
-      (p) => p.id === waitingPlayerIdToAdd
-    );
+    const playerWithCurrentPoints = gameContext.players.find((p) => p.id === waitingPlayerIdToAdd);
 
     if (playerWithCurrentPoints) {
       // Use the player from the main list with their current points
