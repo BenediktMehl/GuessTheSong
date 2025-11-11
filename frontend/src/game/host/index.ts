@@ -128,6 +128,13 @@ export function useGameInitializer() {
               const createdHostId = msg.payload.hostId;
               logger.info('Session created with ID:', createdSessionId, 'hostId:', createdHostId);
               gameContext.setSessionId(createdSessionId);
+
+              // If players list is present (reconnection case), restore the player list
+              if (msg.payload.players && Array.isArray(msg.payload.players)) {
+                logger.debug('[Host] Restoring players list on reconnection:', msg.payload.players);
+                gameContext.setPlayers(msg.payload.players);
+              }
+
               // Store session data in localStorage for reconnection
               if (createdSessionId && createdHostId) {
                 storeHostSession(createdSessionId, createdHostId);
