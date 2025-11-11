@@ -934,7 +934,7 @@ describe('Spotify SDK Integration', () => {
       () => {
         expect(consoleSpy).toHaveBeenCalledWith(
           '[DEBUG]',
-          '[Spotify] Device ID has gone offline',
+          '[Game] Device ID has gone offline',
           'test-device-123'
         );
       },

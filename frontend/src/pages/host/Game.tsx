@@ -124,7 +124,6 @@ export default function Game() {
   const [is_paused, setPaused] = useState(false);
   const [is_active, setActive] = useState(false);
   const [current_track, setTrack] = useState(track);
-  const [isTransferring, setIsTransferring] = useState(false);
   const [spotifyError, setSpotifyError] = useState<string | null>(null);
   const hasAttemptedTransferRef = useRef(false);
   const playerInitializedRef = useRef(false);
@@ -351,77 +350,7 @@ export default function Game() {
     _playFirstTrack();
   }, [deviceId, playlistId, status, startPlaylistPlayback]);
 
-  // Transfer playback to this device using Spotify Web API
-  const transferPlaybackToDevice = useCallback(
-    async (targetDeviceId: string, spotifyPlayerInstance?: SpotifyPlayer) => {
-      const accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        logger.error('[Spotify] No access token available for transfer');
-        return;
-      }
-
-      setIsTransferring(true);
-      try {
-        logger.debug('[Spotify] Transferring playback to device:', targetDeviceId);
-        const response = await fetch('https://api.spotify.com/v1/me/player', {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            device_ids: [targetDeviceId],
-            play: false, // Don't auto-play - browser blocks autoplay anyway
-          }),
-        });
-
-        if (response.status === 204) {
-          logger.debug('[Spotify] Playback transferred successfully');
-          // Only update state if game hasn't started (we want to play from playlist if game started)
-          if (!gameStartedRef.current) {
-            // Wait a bit for the state to update
-            setTimeout(() => {
-              const playerToCheck = spotifyPlayerInstance || player;
-              playerToCheck
-                ?.getCurrentState()
-                .then((state) => {
-                  if (state) {
-                    setActive(true);
-                    setPaused(state.paused);
-                    const trackState = state.track_window.current_track;
-                    setTrack(trackState);
-                    const initialPosition = state.position || 0;
-                    setCurrentPosition(initialPosition);
-                    setTrackDuration(trackState.duration_ms || 0);
-                    previousTrackIdRef.current = trackState.id;
-                    previousPositionRef.current = initialPosition;
-                    hasLoopedRef.current = false;
-                    // Enable repeat mode for the track
-                    enableRepeatMode(trackState.id);
-                  }
-                })
-                .catch((error) => {
-                  logger.error('[Spotify] Error getting state after transfer:', error);
-                });
-            }, 1000);
-          }
-        } else if (response.status === 404) {
-          logger.warn('[Spotify] No active device found to transfer from');
-          // This is okay - user needs to start playback on another device first
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          logger.error('[Spotify] Failed to transfer playback:', response.status, errorData);
-        }
-      } catch (error) {
-        logger.error('[Spotify] Error transferring playback:', error);
-      } finally {
-        setIsTransferring(false);
-      }
-    },
-    [enableRepeatMode, player]
-  );
-
-  // Initialize player following the tutorial exactly
+  // Initialize player - reuse from lobby if available
   useEffect(() => {
     const accessToken = localStorage.getItem('access_token');
     if (!accessToken) {
@@ -434,17 +363,52 @@ export default function Game() {
 
     // Prevent multiple initializations
     if (playerInitializedRef.current) {
-      logger.debug('[Spotify] Player already initialized');
+      logger.debug('[Game] Player already initialized');
       return;
     }
     playerInitializedRef.current = true;
+
+    // Check if player is already initialized from lobby
+    if (window.spotifyPlayerInstance) {
+      logger.debug('[Game] Reusing player instance from lobby');
+      const existingPlayer = window.spotifyPlayerInstance;
+      setPlayer(existingPlayer);
+      playerInstanceRef.current = existingPlayer;
+
+      // Get deviceId from localStorage or try to get it from player
+      const storedDeviceId = localStorage.getItem('spotify_device_id');
+      if (storedDeviceId) {
+        setDeviceId(storedDeviceId);
+        setSpotifyError(null);
+        setActive(true);
+        hasAttemptedTransferRef.current = true;
+        logger.debug('[Game] Using device ID from localStorage:', storedDeviceId);
+      } else {
+        // Try to get device ID from player state
+        existingPlayer
+          .getCurrentState()
+          .then((state) => {
+            if (state) {
+              setActive(true);
+              hasAttemptedTransferRef.current = true;
+            }
+          })
+          .catch((error) => {
+            logger.error('[Game] Error getting state from existing player:', error);
+          });
+      }
+
+      // Set up listeners if not already set up (they should be, but just in case)
+      // Note: Listeners from lobby should still work, but we'll add game-specific ones
+      return;
+    }
 
     // Check if script is already loaded
     const existingScript = document.querySelector(
       'script[src="https://sdk.scdn.co/spotify-player.js"]'
     );
     if (existingScript && window.Spotify) {
-      logger.debug('[Spotify] SDK script already loaded');
+      logger.debug('[Game] SDK script already loaded, creating new player');
       // If SDK is already loaded, initialize player directly
       const storedVolume = localStorage.getItem(SPOTIFY_VOLUME_KEY);
       const initialVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
@@ -464,8 +428,9 @@ export default function Game() {
       playerInstanceRef.current = spotifyPlayer;
 
       spotifyPlayer.addListener('ready', ({ device_id }) => {
-        logger.debug('[Spotify] Ready with Device ID', device_id);
+        logger.debug('[Game] Ready with Device ID', device_id);
         setDeviceId(device_id);
+        localStorage.setItem('spotify_device_id', device_id);
         setSpotifyError(null); // Clear error on successful connection
 
         // Check initial state when ready
@@ -474,7 +439,7 @@ export default function Game() {
           .then((state) => {
             // If game has started, ignore existing playback state and let playFirstTrack handle it
             if (gameStartedRef.current) {
-              logger.debug('[Spotify] Game has started, ignoring existing playback state');
+              logger.debug('[Game] Game has started, ignoring existing playback state');
               setActive(false);
               setCurrentPosition(0);
               setTrackDuration(0);
@@ -483,7 +448,7 @@ export default function Game() {
             }
 
             if (state) {
-              logger.debug('[Spotify] Initial state:', {
+              logger.debug('[Game] Initial state:', {
                 paused: state.paused,
                 track: state.track_window.current_track.name,
                 position: state.position,
@@ -495,26 +460,23 @@ export default function Game() {
               setTrackDuration(state.track_window.current_track.duration_ms || 0);
               hasAttemptedTransferRef.current = true;
             } else {
-              logger.debug('[Spotify] No initial playback state');
+              logger.debug(
+                '[Game] No initial playback state - device should already be ready from lobby'
+              );
               setActive(false);
               setCurrentPosition(0);
               setTrackDuration(0);
-              if (!hasAttemptedTransferRef.current) {
-                logger.debug('[Spotify] Attempting to transfer playback');
-                hasAttemptedTransferRef.current = true;
-                setTimeout(() => {
-                  transferPlaybackToDevice(device_id, spotifyPlayer);
-                }, 1500);
-              }
+              hasAttemptedTransferRef.current = true;
+              // Don't attempt transfer here - should already be done in lobby
             }
           })
           .catch((error) => {
-            logger.error('[Spotify] Error getting initial state:', error);
+            logger.error('[Game] Error getting initial state:', error);
           });
       });
 
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
-        logger.debug('[Spotify] Device ID has gone offline', device_id);
+        logger.debug('[Game] Device ID has gone offline', device_id);
         setActive(false);
       });
 
@@ -673,8 +635,9 @@ export default function Game() {
       playerInstanceRef.current = spotifyPlayer;
 
       spotifyPlayer.addListener('ready', ({ device_id }) => {
-        logger.debug('[Spotify] Ready with Device ID', device_id);
+        logger.debug('[Game] Ready with Device ID', device_id);
         setDeviceId(device_id);
+        localStorage.setItem('spotify_device_id', device_id);
         setSpotifyError(null); // Clear error on successful connection
 
         // Check initial state when ready
@@ -683,7 +646,7 @@ export default function Game() {
           .then((state) => {
             // If game has started, ignore existing playback state and let playFirstTrack handle it
             if (gameStartedRef.current) {
-              logger.debug('[Spotify] Game has started, ignoring existing playback state');
+              logger.debug('[Game] Game has started, ignoring existing playback state');
               setActive(false);
               setCurrentPosition(0);
               setTrackDuration(0);
@@ -692,7 +655,7 @@ export default function Game() {
             }
 
             if (state) {
-              logger.debug('[Spotify] Initial state:', {
+              logger.debug('[Game] Initial state:', {
                 paused: state.paused,
                 track: state.track_window.current_track.name,
                 position: state.position,
@@ -704,31 +667,23 @@ export default function Game() {
               setTrackDuration(state.track_window.current_track.duration_ms || 0);
               hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
             } else {
-              logger.debug('[Spotify] No initial playback state');
+              logger.debug(
+                '[Game] No initial playback state - device should already be ready from lobby'
+              );
               setActive(false);
               setCurrentPosition(0);
               setTrackDuration(0);
-              // Only attempt transfer once
-              if (!hasAttemptedTransferRef.current) {
-                logger.debug('[Spotify] Attempting to transfer playback');
-                hasAttemptedTransferRef.current = true;
-                // Use setTimeout to avoid calling during listener setup
-                // Pass spotifyPlayer instance directly to avoid dependency issues
-                setTimeout(() => {
-                  transferPlaybackToDevice(device_id, spotifyPlayer);
-                }, 1500);
-              } else {
-                logger.debug('[Spotify] Transfer already attempted, skipping');
-              }
+              hasAttemptedTransferRef.current = true;
+              // Don't attempt transfer here - should already be done in lobby
             }
           })
           .catch((error) => {
-            logger.error('[Spotify] Error getting initial state:', error);
+            logger.error('[Game] Error getting initial state:', error);
           });
       });
 
       spotifyPlayer.addListener('not_ready', ({ device_id }) => {
-        logger.debug('[Spotify] Device ID has gone offline', device_id);
+        logger.debug('[Game] Device ID has gone offline', device_id);
         setActive(false);
       });
 
@@ -882,7 +837,7 @@ export default function Game() {
         playerInstanceRef.current = undefined;
       }
     };
-  }, [transferPlaybackToDevice, enableRepeatMode, saveLastSong, setLastSong, gameContext]);
+  }, [enableRepeatMode, saveLastSong, setLastSong, gameContext]);
 
   const handleToggleHideSong = (checked: boolean) => {
     setHideSongUntilBuzzed(checked);
@@ -1375,41 +1330,38 @@ export default function Game() {
             </div>
           ) : !is_active ? (
             <div className="flex flex-col gap-2 sm:gap-3">
-              <div className="alert alert-info">
+              <div className="alert alert-warning">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
                   className="stroke-current shrink-0 w-5 h-5 sm:w-6 sm:h-6"
                   role="img"
-                  aria-label="Information icon"
+                  aria-label="Warning icon"
                 >
-                  <title>Information icon</title>
+                  <title>Warning icon</title>
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base">Ready to play!</h3>
+                  <h3 className="font-bold text-sm sm:text-base">Device Not Ready</h3>
                   <div className="text-xs sm:text-sm">
-                    {isTransferring
-                      ? 'Transferring playback...'
-                      : 'Playback will be transferred automatically, or you can transfer manually from another Spotify device.'}
+                    The Spotify device should have been set up in the lobby. Please go back to the
+                    lobby and ensure the device is ready.
                   </div>
                 </div>
               </div>
-              {!isTransferring && deviceId && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm sm:btn-md"
-                  onClick={() => transferPlaybackToDevice(deviceId, player)}
-                >
-                  Transfer Playback Now
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm sm:btn-md"
+                onClick={() => navigate('/host-lobby')}
+              >
+                Back to Lobby
+              </button>
             </div>
           ) : (
             <div className="flex flex-col gap-2 sm:gap-3">
