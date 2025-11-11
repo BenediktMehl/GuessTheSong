@@ -23,13 +23,21 @@ function handleCreate(ws, serverPayload) {
       ws.sessionId = sessionId;
       ws.hostId = reconnectHostId;
 
-      // Send reconnection success
+      // Get list of all current players in the session
+      const allPlayers = Array.from(sessions[sessionId].players).map((p) => ({
+        id: p.playerId,
+        name: p.playerName,
+        points: 0, // Points will be updated by host via playersChanged message
+      }));
+
+      // Send reconnection success with current players list
       ws.send(
         JSON.stringify({
           action: 'created',
           payload: {
             sessionId: sessionId,
             hostId: reconnectHostId,
+            players: allPlayers, // Send list of all current players
           },
         })
       );
