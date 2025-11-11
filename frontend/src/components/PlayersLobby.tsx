@@ -6,6 +6,7 @@ interface PlayersLobbyProps {
   waitingPlayers?: Player[];
   guessedPlayers?: Player[];
   partiallyGuessedPlayers?: Player[];
+  noCluePlayers?: Player[];
   currentPlayer?: Player;
   minPlayers?: number;
 }
@@ -90,6 +91,7 @@ export default function PlayersLobby({
   waitingPlayers = [],
   guessedPlayers = [],
   partiallyGuessedPlayers = [],
+  noCluePlayers = [],
   currentPlayer,
   minPlayers = 2,
 }: PlayersLobbyProps) {
@@ -99,6 +101,7 @@ export default function PlayersLobby({
     ...waitingPlayers,
     ...guessedPlayers,
     ...partiallyGuessedPlayers,
+    ...noCluePlayers,
   ];
 
   // Find the highest points value across all players
@@ -119,9 +122,12 @@ export default function PlayersLobby({
   const nowGuessing = waitingPlayers.length > 0 ? [waitingPlayers[0]] : [];
   const nextGuessing = waitingPlayers.length > 1 ? waitingPlayers.slice(1) : [];
 
-  // Check if we should show headers (if any players are in waiting, guessed, or partially guessed states)
+  // Check if we should show headers (if any players are in waiting, guessed, partially guessed, or no clue states)
   const hasActiveGuessing =
-    waitingPlayers.length > 0 || guessedPlayers.length > 0 || partiallyGuessedPlayers.length > 0;
+    waitingPlayers.length > 0 ||
+    guessedPlayers.length > 0 ||
+    partiallyGuessedPlayers.length > 0 ||
+    noCluePlayers.length > 0;
 
   // Total player count for empty state and min players check
   const totalPlayers = allPlayers.length;
@@ -181,6 +187,15 @@ export default function PlayersLobby({
                   <PlayerSection
                     title="Already guessed"
                     players={guessedPlayers}
+                    currentPlayer={currentPlayer}
+                    highestScorerIds={highestScorerIds}
+                    showDivider={true}
+                  />
+                )}
+                {noCluePlayers.length > 0 && (
+                  <PlayerSection
+                    title="No clue"
+                    players={noCluePlayers}
                     currentPlayer={currentPlayer}
                     highestScorerIds={highestScorerIds}
                     showDivider={true}
