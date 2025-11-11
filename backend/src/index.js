@@ -72,7 +72,8 @@ ws.on('connection', (ws) => {
 });
 
 // Only start listening if not in test mode (Jest sets NODE_ENV=test)
-if (process.env.NODE_ENV !== 'test') {
+// Exception: Allow starting in test mode if E2E_TEST is set (for E2E tests)
+if (process.env.NODE_ENV !== 'test' || process.env.E2E_TEST === 'true') {
   httpServer.listen(PORT, HOST, () => {
     const protocol = USE_TLS ? 'wss' : 'ws';
     logger.info(`GuessTheSong backend listening on ${protocol}://${HOST}:${PORT}`);
