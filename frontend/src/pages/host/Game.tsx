@@ -19,6 +19,7 @@ import {
   playNextTrack,
   playPlaylist,
 } from '../../services/spotify/api';
+import { logoutSpotify } from '../../services/spotify/auth';
 import logger from '../../utils/logger';
 
 const HIDE_SONG_UNTIL_BUZZED_KEY = 'hostHideSongUntilBuzzed';
@@ -832,11 +833,26 @@ export default function Game() {
     };
 
     return () => {
-      // Cleanup: disconnect player but don't remove script (it might be used by other components)
-      // Get player instance from ref (stored during initialization)
-      if (playerInstanceRef.current) {
-        playerInstanceRef.current.disconnect();
-        playerInstanceRef.current = undefined;
+      // Cleanup: logout from Spotify and disconnect player when leaving game
+      // Only logout if we're actually navigating away (not just re-rendering)
+      // Check if we're still on a host page
+      const isStillOnHostPage =
+        window.location.pathname === '/host-lobby' || window.location.pathname === '/hostgame';
+      if (!isStillOnHostPage) {
+        logoutSpotify();
+        if (playerInstanceRef.current) {
+          playerInstanceRef.current.disconnect();
+          playerInstanceRef.current = undefined;
+        }
+        if (window.spotifyPlayerInstance) {
+          window.spotifyPlayerInstance = undefined;
+        }
+      } else {
+        // Still on host page, just disconnect player
+        if (playerInstanceRef.current) {
+          playerInstanceRef.current.disconnect();
+          playerInstanceRef.current = undefined;
+        }
       }
     };
   }, [enableRepeatMode, saveLastSong, setLastSong, gameContext]);

@@ -536,11 +536,20 @@ export default function Lobby() {
     };
 
     return () => {
-      // Cleanup: disconnect player but don't remove script (it might be used by Game component)
-      if (playerInstanceRef.current) {
-        // Don't disconnect here - we want to keep it for Game component
-        // playerInstanceRef.current.disconnect();
-        // playerInstanceRef.current = undefined;
+      // Cleanup: logout from Spotify and disconnect player when leaving lobby
+      // Only logout if we're actually navigating away (not just re-rendering)
+      // Check if we're still on a host page
+      const isStillOnHostPage =
+        window.location.pathname === '/host-lobby' || window.location.pathname === '/hostgame';
+      if (!isStillOnHostPage) {
+        logoutSpotify();
+        if (playerInstanceRef.current) {
+          playerInstanceRef.current.disconnect();
+          playerInstanceRef.current = undefined;
+        }
+        if (window.spotifyPlayerInstance) {
+          window.spotifyPlayerInstance = undefined;
+        }
       }
     };
   }, [isLoggedInSpotify, selectedPlaylistId, transferPlaybackToDevice, preparePlaylist]);
@@ -770,6 +779,16 @@ export default function Lobby() {
             <button
               type="button"
               onClick={() => {
+                // Logout from Spotify when leaving
+                logoutSpotify();
+                // Disconnect player if it exists
+                if (playerInstanceRef.current) {
+                  playerInstanceRef.current.disconnect();
+                  playerInstanceRef.current = undefined;
+                }
+                if (window.spotifyPlayerInstance) {
+                  window.spotifyPlayerInstance = undefined;
+                }
                 endGame();
                 navigate('/');
               }}

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { WS_URL } from '../../config';
+import { logoutSpotify } from '../../services/spotify/auth';
 import logger from '../../utils/logger';
 import {
   type GameContextType,
@@ -238,6 +239,8 @@ export function useGameInitializer() {
     gameContext.setWsStatus('closed');
     // Clear stored session data when explicitly ending the game
     clearHostSession();
+    // Logout from Spotify when ending the game
+    logoutSpotify();
     logger.info('Game ended and WebSocket connection closed');
   }, [gameContext]);
 
