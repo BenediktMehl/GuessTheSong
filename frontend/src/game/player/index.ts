@@ -1,6 +1,7 @@
 import { WS_URL } from '../../config';
 import logger from '../../utils/logger';
 import type { GameContextType, Player } from '../context';
+import { savePlayerData, clearPlayerData } from '../../utils/playerStorage';
 
 // WebSocket message types
 type WebSocketMessage = {
@@ -217,6 +218,11 @@ export function joinGame(
             gameContext.setSessionId(sessionId);
             gameContext.setWsStatus('open');
             gameContext.setCurrentPlayerId(message.payload.playerId);
+
+            // Save player data to localStorage for future reconnection
+            if (message.payload.playerId && sessionId && playerName) {
+              savePlayerData(message.payload.playerId, sessionId, playerName);
+            }
 
             // Set initial players list if provided
             if (message.payload.players && Array.isArray(message.payload.players)) {
@@ -569,6 +575,10 @@ export function joinGame(
 
           case 'join-failed':
             logger.error('Failed to join game:', message.payload.reason);
+            // If session doesn't exist, clear stored data
+            if (message.payload.reason === 'Session does not exist.') {
+              clearPlayerData();
+            }
             resolve({ success: false });
             break;
 

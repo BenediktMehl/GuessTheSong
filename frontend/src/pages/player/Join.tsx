@@ -4,14 +4,17 @@ import { Card } from '../../components/Card';
 import { useGameContext } from '../../game/context';
 import { getRandomFunnyName } from '../../game/names';
 import { joinGame } from '../../game/player';
+import { getPlayerData, clearPlayerData } from '../../utils/playerStorage';
 
 export default function Join() {
   const [room, setRoom] = useState('');
   const [nickname, setNickname] = useState('');
   const [joinFailed, setJoinFailed] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const gameContext = useGameContext();
   const navigate = useNavigate();
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const hasAttemptedReconnect = useRef(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -20,6 +23,47 @@ export default function Join() {
       setRoom(roomId.toUpperCase());
     }
   }, []);
+
+  // Auto-reconnect on page load if stored data exists
+  useEffect(() => {
+    // Only attempt once
+    if (hasAttemptedReconnect.current) {
+      return;
+    }
+
+    const storedData = getPlayerData();
+    if (storedData && !room) {
+      // Only auto-reconnect if no room code is provided (user didn't manually enter one)
+      hasAttemptedReconnect.current = true;
+      setIsReconnecting(true);
+      joinGame(gameContext, storedData.playerName, storedData.sessionId, storedData.playerId)
+        .then((result) => {
+          setIsReconnecting(false);
+          if (result.success) {
+            // Check if game is already running - if so, navigate directly to play screen
+            if (
+              result.status === 'waiting' ||
+              result.status === 'listening' ||
+              result.status === 'guessing'
+            ) {
+              navigate('/play');
+            } else {
+              navigate('/lobby');
+            }
+          } else {
+            // Session doesn't exist, clear stored data
+            clearPlayerData();
+            setIsReconnecting(false);
+          }
+        })
+        .catch(() => {
+          setIsReconnecting(false);
+          clearPlayerData();
+        });
+    } else {
+      hasAttemptedReconnect.current = true;
+    }
+  }, [gameContext, navigate, room]);
 
   const handleRoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toUpperCase();
@@ -41,7 +85,12 @@ export default function Join() {
     const sessionId = room.trim().toUpperCase();
 
     if (sessionId) {
-      joinGame(gameContext, playerName, sessionId).then((result) => {
+      // Check if we have stored data for this session
+      const storedData = getPlayerData();
+      const playerId =
+        storedData && storedData.sessionId === sessionId ? storedData.playerId : undefined;
+
+      joinGame(gameContext, playerName, sessionId, playerId).then((result) => {
         if (result.success) {
           // Check if game is already running - if so, navigate directly to play screen
           if (
@@ -54,12 +103,28 @@ export default function Join() {
             navigate('/lobby');
           }
         } else {
+          // If join failed and it was a reconnection attempt, clear stored data
+          if (playerId && storedData) {
+            clearPlayerData();
+          }
           setJoinFailed(true);
           setTimeout(() => setJoinFailed(false), 2000);
         }
       });
     }
   };
+
+  if (isReconnecting) {
+    return (
+      <main className="h-screen flex flex-col items-center justify-center p-2 sm:p-4 gap-2 sm:gap-4">
+        <Card className="w-full max-w-md" bodyClassName="gap-3 sm:gap-4">
+          <p className="text-xs sm:text-sm text-base-content text-center">
+            Reconnecting to your game...
+          </p>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="h-screen flex flex-col items-center justify-start p-2 sm:p-4 gap-2 sm:gap-4 overflow-y-auto">

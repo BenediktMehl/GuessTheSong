@@ -41,7 +41,15 @@ function handleJoin(ws, serverPayload) {
       ws.playerName = playerName;
       ws.playerId = reconnectPlayerId;
 
-      // Send reconnection success with current game status
+      // Get list of all players for the reconnecting player
+      // Note: Points are managed by the host and will be updated via playersChanged message
+      const allPlayers = Array.from(sessions[normalizedSessionId].players).map((p) => ({
+        id: p.playerId,
+        name: p.playerName,
+        points: 0, // Points will be updated by host via playersChanged message
+      }));
+
+      // Send reconnection success with current game status and players list
       const session = sessions[normalizedSessionId];
       ws.send(
         JSON.stringify({
@@ -49,6 +57,7 @@ function handleJoin(ws, serverPayload) {
           payload: {
             sessionId: normalizedSessionId,
             playerId: reconnectPlayerId,
+            players: allPlayers, // Send list of all players
             status: session.status || 'notStarted',
           },
         })
