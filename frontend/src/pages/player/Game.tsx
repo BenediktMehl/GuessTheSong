@@ -103,20 +103,15 @@ export default function Game() {
     }
   }, [showJoinedToast]);
 
-  // Auto-dismiss buzzer notification after 3 seconds and play buzzer sound
+  // Auto-dismiss buzzer notification after 3 seconds
   useEffect(() => {
     if (buzzerNotification) {
-      // Play buzzer sound when notification appears (if enabled)
-      if (buzzerSoundEnabled) {
-        playBuzzerSound();
-      }
-
       const timer = setTimeout(() => {
         setBuzzerNotification(null);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [buzzerNotification, setBuzzerNotification, buzzerSoundEnabled]);
+  }, [buzzerNotification, setBuzzerNotification]);
 
   // Check if current player is in the waiting queue
   const currentPlayerInQueue = currentPlayerId
