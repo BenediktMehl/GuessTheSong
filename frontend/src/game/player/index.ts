@@ -696,11 +696,12 @@ export function sendPlayerBuzzedAction(): boolean {
 }
 
 export function disconnectFromGame() {
-  if (ws) {
-    ws.close();
-    ws = null;
-    currentPlayerId = null;
-  }
+  // Clear ALL module-level session variables FIRST to prevent auto-reconnection
+  // This must happen before closing the WebSocket to ensure the onclose handler
+  // sees the cleared variables and doesn't attempt to reconnect
+  currentPlayerId = null;
+  currentSessionId = null;
+  currentPlayerName = null;
   // Reset reconnection state on manual disconnect
   reconnectAttempts = 0;
   hasFailed = false;
@@ -708,6 +709,29 @@ export function disconnectFromGame() {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
   }
+  // Close WebSocket after clearing variables
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+}
+
+export function leaveGame(gameContext: GameContextType) {
+  // Disconnect and clear module-level state
+  disconnectFromGame();
+
+  // Clear all game context state
+  gameContext.setSessionId('');
+  gameContext.setCurrentPlayerId('');
+  gameContext.setPlayers([]);
+  gameContext.setWaitingPlayers([]);
+  gameContext.setGuessedPlayers([]);
+  gameContext.setPartiallyGuessedPlayers([]);
+  gameContext.setStatus('notStarted');
+  gameContext.setWsStatus('closed');
+  gameContext.setBuzzerNotification(null);
+  gameContext.setPlayerToast(null);
+  gameContext.setLastSong(null);
 }
 
 export function isConnected(): boolean {
