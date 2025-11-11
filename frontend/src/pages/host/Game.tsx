@@ -142,6 +142,7 @@ export default function Game() {
     const stored = localStorage.getItem(AUTOPLAY_KEY);
     return stored === null ? true : stored === 'true'; // Default to true if not set
   });
+  const [settingsExpanded, setSettingsExpanded] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(() => {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
     return stored ? parseFloat(stored) : 0.5;
@@ -1392,28 +1393,42 @@ export default function Game() {
                 </div>
               )}
 
-              {/* Setting */}
-              <label className="label cursor-pointer py-1 sm:py-2">
-                <span className="label-text text-xs sm:text-sm">
-                  Hide song until player guesses
-                </span>
-                <input
-                  type="checkbox"
-                  className="toggle toggle-primary toggle-sm sm:toggle-md"
-                  checked={hideSongUntilBuzzed}
-                  onChange={(e) => handleToggleHideSong(e.target.checked)}
-                />
-              </label>
+              {/* Settings toggle button */}
+              <button
+                type="button"
+                onClick={() => setSettingsExpanded(!settingsExpanded)}
+                className="btn btn-sm btn-ghost w-full justify-start py-1 sm:py-2"
+              >
+                <span>{settingsExpanded ? '▲' : '▼'}</span>
+                <span className="ml-2 text-xs sm:text-sm">Settings</span>
+              </button>
 
-              <label className="label cursor-pointer py-1 sm:py-2">
-                <span className="label-text text-xs sm:text-sm">Autoplay</span>
-                <input
-                  type="checkbox"
-                  className="toggle toggle-primary toggle-sm sm:toggle-md"
-                  checked={autoplay}
-                  onChange={(e) => handleToggleAutoplay(e.target.checked)}
-                />
-              </label>
+              {/* Collapsible settings */}
+              {settingsExpanded && (
+                <>
+                  <label className="label cursor-pointer py-1 sm:py-2">
+                    <span className="label-text text-xs sm:text-sm">
+                      Hide song until player guesses
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary toggle-sm sm:toggle-md"
+                      checked={hideSongUntilBuzzed}
+                      onChange={(e) => handleToggleHideSong(e.target.checked)}
+                    />
+                  </label>
+
+                  <label className="label cursor-pointer py-1 sm:py-2">
+                    <span className="label-text text-xs sm:text-sm">Autoplay</span>
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary toggle-sm sm:toggle-md"
+                      checked={autoplay}
+                      onChange={(e) => handleToggleAutoplay(e.target.checked)}
+                    />
+                  </label>
+                </>
+              )}
 
               <div className="divider my-0"></div>
 
