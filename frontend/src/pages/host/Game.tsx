@@ -380,7 +380,7 @@ export default function Game() {
       if (storedDeviceId) {
         setDeviceId(storedDeviceId);
         setSpotifyError(null);
-        setIsActive(true);
+        setActive(true);
         hasAttemptedTransferRef.current = true;
         logger.debug('[Game] Using device ID from localStorage:', storedDeviceId);
       } else {
@@ -389,7 +389,7 @@ export default function Game() {
           .getCurrentState()
           .then((state) => {
             if (state) {
-              setIsActive(true);
+              setActive(true);
               hasAttemptedTransferRef.current = true;
             }
           })
