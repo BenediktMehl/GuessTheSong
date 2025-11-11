@@ -1,16 +1,15 @@
-import { spawn, ChildProcess } from 'node:child_process';
-import { createServer as createViteServer, ViteDevServer } from 'vite';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawn, type ChildProcess } from 'child_process';
+import { resolve } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const repoRoot = resolve(__dirname, '../..');
+// Use process.cwd() to get the repo root when running from the repo root
+// This works because Playwright runs from the repo root
+const repoRoot = process.cwd();
 const frontendDir = resolve(repoRoot, 'frontend');
 const backendDir = resolve(repoRoot, 'backend');
 
 let backendServer: ChildProcess | null = null;
-let frontendServer: ViteDevServer | null = null;
+// Use dynamic import for Vite to avoid ES module issues
+let frontendServer: any = null;
 
 /**
  * Wait for a server to be ready by checking if it responds to HTTP requests
@@ -138,6 +137,9 @@ export async function startFrontendServer(port: number): Promise<number> {
   }
 
   try {
+    // Dynamically import Vite to avoid ES module issues
+    const { createServer } = await import('vite');
+
     // Set environment variable for WebSocket URL to point to test backend
     // Get backend port from environment (set by startBackendServer)
     const backendPort = process.env.BACKEND_PORT || '8081';
@@ -146,7 +148,7 @@ export async function startFrontendServer(port: number): Promise<number> {
 
     // Create Vite server with custom port
     // The vite config uses loadEnv which will pick up VITE_WS_URL from process.env
-    frontendServer = await createViteServer({
+    frontendServer = await createServer({
       configFile: resolve(frontendDir, 'vite.config.ts'),
       server: {
         host: '127.0.0.1',
