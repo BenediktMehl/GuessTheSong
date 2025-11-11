@@ -735,6 +735,9 @@ export function leaveGame(gameContext: GameContextType) {
   // Disconnect and clear module-level state
   disconnectFromGame();
 
+  // Clear stored player data to prevent auto-reconnection
+  clearPlayerData();
+
   // Clear all game context state
   gameContext.setSessionId('');
   gameContext.setCurrentPlayerId('');
