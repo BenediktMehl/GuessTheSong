@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BackendOffline } from '../../components/BackendOffline';
 import { Card } from '../../components/Card';
 import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
@@ -576,46 +577,7 @@ export default function Lobby() {
           </p>
         </div>
       ) : wsStatus === 'failed' ? (
-        <div className="alert alert-error max-w-md flex flex-col gap-2 sm:gap-3">
-          <div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="stroke-current shrink-0 h-5 w-5 sm:h-6 sm:w-6 inline mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              role="img"
-              aria-label="Error"
-            >
-              <title>Error</title>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="font-semibold text-sm sm:text-base">
-              Connection could not be established.
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm">Please reload the page or try again later.</p>
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
-            >
-              🔄 Reload
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
-            >
-              ← Back
-            </button>
-          </div>
-        </div>
+        <BackendOffline onReload={() => window.location.reload()} onBack={() => navigate('/')} />
       ) : sessionId ? (
         <>
           {/* Spotify Integration */}
