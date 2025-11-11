@@ -80,4 +80,11 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Export server and cleanup function for testing purposes
-module.exports = { httpServer, ws, cleanupForTests, disconnectedPlayers, sessions };
+module.exports = {
+  httpServer,
+  ws,
+  cleanupForTests,
+  disconnectedPlayers,
+  disconnectedHosts,
+  sessions,
+};

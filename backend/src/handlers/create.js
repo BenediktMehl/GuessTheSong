@@ -39,7 +39,10 @@ function handleCreate(ws, serverPayload) {
     } else {
       // Session no longer exists, remove from disconnected hosts
       disconnectedHosts.delete(reconnectHostId);
-      logger.warn({ hostId: reconnectHostId }, 'Host reconnection failed - session no longer exists');
+      logger.warn(
+        { hostId: reconnectHostId },
+        'Host reconnection failed - session no longer exists'
+      );
     }
   }
 

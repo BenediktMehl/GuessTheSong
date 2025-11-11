@@ -62,168 +62,172 @@ function clearHostSession(): void {
 export function useGameInitializer() {
   const gameContext = useGameContext();
 
-  const initGame = useCallback((sessionId?: string, hostId?: string) => {
-    // Check if we've already permanently failed
-    if (hasFailed) {
-      gameContext.setWsStatus('failed');
-      return;
-    }
-
-    // Check if we've exceeded max attempts BEFORE trying
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      hasFailed = true;
-      gameContext.setWsStatus('failed');
-      return;
-    }
-
-    // Close existing connection if any
-    if (ws) {
-      ws.close();
-    }
-
-    gameContext.setWsStatus('connecting');
-    ws = new WebSocket(WS_URL);
-
-    // Set a timeout to close the connection if it doesn't open within 5 seconds
-    const connectionTimeout = setTimeout(() => {
-      if (ws && ws.readyState !== WebSocket.OPEN) {
-        ws.close();
+  const initGame = useCallback(
+    (sessionId?: string, hostId?: string) => {
+      // Check if we've already permanently failed
+      if (hasFailed) {
+        gameContext.setWsStatus('failed');
+        return;
       }
-    }, 5000);
 
-    ws.onopen = () => {
-      logger.info('[Host] WebSocket opened successfully');
-      clearTimeout(connectionTimeout);
-      gameContext.setWsStatus('open');
-      reconnectAttempts = 0; // Reset on successful connection
-      hasFailed = false; // Reset failed flag on success
-
-      if (ws) {
-        // If reconnecting, send hostId; otherwise create new session
-        if (sessionId && hostId) {
-          logger.debug('[Host] Attempting to reconnect with sessionId and hostId');
-          ws.send(
-            JSON.stringify({
-              serverAction: 'create',
-              serverPayload: { hostId: hostId },
-            })
-          );
-        } else {
-          logger.debug('[Host] Creating new session');
-          ws.send(JSON.stringify({ serverAction: 'create' }));
-        }
-      }
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        logger.debug('[Host] Received message:', msg);
-
-        // Handle messages based on action rather than type
-        switch (msg.action) {
-          case 'created':
-            const createdSessionId = msg.payload.sessionId;
-            const createdHostId = msg.payload.hostId;
-            logger.info('Session created with ID:', createdSessionId, 'hostId:', createdHostId);
-            gameContext.setSessionId(createdSessionId);
-            // Store session data in localStorage for reconnection
-            if (createdSessionId && createdHostId) {
-              storeHostSession(createdSessionId, createdHostId);
-            }
-            break;
-
-          case 'player-joined':
-            logger.debug('[Host] Handling player-joined action:', msg);
-            handlePlayerJoined(gameContext, msg);
-            break;
-
-          case 'player-buzzed':
-            logger.debug('[Host] Handling player-buzzed action:', msg);
-            handlePlayerBuzzed(gameContext, msg);
-            break;
-
-          case 'player-guessed-wrong':
-            // Note: This is only received when broadcast from another host
-            // When the local host marks wrong, it's handled directly in markPlayerGuessedWrong
-            // to avoid duplicate processing
-            logger.debug(
-              '[Host] Received player-guessed-wrong broadcast (ignoring - already handled locally)'
-            );
-            // Don't call handlePlayerGuessedWrong here - it's already been handled
-            break;
-
-          case 'player-guessed-right':
-            handlePlayerGuessedRight(gameContext);
-            break;
-
-          case 'player-guessed-partially':
-            handlePlayerGuessedPartially(gameContext);
-            break;
-
-          case 'player-left':
-            handlePlayerLeft(gameContext, msg.payload.playerId);
-            break;
-
-          case 'loggedInToSpotify':
-            handleLoggedInToSpotify(gameContext);
-            break;
-
-          case 'loggedOutOfSpotify':
-            handleLoggedOutOfSpotify(gameContext);
-            break;
-
-          case 'game-started':
-            // Update host's game status when game starts
-            gameContext.setStatus('waiting');
-            break;
-
-          case 'player-buzzed-notification':
-            handlePlayerBuzzedNotification(gameContext, msg);
-            break;
-
-          case 'error':
-            logger.error('Server error:', msg.payload.message);
-            break;
-
-          default:
-            logger.warn('Unknown action:', msg.action);
-        }
-      } catch (e) {
-        logger.error('Failed to parse message', e);
-      }
-    };
-
-    ws.onclose = (event) => {
-      logger.info('[Host] WebSocket closed', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-      });
-      gameContext.setWsStatus('closed');
-
-      // Increment attempt counter after failure
-      reconnectAttempts++;
-
-      // Check if we've reached max attempts
+      // Check if we've exceeded max attempts BEFORE trying
       if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         hasFailed = true;
         gameContext.setWsStatus('failed');
-      } else {
-        const delay = 100 * reconnectAttempts;
-        setTimeout(() => {
-          if (!hasFailed) {
-            initGame();
-          }
-        }, delay);
+        return;
       }
-    };
 
-    ws.onerror = (error) => {
-      logger.error('[Host] WebSocket error:', error);
-      // Don't change status here, onclose will be called next
-    };
-  }, [gameContext]);
+      // Close existing connection if any
+      if (ws) {
+        ws.close();
+      }
+
+      gameContext.setWsStatus('connecting');
+      ws = new WebSocket(WS_URL);
+
+      // Set a timeout to close the connection if it doesn't open within 5 seconds
+      const connectionTimeout = setTimeout(() => {
+        if (ws && ws.readyState !== WebSocket.OPEN) {
+          ws.close();
+        }
+      }, 5000);
+
+      ws.onopen = () => {
+        logger.info('[Host] WebSocket opened successfully');
+        clearTimeout(connectionTimeout);
+        gameContext.setWsStatus('open');
+        reconnectAttempts = 0; // Reset on successful connection
+        hasFailed = false; // Reset failed flag on success
+
+        if (ws) {
+          // If reconnecting, send hostId; otherwise create new session
+          if (sessionId && hostId) {
+            logger.debug('[Host] Attempting to reconnect with sessionId and hostId');
+            ws.send(
+              JSON.stringify({
+                serverAction: 'create',
+                serverPayload: { hostId: hostId },
+              })
+            );
+          } else {
+            logger.debug('[Host] Creating new session');
+            ws.send(JSON.stringify({ serverAction: 'create' }));
+          }
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          logger.debug('[Host] Received message:', msg);
+
+          // Handle messages based on action rather than type
+          switch (msg.action) {
+            case 'created': {
+              const createdSessionId = msg.payload.sessionId;
+              const createdHostId = msg.payload.hostId;
+              logger.info('Session created with ID:', createdSessionId, 'hostId:', createdHostId);
+              gameContext.setSessionId(createdSessionId);
+              // Store session data in localStorage for reconnection
+              if (createdSessionId && createdHostId) {
+                storeHostSession(createdSessionId, createdHostId);
+              }
+              break;
+            }
+
+            case 'player-joined':
+              logger.debug('[Host] Handling player-joined action:', msg);
+              handlePlayerJoined(gameContext, msg);
+              break;
+
+            case 'player-buzzed':
+              logger.debug('[Host] Handling player-buzzed action:', msg);
+              handlePlayerBuzzed(gameContext, msg);
+              break;
+
+            case 'player-guessed-wrong':
+              // Note: This is only received when broadcast from another host
+              // When the local host marks wrong, it's handled directly in markPlayerGuessedWrong
+              // to avoid duplicate processing
+              logger.debug(
+                '[Host] Received player-guessed-wrong broadcast (ignoring - already handled locally)'
+              );
+              // Don't call handlePlayerGuessedWrong here - it's already been handled
+              break;
+
+            case 'player-guessed-right':
+              handlePlayerGuessedRight(gameContext);
+              break;
+
+            case 'player-guessed-partially':
+              handlePlayerGuessedPartially(gameContext);
+              break;
+
+            case 'player-left':
+              handlePlayerLeft(gameContext, msg.payload.playerId);
+              break;
+
+            case 'loggedInToSpotify':
+              handleLoggedInToSpotify(gameContext);
+              break;
+
+            case 'loggedOutOfSpotify':
+              handleLoggedOutOfSpotify(gameContext);
+              break;
+
+            case 'game-started':
+              // Update host's game status when game starts
+              gameContext.setStatus('waiting');
+              break;
+
+            case 'player-buzzed-notification':
+              handlePlayerBuzzedNotification(gameContext, msg);
+              break;
+
+            case 'error':
+              logger.error('Server error:', msg.payload.message);
+              break;
+
+            default:
+              logger.warn('Unknown action:', msg.action);
+          }
+        } catch (e) {
+          logger.error('Failed to parse message', e);
+        }
+      };
+
+      ws.onclose = (event) => {
+        logger.info('[Host] WebSocket closed', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
+        gameContext.setWsStatus('closed');
+
+        // Increment attempt counter after failure
+        reconnectAttempts++;
+
+        // Check if we've reached max attempts
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          hasFailed = true;
+          gameContext.setWsStatus('failed');
+        } else {
+          const delay = 100 * reconnectAttempts;
+          setTimeout(() => {
+            if (!hasFailed) {
+              initGame();
+            }
+          }, delay);
+        }
+      };
+
+      ws.onerror = (error) => {
+        logger.error('[Host] WebSocket error:', error);
+        // Don't change status here, onclose will be called next
+      };
+    },
+    [gameContext]
+  );
 
   const endGame = useCallback(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
