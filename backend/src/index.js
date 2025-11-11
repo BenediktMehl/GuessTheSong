@@ -22,6 +22,7 @@ const { handleCreate } = require('./handlers/create');
 const { handlePlayerAction } = require('./handlers/player-action');
 const { handleBroadcast } = require('./handlers/broadcast');
 const { handleDisconnect } = require('./handlers/disconnect');
+const { handleDeleteSession } = require('./handlers/delete-session');
 
 ws.on('connection', (ws) => {
   ws.on('message', (msg) => {
@@ -55,6 +56,10 @@ ws.on('connection', (ws) => {
         case 'broadcast':
           logger.debug('Handling broadcast');
           handleBroadcast(ws, serverPayload);
+          break;
+        case 'delete-session':
+          logger.debug('Handling delete-session');
+          handleDeleteSession(ws);
           break;
         default:
           logger.error({ serverAction }, 'Unknown serverAction');

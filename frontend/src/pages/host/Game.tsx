@@ -1332,7 +1332,21 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/host-lobby')}
+                onClick={() => {
+                  // Disconnect Spotify player instance from Game.tsx
+                  if (playerInstanceRef.current) {
+                    try {
+                      playerInstanceRef.current.disconnect();
+                      playerInstanceRef.current = undefined;
+                      logger.info('[Host Game] Disconnected Spotify player instance');
+                    } catch (error) {
+                      logger.error('[Host Game] Error disconnecting Spotify player:', error);
+                    }
+                  }
+                  // End game (disconnects Spotify, sends delete-session, closes WebSocket)
+                  endGame();
+                  navigate('/host-lobby');
+                }}
               >
                 Back to Lobby
               </button>
@@ -1367,7 +1381,21 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/host-lobby')}
+                onClick={() => {
+                  // Disconnect Spotify player instance from Game.tsx
+                  if (playerInstanceRef.current) {
+                    try {
+                      playerInstanceRef.current.disconnect();
+                      playerInstanceRef.current = undefined;
+                      logger.info('[Host Game] Disconnected Spotify player instance');
+                    } catch (error) {
+                      logger.error('[Host Game] Error disconnecting Spotify player:', error);
+                    }
+                  }
+                  // End game (disconnects Spotify, sends delete-session, closes WebSocket)
+                  endGame();
+                  navigate('/host-lobby');
+                }}
               >
                 Back to Lobby
               </button>

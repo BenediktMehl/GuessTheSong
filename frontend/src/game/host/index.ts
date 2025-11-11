@@ -242,9 +242,77 @@ export function useGameInitializer() {
   );
 
   const endGame = useCallback(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.close();
+    // Disconnect Spotify player instances first
+    // Check window.spotifyPlayerInstance (from Lobby.tsx)
+    if (window.spotifyPlayerInstance) {
+      try {
+        window.spotifyPlayerInstance.disconnect();
+        window.spotifyPlayerInstance = undefined;
+        logger.info('[Host] Disconnected Spotify player instance from window');
+      } catch (error) {
+        logger.error('[Host] Error disconnecting Spotify player from window:', error);
+      }
     }
+
+    // Send delete-session message to backend before closing WebSocket
+    // Try to send the message if WebSocket is open
+    let messageSent = false;
+    if (ws) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(
+            JSON.stringify({
+              serverAction: 'delete-session',
+              serverPayload: {},
+            })
+          );
+          messageSent = true;
+          logger.info('[Host] Sent delete-session message to backend');
+        } catch (error) {
+          logger.error('[Host] Error sending delete-session message:', error);
+        }
+      } else if (ws.readyState === WebSocket.CONNECTING) {
+        // If still connecting, wait for it to open, then send
+        const openHandler = () => {
+          try {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  serverAction: 'delete-session',
+                  serverPayload: {},
+                })
+              );
+              logger.info('[Host] Sent delete-session message to backend after connection opened');
+              ws.removeEventListener('open', openHandler);
+            }
+          } catch (error) {
+            logger.error('[Host] Error sending delete-session message after open:', error);
+          }
+        };
+        ws.addEventListener('open', openHandler, { once: true });
+        // Fallback: if connection doesn't open within 1 second, just close
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.CONNECTING) {
+            logger.warn('[Host] WebSocket still connecting, closing without delete-session');
+            ws.removeEventListener('open', openHandler);
+            ws.close();
+          }
+        }, 1000);
+      } else {
+        logger.warn('[Host] WebSocket not in OPEN or CONNECTING state:', ws.readyState);
+      }
+
+      // Close WebSocket connection after a short delay to allow message to be sent
+      // Backend will also close it after processing delete-session, but this is a fallback
+      setTimeout(() => {
+        if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+          ws.close();
+        }
+      }, messageSent ? 100 : 0);
+    } else {
+      logger.warn('[Host] No WebSocket connection available for delete-session');
+    }
+
     reconnectAttempts = 0; // Reset attempts when manually ending
     hasFailed = false; // Reset failed flag
     gameContext.setWsStatus('closed');
