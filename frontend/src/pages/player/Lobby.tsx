@@ -4,10 +4,17 @@ import { Card } from '../../components/Card';
 import GameCode from '../../components/GameCode';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
+import { leaveGame } from '../../game/player';
 
 export default function PlayerLobby() {
-  const { sessionId, players, status, currentPlayerId, wsStatus } = useGameContext();
+  const gameContext = useGameContext();
+  const { sessionId, players, status, currentPlayerId, wsStatus } = gameContext;
   const navigate = useNavigate();
+
+  const handleLeaveLobby = () => {
+    leaveGame(gameContext);
+    navigate('/join');
+  };
 
   // When the game starts, switch to the play view
   useEffect(() => {
@@ -67,7 +74,7 @@ export default function PlayerLobby() {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/join')}
+              onClick={handleLeaveLobby}
               className="btn btn-outline btn-sm flex-1 whitespace-nowrap"
             >
               ← Back
@@ -93,7 +100,7 @@ export default function PlayerLobby() {
 
           <button
             type="button"
-            onClick={() => navigate('/join')}
+            onClick={handleLeaveLobby}
             className="btn btn-sm btn-outline btn-error"
           >
             Leave Lobby
