@@ -11,6 +11,7 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
   sendNoPointsToastAction,
+  useGameInitializer,
 } from '../../game/host';
 import { setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
@@ -107,6 +108,7 @@ export default function Game() {
     status,
   } = gameContext;
   const navigate = useNavigate();
+  const { endGame } = useGameInitializer();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
@@ -1327,7 +1329,21 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/host-lobby')}
+                onClick={() => {
+                  // Disconnect Spotify player instance from Game.tsx
+                  if (playerInstanceRef.current) {
+                    try {
+                      playerInstanceRef.current.disconnect();
+                      playerInstanceRef.current = undefined;
+                      logger.info('[Host Game] Disconnected Spotify player instance');
+                    } catch (error) {
+                      logger.error('[Host Game] Error disconnecting Spotify player:', error);
+                    }
+                  }
+                  // End game (disconnects Spotify, sends delete-session, closes WebSocket)
+                  endGame();
+                  navigate('/host-lobby');
+                }}
               >
                 Back to Lobby
               </button>
@@ -1362,7 +1378,21 @@ export default function Game() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm sm:btn-md"
-                onClick={() => navigate('/host-lobby')}
+                onClick={() => {
+                  // Disconnect Spotify player instance from Game.tsx
+                  if (playerInstanceRef.current) {
+                    try {
+                      playerInstanceRef.current.disconnect();
+                      playerInstanceRef.current = undefined;
+                      logger.info('[Host Game] Disconnected Spotify player instance');
+                    } catch (error) {
+                      logger.error('[Host Game] Error disconnecting Spotify player:', error);
+                    }
+                  }
+                  // End game (disconnects Spotify, sends delete-session, closes WebSocket)
+                  endGame();
+                  navigate('/host-lobby');
+                }}
               >
                 Back to Lobby
               </button>
