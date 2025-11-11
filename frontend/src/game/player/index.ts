@@ -579,6 +579,15 @@ export function joinGame(
             handlePlayerBuzzedNotificationForPlayer(gameContext, message);
             break;
 
+          case 'no-points-toast': {
+            // No one got any points in the round
+            logger.info('[Player] No points toast received');
+            const noPointsMessage =
+              message.data?.message || 'Next song playing. No one got any points.';
+            showToast(gameContext, noPointsMessage, 'error', 4000);
+            break;
+          }
+
           case 'join-failed':
             logger.error('Failed to join game:', message.payload.reason);
             // If session doesn't exist, clear stored data

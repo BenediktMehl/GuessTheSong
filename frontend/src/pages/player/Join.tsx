@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BackendOffline } from '../../components/BackendOffline';
 import { Card } from '../../components/Card';
+import { InstallPrompt } from '../../components/InstallPrompt';
 import { useGameContext } from '../../game/context';
 import { getRandomFunnyName } from '../../game/names';
 import { joinGame } from '../../game/player';
@@ -12,6 +14,7 @@ export default function Join() {
   const [joinFailed, setJoinFailed] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const gameContext = useGameContext();
+  const { wsStatus } = gameContext;
   const navigate = useNavigate();
   const nameInputRef = useRef<HTMLInputElement>(null);
   const hasAttemptedReconnect = useRef(false);
@@ -128,6 +131,11 @@ export default function Join() {
 
   return (
     <main className="h-screen flex flex-col items-center justify-start p-2 sm:p-4 gap-2 sm:gap-4 overflow-y-auto">
+      {wsStatus === 'failed' && (
+        <div className="w-full max-w-md">
+          <BackendOffline showButtons={false} onBack={() => navigate('/')} />
+        </div>
+      )}
       <Card className="w-full max-w-md" bodyClassName="gap-3 sm:gap-4">
         <p className="text-xs sm:text-sm text-base-content text-center">
           Enter the game code to join a game
@@ -188,7 +196,7 @@ export default function Join() {
         ← Back to Home
       </button>
 
-      {joinFailed && (
+      {joinFailed && wsStatus !== 'failed' && (
         <div className="toast toast-top toast-center">
           <div className="alert alert-error shadow-2xl">
             <svg
@@ -211,6 +219,8 @@ export default function Join() {
           </div>
         </div>
       )}
+
+      <InstallPrompt />
     </main>
   );
 }

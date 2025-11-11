@@ -11,6 +11,7 @@ import {
   resetAllPlayersForNewRound,
   sendLastSongChangedAction,
   useGameInitializer,
+  sendNoPointsToastAction,
 } from '../../game/host';
 import { setBuzzerSoundMuted } from '../../game/player/buzzerSound';
 import {
@@ -144,6 +145,7 @@ export default function Game() {
     const stored = localStorage.getItem(AUTOPLAY_KEY);
     return stored === null ? true : stored === 'true'; // Default to true if not set
   });
+  const [settingsExpanded, setSettingsExpanded] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(() => {
     const stored = localStorage.getItem(SPOTIFY_VOLUME_KEY);
     return stored ? parseFloat(stored) : 0.5;
@@ -1055,7 +1057,8 @@ export default function Game() {
 
     markPlayerGuessedPartially(gameContext, async () => {
       // Resume current song if there are more players who can guess
-      if (player && is_paused) {
+      // Only auto-resume if autoplay is enabled
+      if (player && is_paused && autoplay) {
         try {
           await player.togglePlay();
           console.log('[Host] Resuming song for next player after partial answer');
@@ -1064,7 +1067,7 @@ export default function Game() {
         }
       }
     });
-  }, [currentGuessingPlayer, gameContext, is_paused, player]);
+  }, [currentGuessingPlayer, gameContext, is_paused, player, autoplay]);
 
   // Handle wrong guess
   const handleWrongGuess = useCallback(async () => {
@@ -1074,7 +1077,8 @@ export default function Game() {
       gameContext,
       async () => {
         // Resume current song
-        if (player && is_paused) {
+        // Only auto-resume if autoplay is enabled
+        if (player && is_paused && autoplay) {
           try {
             await player.togglePlay();
             logger.debug('[Host] Resuming song for next player');
@@ -1394,28 +1398,42 @@ export default function Game() {
                 </div>
               )}
 
-              {/* Setting */}
-              <label className="label cursor-pointer py-1 sm:py-2">
-                <span className="label-text text-xs sm:text-sm">
-                  Hide song until player guesses
-                </span>
-                <input
-                  type="checkbox"
-                  className="toggle toggle-primary toggle-sm sm:toggle-md"
-                  checked={hideSongUntilBuzzed}
-                  onChange={(e) => handleToggleHideSong(e.target.checked)}
-                />
-              </label>
+              {/* Settings toggle button */}
+              <button
+                type="button"
+                onClick={() => setSettingsExpanded(!settingsExpanded)}
+                className="btn btn-sm btn-ghost w-full justify-start py-1 sm:py-2"
+              >
+                <span>{settingsExpanded ? '▲' : '▼'}</span>
+                <span className="ml-2 text-xs sm:text-sm">Settings</span>
+              </button>
 
-              <label className="label cursor-pointer py-1 sm:py-2">
-                <span className="label-text text-xs sm:text-sm">Autoplay</span>
-                <input
-                  type="checkbox"
-                  className="toggle toggle-primary toggle-sm sm:toggle-md"
-                  checked={autoplay}
-                  onChange={(e) => handleToggleAutoplay(e.target.checked)}
-                />
-              </label>
+              {/* Collapsible settings */}
+              {settingsExpanded && (
+                <>
+                  <label className="label cursor-pointer py-1 sm:py-2">
+                    <span className="label-text text-xs sm:text-sm">
+                      Hide song until player guesses
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary toggle-sm sm:toggle-md"
+                      checked={hideSongUntilBuzzed}
+                      onChange={(e) => handleToggleHideSong(e.target.checked)}
+                    />
+                  </label>
+
+                  <label className="label cursor-pointer py-1 sm:py-2">
+                    <span className="label-text text-xs sm:text-sm">Autoplay</span>
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary toggle-sm sm:toggle-md"
+                      checked={autoplay}
+                      onChange={(e) => handleToggleAutoplay(e.target.checked)}
+                    />
+                  </label>
+                </>
+              )}
 
               <div className="divider my-0"></div>
 
@@ -1517,7 +1535,12 @@ export default function Game() {
                   onClick={async () => {
                     // Reset all players to default list before going to next song
                     logger.debug('[Host Game] Next button clicked - resetting all players');
-                    resetAllPlayersForNewRound(gameContext);
+                    const pointsAwarded = resetAllPlayersForNewRound(gameContext);
+
+                    // If no points were awarded, send toast notification
+                    if (!pointsAwarded) {
+                      sendNoPointsToastAction();
+                    }
 
                     // Go to next track from playlist
                     try {

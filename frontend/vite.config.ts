@@ -133,7 +133,9 @@ export default defineConfig(({ mode }) => {
         },
       },
       VitePWA({
-        registerType: 'autoUpdate',
+        // Disable service worker to prevent redirect loops
+        // Keep manifest for installability and fullscreen mode
+        injectRegister: false,
         manifest: {
           name: appConfig.displayName,
           short_name: appConfig.shortName,
@@ -155,11 +157,7 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-        workbox: {
-          navigationPreload: false,
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
-        },
+        // No workbox configuration - service worker disabled
       }),
     ],
   };
