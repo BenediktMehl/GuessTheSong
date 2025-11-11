@@ -709,7 +709,7 @@ export function disconnectFromGame() {
 export function leaveGame(gameContext: GameContextType) {
   // Disconnect and clear module-level state
   disconnectFromGame();
-  
+
   // Clear all game context state
   gameContext.setSessionId('');
   gameContext.setCurrentPlayerId('');
