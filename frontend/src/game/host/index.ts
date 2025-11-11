@@ -592,7 +592,8 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
 // Award 0.5 points to partially guessed players if the round ended without a correct guess
 // This function is idempotent - it only awards points to players in the partiallyGuessedPlayers list
 // Once points are awarded and the list is cleared, calling this again won't award duplicate points
-export function awardPartialPointsIfRoundEnded(gameContext: GameContextType): void {
+// Returns true if points were awarded, false otherwise
+export function awardPartialPointsIfRoundEnded(gameContext: GameContextType): boolean {
   if (gameContext.partiallyGuessedPlayers.length > 0) {
     logger.info(
       '[Host] Round ended with no correct guesses - awarding 0.5 points to partially guessed players'
@@ -621,11 +622,14 @@ export function awardPartialPointsIfRoundEnded(gameContext: GameContextType): vo
     gameContext.setPartiallyGuessedPlayers([]);
     sendPartiallyGuessedPlayersChangedAction([]);
     logger.debug('[Host] Cleared partially guessed players list after awarding points');
+    return true;
   }
+  return false;
 }
 
 // Reset all players to default state (clear waiting and guessed lists)
-export function resetAllPlayersForNewRound(gameContext: GameContextType) {
+// Returns true if any points were awarded in this round, false otherwise
+export function resetAllPlayersForNewRound(gameContext: GameContextType): boolean {
   logger.debug('[Host] Resetting all players for new round');
   logger.debug('[Host] Current state before reset:', {
     waitingCount: gameContext.waitingPlayers.length,
@@ -636,7 +640,7 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType) {
 
   // Award 0.5 points to partially guessed players before resetting
   // This handles cases where the round ends without all players guessing (e.g., song loops, Next button)
-  awardPartialPointsIfRoundEnded(gameContext);
+  const pointsAwarded = awardPartialPointsIfRoundEnded(gameContext);
 
   // Clear lists locally
   gameContext.setWaitingPlayers([]);
@@ -649,6 +653,7 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType) {
   sendPartiallyGuessedPlayersChangedAction([]);
 
   logger.debug('[Host] All players reset - waiting and guessed lists cleared');
+  return pointsAwarded;
 }
 
 // Export functions for the host UI to call
@@ -815,7 +820,12 @@ export function markPlayerGuessedWrong(
 
     // Reset all players (this clears both waiting and guessed lists)
     // This will also award 0.5 points to partially guessed players if there are any
-    resetAllPlayersForNewRound(gameContext);
+    const pointsAwarded = resetAllPlayersForNewRound(gameContext);
+
+    // If no points were awarded, send toast notification
+    if (!pointsAwarded) {
+      sendNoPointsToastAction();
+    }
 
     // Broadcast the wrong guess action (for consistency, but players will be reset anyway)
     const success = sendHostAction({
@@ -990,6 +1000,15 @@ export function sendLastSongChangedAction(lastSong: { name: string; artists: str
     action: 'lastSongChanged',
     data: {
       lastSong,
+    },
+  });
+}
+
+export function sendNoPointsToastAction() {
+  return sendHostAction({
+    action: 'no-points-toast',
+    data: {
+      message: 'Next song playing. No one got any points.',
     },
   });
 }
