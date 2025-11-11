@@ -4,7 +4,7 @@ import { Card } from '../../components/Card';
 import { useGameContext } from '../../game/context';
 import { getRandomFunnyName } from '../../game/names';
 import { joinGame } from '../../game/player';
-import { getPlayerData, clearPlayerData } from '../../utils/playerStorage';
+import { clearPlayerData, getPlayerData } from '../../utils/playerStorage';
 
 export default function Join() {
   const [room, setRoom] = useState('');

@@ -44,4 +44,3 @@ export function clearPlayerData(): void {
     console.error('Failed to clear player data from localStorage:', error);
   }
 }
-

@@ -1,7 +1,7 @@
 import { WS_URL } from '../../config';
 import logger from '../../utils/logger';
+import { clearPlayerData, savePlayerData } from '../../utils/playerStorage';
 import type { GameContextType, Player } from '../context';
-import { savePlayerData, clearPlayerData } from '../../utils/playerStorage';
 
 // WebSocket message types
 type WebSocketMessage = {
