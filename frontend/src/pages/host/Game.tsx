@@ -101,6 +101,7 @@ export default function Game() {
     waitingPlayers,
     guessedPlayers,
     partiallyGuessedPlayers,
+    noCluePlayers,
     buzzerNotification,
     setBuzzerNotification,
     setPausePlayerCallback,
@@ -110,16 +111,18 @@ export default function Game() {
   const navigate = useNavigate();
   const { endGame } = useGameInitializer();
 
-  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, partially guessed, or no clue arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
   const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
+  const noCluePlayerIds = new Set((noCluePlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
     .filter(
       (p) =>
         !waitingPlayerIds.has(p.id) &&
         !guessedPlayerIds.has(p.id) &&
-        !partiallyGuessedPlayerIds.has(p.id)
+        !partiallyGuessedPlayerIds.has(p.id) &&
+        !noCluePlayerIds.has(p.id)
     )
     .sort((a, b) => b.points - a.points);
   const [player, setPlayer] = useState<SpotifyPlayer | undefined>(undefined);
@@ -1656,6 +1659,7 @@ export default function Game() {
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
           partiallyGuessedPlayers={partiallyGuessedPlayers}
+          noCluePlayers={noCluePlayers}
         />
 
         <button

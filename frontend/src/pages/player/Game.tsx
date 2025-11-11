@@ -6,7 +6,7 @@ import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { PlayerToastComponent } from '../../components/PlayerToast';
 import { useGameContext } from '../../game/context';
-import { leaveGame, sendPlayerBuzzedAction } from '../../game/player';
+import { leaveGame, sendPlayerBuzzedAction, sendPlayerNoClueAction } from '../../game/player';
 import {
   initializeBuzzerSound,
   playBuzzerSound,
@@ -24,6 +24,7 @@ export default function Game() {
     waitingPlayers,
     guessedPlayers,
     partiallyGuessedPlayers,
+    noCluePlayers,
     buzzerNotification,
     setBuzzerNotification,
     playerToast,
@@ -32,16 +33,18 @@ export default function Game() {
   } = gameContext;
   const navigate = useNavigate();
 
-  // Calculate notGuessedPlayers (players not in waiting, guessed, or partially guessed arrays)
+  // Calculate notGuessedPlayers (players not in waiting, guessed, partially guessed, or no clue arrays)
   const waitingPlayerIds = new Set((waitingPlayers || []).map((p) => p.id));
   const guessedPlayerIds = new Set((guessedPlayers || []).map((p) => p.id));
   const partiallyGuessedPlayerIds = new Set((partiallyGuessedPlayers || []).map((p) => p.id));
+  const noCluePlayerIds = new Set((noCluePlayers || []).map((p) => p.id));
   const notGuessedPlayers = (players || [])
     .filter(
       (p) =>
         !waitingPlayerIds.has(p.id) &&
         !guessedPlayerIds.has(p.id) &&
-        !partiallyGuessedPlayerIds.has(p.id)
+        !partiallyGuessedPlayerIds.has(p.id) &&
+        !noCluePlayerIds.has(p.id)
     )
     .sort((a, b) => b.points - a.points);
 
@@ -51,6 +54,7 @@ export default function Game() {
     ...(waitingPlayers || []),
     ...(guessedPlayers || []),
     ...(partiallyGuessedPlayers || []),
+    ...(noCluePlayers || []),
   ];
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
@@ -130,21 +134,29 @@ export default function Game() {
       (partiallyGuessedPlayers || []).some((p) => p.id === currentPlayerId)
     : false;
 
-  // Check if buzzer should be disabled (already buzzed or already guessed)
-  const isBuzzerDisabled = isCurrentPlayerInQueue || hasCurrentPlayerGuessed || !currentPlayerId;
+  // Check if current player is in no clue list
+  const isCurrentPlayerNoClue = currentPlayerId
+    ? (noCluePlayers || []).some((p) => p.id === currentPlayerId)
+    : false;
+
+  // Check if buzzer should be disabled (already buzzed, already guessed, or no clue)
+  const isBuzzerDisabled =
+    isCurrentPlayerInQueue || hasCurrentPlayerGuessed || isCurrentPlayerNoClue || !currentPlayerId;
 
   const handleBuzz = useCallback(() => {
     logger.debug('[Buzzer] handleBuzz called', {
       isCurrentPlayerInQueue,
       hasCurrentPlayerGuessed,
+      isCurrentPlayerNoClue,
       currentPlayerId,
     });
 
-    // Don't allow buzzing if already in queue or already guessed
+    // Don't allow buzzing if already in queue, already guessed, or no clue
     if (isBuzzerDisabled) {
       logger.debug('[Buzzer] Buzzer blocked:', {
         isCurrentPlayerInQueue,
         hasCurrentPlayerGuessed,
+        isCurrentPlayerNoClue,
         currentPlayerId,
       });
       return;
@@ -167,9 +179,44 @@ export default function Game() {
     isBuzzerDisabled,
     isCurrentPlayerInQueue,
     hasCurrentPlayerGuessed,
+    isCurrentPlayerNoClue,
     currentPlayerId,
     buzzerSoundEnabled,
   ]);
+
+  const handleNoClue = useCallback(() => {
+    logger.debug('[NoClue] handleNoClue called', {
+      isCurrentPlayerInQueue,
+      hasCurrentPlayerGuessed,
+      isCurrentPlayerNoClue,
+      currentPlayerId,
+    });
+
+    // Don't allow if already in queue, already guessed, or already no clue
+    if (
+      isCurrentPlayerInQueue ||
+      hasCurrentPlayerGuessed ||
+      isCurrentPlayerNoClue ||
+      !currentPlayerId
+    ) {
+      logger.debug('[NoClue] No clue button blocked:', {
+        isCurrentPlayerInQueue,
+        hasCurrentPlayerGuessed,
+        isCurrentPlayerNoClue,
+        currentPlayerId,
+      });
+      return;
+    }
+
+    // Send no clue action to host
+    logger.debug('[NoClue] Sending no clue action...');
+    const success = sendPlayerNoClueAction();
+    if (!success) {
+      logger.error('[NoClue] Failed to send no clue action');
+    } else {
+      logger.debug('[NoClue] No clue action sent successfully');
+    }
+  }, [isCurrentPlayerInQueue, hasCurrentPlayerGuessed, isCurrentPlayerNoClue, currentPlayerId]);
 
   const getGameStateContent = (buzzerColorValue: string) => {
     if (isCurrentPlayerFirst) {
@@ -210,6 +257,21 @@ export default function Game() {
               ? `It is ${currentGuesser.name}'s turn to ${appConfig.displayName}.`
               : `Waiting for next player to ${appConfig.displayName}.`}{' '}
             You have already guessed this round.
+          </p>
+        ),
+      };
+    }
+
+    if (isCurrentPlayerNoClue) {
+      const currentGuesser = (waitingPlayers || [])[0];
+      return {
+        title: 'No Clue',
+        content: (
+          <p className="text-sm sm:text-base md:text-lg text-base-content/80">
+            {currentGuesser
+              ? `It is ${currentGuesser.name}'s turn to ${appConfig.displayName}.`
+              : `Waiting for next player to ${appConfig.displayName}.`}{' '}
+            You have opted out of guessing this round.
           </p>
         ),
       };
@@ -331,6 +393,7 @@ export default function Game() {
           waitingPlayers={waitingPlayers}
           guessedPlayers={guessedPlayers}
           partiallyGuessedPlayers={partiallyGuessedPlayers}
+          noCluePlayers={noCluePlayers}
           currentPlayer={currentPlayer}
         />
 
@@ -402,6 +465,22 @@ export default function Game() {
                   />
                 </>
               )}
+            </button>
+            <button
+              type="button"
+              disabled={
+                isCurrentPlayerInQueue ||
+                hasCurrentPlayerGuessed ||
+                isCurrentPlayerNoClue ||
+                !currentPlayerId
+              }
+              className="btn btn-sm btn-outline btn-warning"
+              onClick={handleNoClue}
+              aria-label={
+                isCurrentPlayerNoClue ? 'Already opted out' : 'Opt out of guessing this round'
+              }
+            >
+              No clue
             </button>
           </div>
         </Card>
