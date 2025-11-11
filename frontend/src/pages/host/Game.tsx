@@ -1660,7 +1660,7 @@ export default function Game() {
                   className="btn btn-warning btn-sm sm:btn-md md:btn-lg flex-1"
                   onClick={handlePartiallyRightGuess}
                 >
-                  ~ Teilweise
+                  ~ Partially
                 </button>
               )}
               <button
