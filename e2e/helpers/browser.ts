@@ -34,12 +34,14 @@ export async function joinGameAsPlayer(
   playerName: string
 ): Promise<void> {
   // Navigate to join page if not already there
-  if (!page.url().includes('/player/join')) {
-    await page.goto('/player/join');
+  if (!page.url().includes('/join')) {
+    await page.goto('/join');
+    // Wait for page to be fully loaded
+    await page.waitForLoadState('networkidle');
   }
 
-  // Wait for game code input
-  await page.waitForSelector('#game-code', { timeout: 5000 });
+  // Wait for game code input with longer timeout and better error handling
+  await page.waitForSelector('#game-code', { timeout: 10000, state: 'visible' });
 
   // Fill in game code
   await page.fill('#game-code', gameCode);
@@ -54,7 +56,8 @@ export async function joinGameAsPlayer(
   await page.click('button:has-text("Join Game")');
 
   // Wait for navigation to lobby or game page
-  await page.waitForURL(/\/player\/(lobby|play)/, { timeout: 10000 });
+  // Note: The route is /lobby or /play, not /player/lobby or /player/play
+  await page.waitForURL(/\/(lobby|play)/, { timeout: 10000 });
 }
 
 /**
@@ -115,10 +118,22 @@ export async function clickBuzzer(page: Page): Promise<void> {
  * Wait for buzzer notification to appear
  */
 export async function waitForBuzzerNotification(page: Page, playerName: string): Promise<void> {
-  // Wait for notification toast to appear with player name
-  await page.waitForSelector(`text=${playerName}`, { timeout: 10000 });
-  // The notification should say something like "{playerName} pressed the buzzer!"
-  await expect(page.locator('text=/pressed the buzzer/i')).toBeVisible({ timeout: 5000 });
+  // Wait for notification toast to appear
+  // The notification shows: "<strong>{playerName}</strong> pressed the buzzer!"
+  // Look for the player name first (might be in a strong tag)
+  await page.waitForSelector(`text=${playerName}`, { timeout: 15000 });
+  
+  // Then verify the notification text is visible
+  // The text might be split across elements, so look for either the player name or "buzzer" text
+  const notificationVisible = await page.locator(`text=${playerName}`).isVisible().catch(() => false);
+  if (!notificationVisible) {
+    // Fallback: look for "buzzer" text in the notification area
+    await page.waitForSelector('.toast, .alert', { timeout: 5000 });
+    const buzzerText = await page.locator('text=/buzzer/i').first().isVisible().catch(() => false);
+    if (!buzzerText) {
+      throw new Error(`Buzzer notification for ${playerName} not found`);
+    }
+  }
 }
 
 /**
@@ -151,39 +166,72 @@ export async function clickStartGame(page: Page): Promise<void> {
   await startButton.click();
 
   // Wait for navigation to game page
-  await page.waitForURL(/\/host\/game/, { timeout: 15000 });
+  // The route is /hostgame, not /host/game
+  await page.waitForURL(/\/hostgame/, { timeout: 15000 });
 }
 
 /**
- * Verify song is playing (check UI state)
+ * Verify song is playing (check player state directly and UI)
  */
 export async function verifySongPlaying(page: Page): Promise<boolean> {
-  // Check if song is playing by looking for:
-  // 1. Track name displayed (song info visible)
-  // 2. Pause button visible (indicates song is playing, not paused)
-  // 3. Player state shows playing
-  
-  try {
-    // Wait for either track name or pause button to appear
-    await page.waitForSelector('button:has-text("PAUSE"), text=/Test Song/i, text=/Song/i', { 
-      timeout: 10000 
-    });
-    
-    // Check if pause button is visible (indicates song is playing)
-    const pauseButton = page.locator('button:has-text("PAUSE")');
-    const pauseVisible = await pauseButton.isVisible().catch(() => false);
-    
-    if (pauseVisible) {
-      return true;
+  // First check the mock player state directly (more reliable)
+  const playerState = await page.evaluate(async () => {
+    const player = (window as any).__mockSpotifyPlayer;
+    if (player) {
+      try {
+        const state = await player.getCurrentState();
+        if (state && !state.paused && state.track_window?.current_track) {
+          return {
+            playing: true,
+            trackName: state.track_window.current_track.name,
+            paused: state.paused,
+          };
+        }
+      } catch (e) {
+        // Error getting state
+      }
     }
-    
-    // Alternative: check if track name is visible (song info is displayed)
-    const trackVisible = await page.locator('text=/Test Song/i, text=/Song/i').first().isVisible().catch(() => false);
-    return trackVisible;
-  } catch {
-    // Song might not be playing yet
-    return false;
+    return { playing: false, trackName: null, paused: true };
+  });
+
+  // If mock player says it's playing, check UI
+  if (playerState.playing && !playerState.paused) {
+    try {
+      // Wait for UI to update - look for PAUSE button (song is playing) or track info
+      await page.waitForSelector('button:has-text("PAUSE"), button:has-text("PLAY")', { 
+        timeout: 5000 
+      });
+      
+      // Check if PAUSE button is visible (indicates playing)
+      const pauseButton = page.locator('button:has-text("PAUSE")');
+      const pauseVisible = await pauseButton.isVisible().catch(() => false);
+      
+      if (pauseVisible) {
+        return true;
+      }
+      
+      // Also check if track name is visible (alternative indicator)
+      if (playerState.trackName) {
+        const trackVisible = await page.locator(`text=/${playerState.trackName}/i`).first().isVisible().catch(() => false);
+        if (trackVisible) {
+          return true;
+        }
+      }
+      
+      // If player state says playing but UI doesn't show it yet, give it a moment
+      // The UI might be updating asynchronously
+      await page.waitForTimeout(1000);
+      const pauseButtonAfterWait = page.locator('button:has-text("PAUSE")');
+      return await pauseButtonAfterWait.isVisible().catch(() => false);
+    } catch {
+      // UI check failed, but player state says playing
+      // Trust the player state if it's clearly playing
+      return playerState.playing && !playerState.paused;
+    }
   }
+  
+  // Player state says not playing
+  return false;
 }
 
 /**

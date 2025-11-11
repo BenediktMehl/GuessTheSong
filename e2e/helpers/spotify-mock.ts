@@ -43,14 +43,27 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
 
         async connect(): Promise<boolean> {
           // Simulate connection delay
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          // Trigger ready event
-          setTimeout(() => {
-            const readyListeners = this.listeners.get('ready') || [];
-            readyListeners.forEach((listener) => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          // Trigger ready event immediately after connection
+          // Use both sync and async to ensure listeners get the event
+          const readyListeners = this.listeners.get('ready') || [];
+          readyListeners.forEach((listener) => {
+            try {
               listener({ device_id: this.deviceId });
+            } catch (e) {
+              // Ignore errors in listeners
+            }
+          });
+          // Also trigger asynchronously for any listeners that were added after
+          setTimeout(() => {
+            readyListeners.forEach((listener) => {
+              try {
+                listener({ device_id: this.deviceId });
+              } catch (e) {
+                // Ignore errors in listeners
+              }
             });
-          }, 200);
+          }, 100);
           return true;
         }
 
@@ -81,30 +94,51 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
         }
 
         async togglePlay(): Promise<void> {
-          // Track when togglePlay is called while playing (which pauses it)
-          if (!this.isPaused) {
-            // Song was playing, now pausing
-            (window as any).__mockSpotifyPauseCallCount =
-              ((window as any).__mockSpotifyPauseCallCount || 0) + 1;
-          }
+          const wasPlaying = !this.isPaused;
           this.isPaused = !this.isPaused;
           this.isPlaying = !this.isPaused;
 
-          // Trigger state change event asynchronously
-          setTimeout(() => {
+          // Track when togglePlay is called while playing (which pauses it)
+          // Increment count if we were playing and now we're paused
+          if (wasPlaying && this.isPaused) {
+            (window as any).__mockSpotifyPauseCallCount =
+              ((window as any).__mockSpotifyPauseCallCount || 0) + 1;
+          }
+
+          // Trigger state change event immediately and asynchronously
+          const state = this.currentTrack ? {
+            paused: this.isPaused,
+            position: this.position,
+            track_window: {
+              current_track: this.currentTrack,
+            },
+          } : null;
+
+          // Trigger synchronously first
+          if (state) {
             const stateChangeListeners = this.listeners.get('player_state_changed') || [];
             stateChangeListeners.forEach((listener) => {
-              if (this.currentTrack) {
-                listener({
-                  paused: this.isPaused,
-                  position: this.position,
-                  track_window: {
-                    current_track: this.currentTrack,
-                  },
-                });
+              try {
+                listener(state);
+              } catch (e) {
+                // Ignore errors in listeners
               }
             });
-          }, 100);
+          }
+
+          // Also trigger asynchronously
+          setTimeout(() => {
+            if (state) {
+              const stateChangeListeners = this.listeners.get('player_state_changed') || [];
+              stateChangeListeners.forEach((listener) => {
+                try {
+                  listener(state);
+                } catch (e) {
+                  // Ignore errors in listeners
+                }
+              });
+            }
+          }, 50);
         }
 
         async previousTrack(): Promise<void> {
@@ -123,38 +157,74 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
         setPlaying(playing: boolean): void {
           this.isPaused = !playing;
           this.isPlaying = playing;
-          // Trigger state change event asynchronously
-          setTimeout(() => {
-            const stateChangeListeners = this.listeners.get('player_state_changed') || [];
+          // Trigger state change event immediately and asynchronously
+          // This ensures the UI gets updated
+          const stateChangeListeners = this.listeners.get('player_state_changed') || [];
+          const state = this.currentTrack ? {
+            paused: this.isPaused,
+            position: this.position,
+            track_window: {
+              current_track: this.currentTrack,
+            },
+          } : null;
+          
+          // Trigger synchronously first (some listeners might need immediate update)
+          if (state) {
             stateChangeListeners.forEach((listener) => {
-              if (this.currentTrack) {
-                listener({
-                  paused: this.isPaused,
-                  position: this.position,
-                  track_window: {
-                    current_track: this.currentTrack,
-                  },
-                });
+              try {
+                listener(state);
+              } catch (e) {
+                // Ignore errors in listeners
               }
             });
-          }, 100);
+          }
+          
+          // Also trigger asynchronously to ensure all listeners get it
+          setTimeout(() => {
+            if (state) {
+              stateChangeListeners.forEach((listener) => {
+                try {
+                  listener(state);
+                } catch (e) {
+                  // Ignore errors in listeners
+                }
+              });
+            }
+          }, 50);
         }
 
         setTrack(track: any): void {
           this.currentTrack = track;
-          // Trigger state change event asynchronously
+          // Trigger state change event immediately when track is set
+          // This ensures the UI gets updated with the new track
+          const stateChangeListeners = this.listeners.get('player_state_changed') || [];
+          const state = {
+            paused: this.isPaused,
+            position: this.position,
+            track_window: {
+              current_track: this.currentTrack,
+            },
+          };
+          
+          // Trigger synchronously first
+          stateChangeListeners.forEach((listener) => {
+            try {
+              listener(state);
+            } catch (e) {
+              // Ignore errors in listeners
+            }
+          });
+          
+          // Also trigger asynchronously to ensure all listeners get it
           setTimeout(() => {
-            const stateChangeListeners = this.listeners.get('player_state_changed') || [];
             stateChangeListeners.forEach((listener) => {
-              listener({
-                paused: this.isPaused,
-                position: this.position,
-                track_window: {
-                  current_track: this.currentTrack,
-                },
-              });
+              try {
+                listener(state);
+              } catch (e) {
+                // Ignore errors in listeners
+              }
             });
-          }, 100);
+          }, 50);
         }
 
         getPauseCallCount(): number {
@@ -260,12 +330,12 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
       }
 
       if (urlString.startsWith('https://api.spotify.com/v1/me/player/play')) {
-        // Mock play endpoint
+        // Mock play endpoint (used by playPlaylist and other play functions)
         const player = (window as any).__mockSpotifyPlayer;
         if (player) {
-          // Set a default track if none is set
+          // Set a default track if none is set (playlist playback or direct play)
           if (!player.currentTrack) {
-            player.setTrack({
+            const defaultTrack = {
               id: 'test-track-123',
               name: 'Test Song',
               uri: 'spotify:track:test-track-123',
@@ -275,8 +345,10 @@ export async function mockSpotifySDK(pageOrContext: Page | BrowserContext): Prom
                 images: [{ url: 'https://via.placeholder.com/300' }],
               },
               duration_ms: 200000,
-            });
+            };
+            player.setTrack(defaultTrack);
           }
+          // Set playing state and trigger state change event
           player.setPlaying(true);
         }
         return new Response(null, { status: 204 });
