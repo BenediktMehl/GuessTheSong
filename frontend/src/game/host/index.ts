@@ -145,6 +145,11 @@ export function useGameInitializer() {
               handlePlayerBuzzed(gameContext, msg);
               break;
 
+            case 'player-no-clue':
+              logger.debug('[Host] Handling player-no-clue action:', msg);
+              handlePlayerNoClue(gameContext, msg);
+              break;
+
             case 'player-guessed-wrong':
               // Note: This is only received when broadcast from another host
               // When the local host marks wrong, it's handled directly in markPlayerGuessedWrong
@@ -279,6 +284,9 @@ function handlePlayerLeft(gameContext: GameContextType, playerId: string) {
   );
   gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessedPlayers) =>
     currentPartiallyGuessedPlayers.filter((player) => player.id !== playerId)
+  );
+  gameContext.setNoCluePlayers((currentNoClue) =>
+    currentNoClue.filter((player) => player.id !== playerId)
   );
 }
 
@@ -464,6 +472,102 @@ function handlePlayerBuzzed(gameContext: GameContextType, msg: WebSocketMessage)
   });
 }
 
+function handlePlayerNoClue(gameContext: GameContextType, msg: WebSocketMessage) {
+  logger.debug('[Host] handlePlayerNoClue called', { msg, players: gameContext.players });
+
+  const noCluePlayerId = msg.payload?.playerId;
+  const noCluePlayerName = msg.payload?.playerName;
+  logger.debug('[Host] No clue player ID:', noCluePlayerId, 'Name:', noCluePlayerName);
+
+  if (!noCluePlayerId || typeof noCluePlayerId !== 'string') {
+    logger.error('[Host] No playerId in message payload:', msg);
+    return;
+  }
+
+  // Try to find player in context first
+  let noCluePlayer: Player | undefined = gameContext.players.find(
+    (player) => player.id === noCluePlayerId
+  );
+
+  // If player not found in context, create a temporary player object from the message
+  if (!noCluePlayer) {
+    logger.warn(
+      `[Host] Player with ID ${noCluePlayerId} not found in context. Creating from message.`
+    );
+    if (noCluePlayerName && typeof noCluePlayerName === 'string') {
+      const newPlayer: Player = {
+        id: noCluePlayerId,
+        name: noCluePlayerName,
+        points: 0,
+      };
+      noCluePlayer = newPlayer;
+      // Also add to players list if we have the name
+      gameContext.setPlayers((currentPlayers) => {
+        if (currentPlayers.some((p) => p.id === noCluePlayerId)) {
+          return currentPlayers;
+        }
+        return [...currentPlayers, newPlayer];
+      });
+    } else {
+      logger.error(
+        `[Host] Cannot create player object - missing player name. Available players:`,
+        gameContext.players
+      );
+      return;
+    }
+  }
+
+  if (!noCluePlayer) {
+    logger.error('[Host] Failed to get or create no clue player');
+    return;
+  }
+
+  logger.debug('[Host] Found/created player:', noCluePlayer);
+
+  // Store the player ID and name for use in the functional update
+  const noCluePlayerIdToAdd = noCluePlayer.id;
+  const noCluePlayerNameToAdd = noCluePlayer.name;
+
+  gameContext.setNoCluePlayers((currentNoCluePlayers) => {
+    // Check if player is already in no clue list
+    if (currentNoCluePlayers.some((p) => p.id === noCluePlayerIdToAdd)) {
+      logger.debug('[Host] Player already in no clue list');
+      return currentNoCluePlayers;
+    }
+
+    // Get the player with current points from the main players list
+    const playerWithCurrentPoints = gameContext.players.find((p) => p.id === noCluePlayerIdToAdd);
+
+    if (playerWithCurrentPoints) {
+      // Use the player from the main list with their current points
+      const newNoCluePlayers = [...currentNoCluePlayers, playerWithCurrentPoints];
+      logger.debug(
+        '[Host] Updating no clue players with current points:',
+        newNoCluePlayers.map((p) => ({ name: p.name, points: p.points }))
+      );
+      sendNoCluePlayersChangedAction(newNoCluePlayers);
+      return newNoCluePlayers;
+    } else {
+      // Fallback: player not found in main list (shouldn't happen, but handle gracefully)
+      logger.warn(
+        `[Host] Player ${noCluePlayerIdToAdd} not found in main players list when adding to no clue list`
+      );
+      const fallbackPlayer: Player = {
+        id: noCluePlayerIdToAdd,
+        name: noCluePlayerNameToAdd,
+        points: noCluePlayer.points,
+      };
+      const newNoCluePlayers = [...currentNoCluePlayers, fallbackPlayer];
+      logger.debug(
+        '[Host] Updating no clue players with fallback:',
+        newNoCluePlayers.map((p) => ({ name: p.name, points: p.points }))
+      );
+      sendNoCluePlayersChangedAction(newNoCluePlayers);
+      return newNoCluePlayers;
+    }
+  });
+}
+
 function handlePlayerGuessedWrong(gameContext: GameContextType) {
   gameContext.setWaitingPlayers((currentWaitingPlayers) => {
     const firstWaitingPlayer = currentWaitingPlayers[0];
@@ -576,6 +680,10 @@ function handlePlayerGuessedRight(gameContext: GameContextType) {
     gameContext.setPartiallyGuessedPlayers([]);
     sendPartiallyGuessedPlayersChangedAction([]);
 
+    // Clear no clue players list
+    gameContext.setNoCluePlayers([]);
+    sendNoCluePlayersChangedAction([]);
+
     // Reset all lists - all players can buzz again for next song
     sendWaitingPlayersChangedAction([]);
     sendGuessedPlayersChangedAction([]);
@@ -646,11 +754,13 @@ export function resetAllPlayersForNewRound(gameContext: GameContextType): boolea
   gameContext.setWaitingPlayers([]);
   gameContext.setGuessedPlayers([]);
   gameContext.setPartiallyGuessedPlayers([]);
+  gameContext.setNoCluePlayers([]);
 
   // Broadcast to all players so they also reset their lists
   sendWaitingPlayersChangedAction([]);
   sendGuessedPlayersChangedAction([]);
   sendPartiallyGuessedPlayersChangedAction([]);
+  sendNoCluePlayersChangedAction([]);
 
   logger.debug('[Host] All players reset - waiting and guessed lists cleared');
   return pointsAwarded;
@@ -981,6 +1091,15 @@ function sendPartiallyGuessedPlayersChangedAction(partiallyGuessedPlayers: Playe
     action: 'partiallyGuessedPlayersChanged',
     data: {
       partiallyGuessedPlayers,
+    },
+  });
+}
+
+function sendNoCluePlayersChangedAction(noCluePlayers: Player[]) {
+  return sendHostAction({
+    action: 'noCluePlayersChanged',
+    data: {
+      noCluePlayers,
     },
   });
 }

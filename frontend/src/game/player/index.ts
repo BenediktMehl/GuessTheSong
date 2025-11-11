@@ -21,6 +21,7 @@ type WebSocketMessage = {
     buzzedPlayers?: Array<{ id: string; name: string; points: number }>;
     guessedPlayers?: Array<{ id: string; name: string; points: number }>;
     partiallyGuessedPlayers?: Array<{ id: string; name: string; points: number }>;
+    noCluePlayers?: Array<{ id: string; name: string; points: number }>;
     [key: string]: unknown;
   };
 };
@@ -565,6 +566,46 @@ export function joinGame(
             }
             break;
 
+          case 'noCluePlayersChanged':
+            // No clue players list updated
+            if (
+              message.data?.noCluePlayers !== undefined &&
+              Array.isArray(message.data.noCluePlayers)
+            ) {
+              // Handle empty array (reset) or populated array
+              const noClueCleared = message.data.noCluePlayers.length === 0;
+              if (noClueCleared) {
+                // Clear no clue list - all players reset for new round
+                logger.debug('[Player] Clearing no clue players list');
+                gameContext.setNoCluePlayers([]);
+              } else {
+                // Sync points from main players list to ensure correct points are displayed
+                // Use functional update to get the latest players list
+                gameContext.setNoCluePlayers((_currentNoClue) => {
+                  const syncedNoCluePlayers = message.data.noCluePlayers.map(
+                    (listPlayer: Player) => {
+                      // Get latest players list from context
+                      const playerWithPoints = gameContext.players.find(
+                        (p) => p.id === listPlayer.id
+                      );
+                      if (playerWithPoints && playerWithPoints.points !== listPlayer.points) {
+                        logger.debug(
+                          '[Player] Syncing no clue player points:',
+                          listPlayer.name,
+                          listPlayer.points,
+                          '->',
+                          playerWithPoints.points
+                        );
+                      }
+                      return playerWithPoints || listPlayer;
+                    }
+                  );
+                  return syncedNoCluePlayers;
+                });
+              }
+            }
+            break;
+
           case 'lastSongChanged':
             // Last song info updated (when a song ends)
             if (message.data?.lastSong !== undefined) {
@@ -657,6 +698,9 @@ function handlePlayerLeftForPlayer(gameContext: GameContextType, playerId: strin
   gameContext.setPartiallyGuessedPlayers((currentPartiallyGuessed) =>
     currentPartiallyGuessed.filter((player) => player.id !== playerId)
   );
+  gameContext.setNoCluePlayers((currentNoClue) =>
+    currentNoClue.filter((player) => player.id !== playerId)
+  );
 }
 
 function handlePlayerBuzzedNotificationForPlayer(
@@ -710,6 +754,10 @@ export function sendPlayerBuzzedAction(): boolean {
   return sendPlayerAction('player-buzzed');
 }
 
+export function sendPlayerNoClueAction(): boolean {
+  return sendPlayerAction('player-no-clue');
+}
+
 export function disconnectFromGame() {
   // Clear ALL module-level session variables FIRST to prevent auto-reconnection
   // This must happen before closing the WebSocket to ensure the onclose handler
@@ -742,6 +790,7 @@ export function leaveGame(gameContext: GameContextType) {
   gameContext.setWaitingPlayers([]);
   gameContext.setGuessedPlayers([]);
   gameContext.setPartiallyGuessedPlayers([]);
+  gameContext.setNoCluePlayers([]);
   gameContext.setStatus('notStarted');
   gameContext.setWsStatus('closed');
   gameContext.setBuzzerNotification(null);
