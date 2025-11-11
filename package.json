@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "prepare": "husky",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.3",
