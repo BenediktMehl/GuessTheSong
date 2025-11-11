@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
+import { InstallPrompt } from '../../components/InstallPrompt';
 import { useGameContext } from '../../game/context';
 import { getRandomFunnyName } from '../../game/names';
 import { joinGame } from '../../game/player';
@@ -211,6 +212,8 @@ export default function Join() {
           </div>
         </div>
       )}
+
+      <InstallPrompt />
     </main>
   );
 }
