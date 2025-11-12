@@ -103,21 +103,24 @@ export function InstallPrompt() {
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 sm:left-auto sm:right-4 sm:max-w-md">
       <Card
-        className="bg-white/95 backdrop-blur-lg"
+        className="bg-white/95 backdrop-blur-lg relative"
         bodyClassName="gap-3 sm:gap-4"
         footer={
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={handleDismiss} className="btn btn-sm btn-ghost">
-              Maybe later
+            <button type="button" onClick={handleInstall} className="btn btn-sm btn-primary">
+              Add to Home Screen
             </button>
-            {deferredPrompt && (
-              <button type="button" onClick={handleInstall} className="btn btn-sm btn-primary">
-                Install
-              </button>
-            )}
           </div>
         }
       >
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="absolute top-2 right-2 btn btn-xs btn-circle btn-ghost z-10"
+          aria-label="Close"
+        >
+          ✕
+        </button>
         <div className="flex items-start gap-3">
           <div className="text-3xl">📱</div>
           <div className="flex-1">
