@@ -167,6 +167,9 @@ export default function Game() {
   const [playlistId, setPlaylistId] = useState<string>(getSelectedPlaylistId());
   const gameStartedRef = useRef(false);
   const firstTrackPlayedRef = useRef(false);
+  const statePollingRef = useRef<number | null>(null);
+  const statePollingTimeoutRef = useRef<number | null>(null);
+  const listenerFiredRef = useRef(false);
 
   // Helper function to save current track as last song
   const saveLastSong = useCallback(
@@ -344,6 +347,69 @@ export default function Game() {
           // Start playlist playback with shuffle (Spotify picks random track)
           await startPlaylistPlayback();
           logger.debug('[Spotify] Playlist playback started successfully');
+
+          // Reset listener fired flag - will be set by player_state_changed listener
+          listenerFiredRef.current = false;
+
+          // Poll current state every 500ms for up to 5 seconds to ensure UI updates
+          // even if player_state_changed listener is delayed
+          const pollStartTime = Date.now();
+          const pollDuration = 5000; // 5 seconds
+          const pollInterval = 500; // 500ms
+
+          // Clear any existing polling
+          if (statePollingRef.current) {
+            clearInterval(statePollingRef.current);
+          }
+          if (statePollingTimeoutRef.current) {
+            clearTimeout(statePollingTimeoutRef.current);
+          }
+
+          statePollingRef.current = window.setInterval(async () => {
+            // Stop polling if listener has fired or if we've exceeded the duration
+            if (listenerFiredRef.current || Date.now() - pollStartTime > pollDuration) {
+              if (statePollingRef.current) {
+                clearInterval(statePollingRef.current);
+                statePollingRef.current = null;
+              }
+              return;
+            }
+
+            const currentPlayer = playerInstanceRef.current || player;
+            if (currentPlayer) {
+              try {
+                const state = await currentPlayer.getCurrentState();
+                if (state) {
+                  logger.debug('[Spotify] Polling detected playback state, updating UI');
+                  // Update UI state with current playback state
+                  setActive(true);
+                  setPaused(state.paused);
+                  setTrack(state.track_window.current_track);
+                  setCurrentPosition(state.position || 0);
+                  setTrackDuration(state.track_window.current_track.duration_ms || 0);
+                  previousTrackIdRef.current = state.track_window.current_track.id;
+                  previousPositionRef.current = state.position || 0;
+                  // Mark as fired so we stop polling
+                  listenerFiredRef.current = true;
+                  if (statePollingRef.current) {
+                    clearInterval(statePollingRef.current);
+                    statePollingRef.current = null;
+                  }
+                }
+              } catch (error) {
+                logger.error('[Spotify] Error polling playback state:', error);
+              }
+            }
+          }, pollInterval);
+
+          // Set timeout to stop polling after duration
+          statePollingTimeoutRef.current = window.setTimeout(() => {
+            if (statePollingRef.current) {
+              clearInterval(statePollingRef.current);
+              statePollingRef.current = null;
+            }
+            statePollingTimeoutRef.current = null;
+          }, pollDuration);
         } catch (error) {
           logger.error('[Spotify] Error starting playlist playback:', error);
           setSpotifyError(
@@ -351,12 +417,33 @@ export default function Game() {
           );
           // Reset flag on error so we can retry
           firstTrackPlayedRef.current = false;
+          // Clear polling on error
+          if (statePollingRef.current) {
+            clearInterval(statePollingRef.current);
+            statePollingRef.current = null;
+          }
+          if (statePollingTimeoutRef.current) {
+            clearTimeout(statePollingTimeoutRef.current);
+            statePollingTimeoutRef.current = null;
+          }
         }
       }
     };
 
     _playFirstTrack();
-  }, [deviceId, playlistId, status, startPlaylistPlayback]);
+
+    // Cleanup polling on unmount or when dependencies change
+    return () => {
+      if (statePollingRef.current) {
+        clearInterval(statePollingRef.current);
+        statePollingRef.current = null;
+      }
+      if (statePollingTimeoutRef.current) {
+        clearTimeout(statePollingTimeoutRef.current);
+        statePollingTimeoutRef.current = null;
+      }
+    };
+  }, [deviceId, playlistId, status, startPlaylistPlayback, player]);
 
   // Initialize player - reuse from lobby if available
   useEffect(() => {
@@ -445,13 +532,32 @@ export default function Game() {
         spotifyPlayer
           .getCurrentState()
           .then((state) => {
-            // If game has started, ignore existing playback state and let playFirstTrack handle it
+            // If game has started, check playback state after a delay to see if playback has started
             if (gameStartedRef.current) {
-              logger.debug('[Game] Game has started, ignoring existing playback state');
-              setActive(false);
-              setCurrentPosition(0);
-              setTrackDuration(0);
+              logger.debug('[Game] Game has started, checking playback state after delay');
               hasAttemptedTransferRef.current = true;
+              
+              // Check playback state after a short delay to see if playback has started
+              setTimeout(async () => {
+                try {
+                  const delayedState = await spotifyPlayer.getCurrentState();
+                  if (delayedState) {
+                    logger.debug('[Game] Playback has started, updating UI state');
+                    setActive(true);
+                    setPaused(delayedState.paused);
+                    setTrack(delayedState.track_window.current_track);
+                    setCurrentPosition(delayedState.position || 0);
+                    setTrackDuration(delayedState.track_window.current_track.duration_ms || 0);
+                    previousTrackIdRef.current = delayedState.track_window.current_track.id;
+                    previousPositionRef.current = delayedState.position || 0;
+                  } else {
+                    logger.debug('[Game] No playback state yet, waiting for player_state_changed listener');
+                    // Let player_state_changed listener handle state update when playback starts
+                  }
+                } catch (error) {
+                  logger.error('[Game] Error getting delayed state:', error);
+                }
+              }, 200);
               return;
             }
 
@@ -510,213 +616,9 @@ export default function Game() {
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
-        if (!state) {
-          logger.debug(
-            '[Spotify] Player state changed: null state - playback may have been transferred away'
-          );
-          setActive(false);
-          setTrack(track);
-          setCurrentPosition(0);
-          setTrackDuration(0);
-          previousTrackIdRef.current = '';
-          hasLoopedRef.current = false;
-          isChangingTrackRef.current = false;
-          return;
-        }
+        // Mark that listener has fired - stop polling
+        listenerFiredRef.current = true;
 
-        logger.debug('[Spotify] Player state changed:', {
-          paused: state.paused,
-          track: state.track_window.current_track.name,
-          position: state.position,
-        });
-
-        const newTrackId = state.track_window.current_track.id;
-        const position = state.position || 0;
-        const duration = state.track_window.current_track.duration_ms || 0;
-        const previousPosition = previousPositionRef.current;
-
-        // Check if track changed (different track)
-        const trackChanged =
-          previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
-
-        if (trackChanged) {
-          // New track started - clear last song and enable repeat mode
-          logger.debug('[Spotify] New track started, clearing last song and enabling repeat mode');
-          setLastSong(null);
-          sendLastSongChangedAction(null);
-          previousTrackIdRef.current = newTrackId;
-          hasLoopedRef.current = false;
-          previousPositionRef.current = position;
-          // Clear the track changing flag since we've detected the change
-          isChangingTrackRef.current = false;
-          // Enable repeat mode only once when track change is detected
-          enableRepeatMode(newTrackId);
-
-          // If autoplay is OFF and we have a pending pause, pause the track
-          if (pendingPauseRef.current && !state.paused) {
-            logger.debug('[Spotify] Autoplay is OFF, pausing new track');
-            pendingPauseRef.current = false;
-            const currentPlayer = playerInstanceRef.current;
-            if (currentPlayer) {
-              currentPlayer.togglePlay().catch((error) => {
-                logger.error('[Host Game] Error pausing after track change:', error);
-              });
-            }
-            // Update state to reflect pause and new track
-            setPaused(true);
-            setTrack(state.track_window.current_track);
-            setCurrentPosition(position);
-            setTrackDuration(duration);
-            setActive(true);
-            return;
-          }
-        } else if (previousTrackIdRef.current === '') {
-          // First time we see this track - enable repeat mode
-          previousTrackIdRef.current = newTrackId;
-          hasLoopedRef.current = false;
-          previousPositionRef.current = position;
-          // Clear the track changing flag if it was set
-          isChangingTrackRef.current = false;
-          enableRepeatMode(newTrackId);
-        } else {
-          // Same track - check if it looped (position jumped from near end to near start)
-          // Only check for loops if we're not intentionally changing tracks
-          if (
-            !isChangingTrackRef.current &&
-            duration > 0 &&
-            previousPosition > duration * 0.8 && // Was near the end (>80%)
-            position < duration * 0.1 && // Now near the start (<10%)
-            !hasLoopedRef.current // Haven't detected loop yet
-          ) {
-            // Song looped - pause it
-            logger.debug('[Spotify] Song looped (second time started), pausing');
-            hasLoopedRef.current = true;
-            if (!state.paused) {
-              const currentPlayer = playerInstanceRef.current;
-              if (currentPlayer) {
-                currentPlayer.togglePlay().catch((error) => {
-                  logger.error('[Host Game] Error pausing after loop:', error);
-                });
-              }
-            }
-            // Show full duration
-            setCurrentPosition(Math.ceil(duration / 1000) * 1000);
-            setPaused(true);
-            return; // Don't update position normally
-          }
-        }
-
-        // Update state normally
-        setTrack(state.track_window.current_track);
-        setCurrentPosition(position);
-        setTrackDuration(duration);
-        setPaused(state.paused);
-        setActive(true);
-      });
-
-      spotifyPlayer.connect();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = 'https://sdk.scdn.co/spotify-player.js';
-    script.async = true;
-
-    document.body.appendChild(script);
-
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      const storedVolume = localStorage.getItem(SPOTIFY_VOLUME_KEY);
-      const initialVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
-      const spotifyPlayer = new window.Spotify.Player({
-        name: 'Guess The Song',
-        getOAuthToken: (cb) => {
-          const token = localStorage.getItem('access_token');
-          if (token) {
-            cb(token);
-          }
-        },
-        volume: initialVolume,
-      });
-
-      setPlayer(spotifyPlayer);
-      // Store player instance for cleanup
-      playerInstanceRef.current = spotifyPlayer;
-
-      spotifyPlayer.addListener('ready', ({ device_id }) => {
-        logger.debug('[Game] Ready with Device ID', device_id);
-        setDeviceId(device_id);
-        localStorage.setItem('spotify_device_id', device_id);
-        setSpotifyError(null); // Clear error on successful connection
-
-        // Check initial state when ready
-        spotifyPlayer
-          .getCurrentState()
-          .then((state) => {
-            // If game has started, ignore existing playback state and let playFirstTrack handle it
-            if (gameStartedRef.current) {
-              logger.debug('[Game] Game has started, ignoring existing playback state');
-              setActive(false);
-              setCurrentPosition(0);
-              setTrackDuration(0);
-              hasAttemptedTransferRef.current = true;
-              return;
-            }
-
-            if (state) {
-              logger.debug('[Game] Initial state:', {
-                paused: state.paused,
-                track: state.track_window.current_track.name,
-                position: state.position,
-              });
-              setActive(true);
-              setPaused(state.paused);
-              setTrack(state.track_window.current_track);
-              setCurrentPosition(state.position || 0);
-              setTrackDuration(state.track_window.current_track.duration_ms || 0);
-              hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
-            } else {
-              logger.debug(
-                '[Game] No initial playback state - device should already be ready from lobby'
-              );
-              setActive(false);
-              setCurrentPosition(0);
-              setTrackDuration(0);
-              hasAttemptedTransferRef.current = true;
-              // Don't attempt transfer here - should already be done in lobby
-            }
-          })
-          .catch((error) => {
-            logger.error('[Game] Error getting initial state:', error);
-          });
-      });
-
-      spotifyPlayer.addListener('not_ready', ({ device_id }) => {
-        logger.debug('[Game] Device ID has gone offline', device_id);
-        setActive(false);
-      });
-
-      spotifyPlayer.addListener('authentication_error', ({ message }) => {
-        logger.error('[Spotify] Authentication error:', message);
-        setSpotifyError(
-          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
-        );
-      });
-
-      spotifyPlayer.addListener('initialization_error', ({ message }) => {
-        logger.error('[Spotify] Initialization error:', message);
-        setSpotifyError(
-          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
-        );
-      });
-
-      spotifyPlayer.addListener('account_error', ({ message }) => {
-        logger.error('[Spotify] Account error:', message);
-        setSpotifyError(
-          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
-        );
-      });
-
-      spotifyPlayer.addListener('player_state_changed', (state) => {
         if (!state) {
           logger.debug(
             '[Spotify] Player state changed: null state - playback may have been transferred away'
@@ -823,7 +725,7 @@ export default function Game() {
           }
         }
 
-        // Update state normally
+        // Update state normally - always update track, position, duration, paused, and active
         setTrack(state.track_window.current_track);
         setCurrentPosition(position);
         setTrackDuration(duration);
@@ -831,7 +733,247 @@ export default function Game() {
         setActive(true);
         // Update previous position ref
         previousPositionRef.current = position;
-        // Don't call getCurrentState() here - it can cause loops and we already have the state
+      });
+
+      spotifyPlayer.connect();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://sdk.scdn.co/spotify-player.js';
+    script.async = true;
+
+    document.body.appendChild(script);
+
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      const storedVolume = localStorage.getItem(SPOTIFY_VOLUME_KEY);
+      const initialVolume = storedVolume ? parseFloat(storedVolume) : 0.5;
+      const spotifyPlayer = new window.Spotify.Player({
+        name: 'Guess The Song',
+        getOAuthToken: (cb) => {
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            cb(token);
+          }
+        },
+        volume: initialVolume,
+      });
+
+      setPlayer(spotifyPlayer);
+      // Store player instance for cleanup
+      playerInstanceRef.current = spotifyPlayer;
+
+      spotifyPlayer.addListener('ready', ({ device_id }) => {
+        logger.debug('[Game] Ready with Device ID', device_id);
+        setDeviceId(device_id);
+        localStorage.setItem('spotify_device_id', device_id);
+        setSpotifyError(null); // Clear error on successful connection
+
+        // Check initial state when ready
+        spotifyPlayer
+          .getCurrentState()
+          .then((state) => {
+            // If game has started, check playback state after a delay to see if playback has started
+            if (gameStartedRef.current) {
+              logger.debug('[Game] Game has started, checking playback state after delay');
+              hasAttemptedTransferRef.current = true;
+              
+              // Check playback state after a short delay to see if playback has started
+              setTimeout(async () => {
+                try {
+                  const delayedState = await spotifyPlayer.getCurrentState();
+                  if (delayedState) {
+                    logger.debug('[Game] Playback has started, updating UI state');
+                    setActive(true);
+                    setPaused(delayedState.paused);
+                    setTrack(delayedState.track_window.current_track);
+                    setCurrentPosition(delayedState.position || 0);
+                    setTrackDuration(delayedState.track_window.current_track.duration_ms || 0);
+                    previousTrackIdRef.current = delayedState.track_window.current_track.id;
+                    previousPositionRef.current = delayedState.position || 0;
+                  } else {
+                    logger.debug('[Game] No playback state yet, waiting for player_state_changed listener');
+                    // Let player_state_changed listener handle state update when playback starts
+                  }
+                } catch (error) {
+                  logger.error('[Game] Error getting delayed state:', error);
+                }
+              }, 200);
+              return;
+            }
+
+            if (state) {
+              logger.debug('[Game] Initial state:', {
+                paused: state.paused,
+                track: state.track_window.current_track.name,
+                position: state.position,
+              });
+              setActive(true);
+              setPaused(state.paused);
+              setTrack(state.track_window.current_track);
+              setCurrentPosition(state.position || 0);
+              setTrackDuration(state.track_window.current_track.duration_ms || 0);
+              hasAttemptedTransferRef.current = true; // Mark as attempted since we have state
+            } else {
+              logger.debug(
+                '[Game] No initial playback state - device should already be ready from lobby'
+              );
+              setActive(false);
+              setCurrentPosition(0);
+              setTrackDuration(0);
+              hasAttemptedTransferRef.current = true;
+              // Don't attempt transfer here - should already be done in lobby
+            }
+          })
+          .catch((error) => {
+            logger.error('[Game] Error getting initial state:', error);
+          });
+      });
+
+      spotifyPlayer.addListener('not_ready', ({ device_id }) => {
+        logger.debug('[Game] Device ID has gone offline', device_id);
+        setActive(false);
+      });
+
+      spotifyPlayer.addListener('authentication_error', ({ message }) => {
+        logger.error('[Spotify] Authentication error:', message);
+        setSpotifyError(
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
+        );
+      });
+
+      spotifyPlayer.addListener('initialization_error', ({ message }) => {
+        logger.error('[Spotify] Initialization error:', message);
+        setSpotifyError(
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
+        );
+      });
+
+      spotifyPlayer.addListener('account_error', ({ message }) => {
+        logger.error('[Spotify] Account error:', message);
+        setSpotifyError(
+          'Something went wrong with the Spotify connection. Please reconnect. Go back to the lobby and start again.'
+        );
+      });
+
+      spotifyPlayer.addListener('player_state_changed', (state) => {
+        // Mark that listener has fired - stop polling
+        listenerFiredRef.current = true;
+
+        if (!state) {
+          logger.debug(
+            '[Spotify] Player state changed: null state - playback may have been transferred away'
+          );
+          setActive(false);
+          setTrack(track);
+          setCurrentPosition(0);
+          setTrackDuration(0);
+          previousTrackIdRef.current = '';
+          hasLoopedRef.current = false;
+          isChangingTrackRef.current = false;
+          return;
+        }
+
+        logger.debug('[Spotify] Player state changed:', {
+          paused: state.paused,
+          track: state.track_window.current_track.name,
+          position: state.position,
+        });
+
+        const newTrackId = state.track_window.current_track.id;
+        const position = state.position || 0;
+        const duration = state.track_window.current_track.duration_ms || 0;
+        const previousPosition = previousPositionRef.current;
+
+        // Check if track changed (different track)
+        const trackChanged =
+          previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
+
+        if (trackChanged) {
+          // New track started - clear last song and enable repeat mode
+          logger.debug('[Spotify] New track started, clearing last song and enabling repeat mode');
+          setLastSong(null);
+          sendLastSongChangedAction(null);
+          previousTrackIdRef.current = newTrackId;
+          hasLoopedRef.current = false;
+          previousPositionRef.current = position;
+          // Clear the track changing flag since we've detected the change
+          isChangingTrackRef.current = false;
+          // Enable repeat mode only once when track change is detected
+          enableRepeatMode(newTrackId);
+
+          // If autoplay is OFF and we have a pending pause, pause the track
+          if (pendingPauseRef.current && !state.paused) {
+            logger.debug('[Spotify] Autoplay is OFF, pausing new track');
+            pendingPauseRef.current = false;
+            const currentPlayer = playerInstanceRef.current;
+            if (currentPlayer) {
+              currentPlayer.togglePlay().catch((error) => {
+                logger.error('[Host Game] Error pausing after track change:', error);
+              });
+            }
+            // Update state to reflect pause and new track
+            setPaused(true);
+            setTrack(state.track_window.current_track);
+            setCurrentPosition(position);
+            setTrackDuration(duration);
+            setActive(true);
+            return;
+          }
+        } else if (previousTrackIdRef.current === '') {
+          // First time we see this track - enable repeat mode
+          previousTrackIdRef.current = newTrackId;
+          hasLoopedRef.current = false;
+          previousPositionRef.current = position;
+          // Clear the track changing flag if it was set
+          isChangingTrackRef.current = false;
+          enableRepeatMode(newTrackId);
+        } else {
+          // Same track - check if it looped (position jumped from near end to near start)
+          // Only check for loops if we're not intentionally changing tracks
+          if (
+            !isChangingTrackRef.current &&
+            duration > 0 &&
+            previousPosition > duration * 0.8 && // Was near the end (>80%)
+            position < duration * 0.1 && // Now near the start (<10%)
+            !hasLoopedRef.current // Haven't detected loop yet
+          ) {
+            // Song looped - award partial points if any players partially guessed, then save as last song and pause
+            logger.debug(
+              '[Spotify] Song looped (second time started), awarding partial points and pausing'
+            );
+            // Award 0.5 points to partially guessed players if the round ended without a correct guess
+            awardPartialPointsIfRoundEnded(gameContext);
+            saveLastSong(state.track_window.current_track);
+            hasLoopedRef.current = true;
+            if (!state.paused) {
+              const currentPlayer = playerInstanceRef.current;
+              if (currentPlayer) {
+                currentPlayer.togglePlay().catch((error) => {
+                  logger.error('[Host Game] Error pausing after loop:', error);
+                });
+              }
+            }
+            // Show full duration
+            const roundedDuration = Math.ceil(duration / 1000) * 1000;
+            setCurrentPosition(roundedDuration);
+            previousPositionRef.current = roundedDuration;
+            setPaused(true);
+            setTrack(state.track_window.current_track);
+            setTrackDuration(duration);
+            setActive(true);
+            return; // Don't update position normally
+          }
+        }
+
+        // Update state normally - always update track, position, duration, paused, and active
+        setTrack(state.track_window.current_track);
+        setCurrentPosition(position);
+        setTrackDuration(duration);
+        setPaused(state.paused);
+        setActive(true);
+        // Update previous position ref
+        previousPositionRef.current = position;
       });
 
       spotifyPlayer.connect();
@@ -904,8 +1046,9 @@ export default function Game() {
     }
 
     try {
+      const seekPosition = Math.floor(positionMs);
       const response = await fetch(
-        `https://api.spotify.com/v1/me/player/seek?position_ms=${Math.floor(positionMs)}`,
+        `https://api.spotify.com/v1/me/player/seek?position_ms=${seekPosition}`,
         {
           method: 'PUT',
           headers: {
@@ -915,8 +1058,10 @@ export default function Game() {
       );
 
       if (response.status === 204) {
-        logger.debug('[Spotify] Seeked to position:', positionMs);
-        setCurrentPosition(positionMs);
+        logger.debug('[Spotify] Seeked to position:', seekPosition);
+        setCurrentPosition(seekPosition);
+        // Update previousPositionRef to the new position so position updates continue correctly
+        previousPositionRef.current = seekPosition;
       } else {
         logger.error('[Spotify] Failed to seek:', response.status);
       }
@@ -948,8 +1093,9 @@ export default function Game() {
 
   // Update position periodically when playing (only if not seeking)
   useEffect(() => {
-    if (!is_active || !player || is_paused || isSeeking) {
-      // Clear interval if paused, inactive, or user is seeking
+    // Check for valid track and player instead of just is_active
+    if (!player || !current_track.name || trackDuration <= 0) {
+      // Clear interval if no player, no track, or no duration
       if (positionUpdateIntervalRef.current) {
         clearInterval(positionUpdateIntervalRef.current);
         positionUpdateIntervalRef.current = null;
@@ -958,43 +1104,62 @@ export default function Game() {
     }
 
     // Update position periodically (every 500ms)
+    // Only update if not seeking - but continue checking even if paused
     positionUpdateIntervalRef.current = window.setInterval(async () => {
       const currentPlayer = playerInstanceRef.current || player;
       if (currentPlayer && !isSeeking) {
         try {
           const state = await currentPlayer.getCurrentState();
-          if (state && !state.paused) {
-            const newPosition = state.position || 0;
-            const currentDuration = state.track_window.current_track.duration_ms || trackDuration;
+          if (state) {
+            // Always update track state if it changed
             const currentTrackId = state.track_window.current_track.id;
-            const prevPos = previousPositionRef.current;
+            if (currentTrackId !== previousTrackIdRef.current) {
+              // Track changed - update UI state
+              setTrack(state.track_window.current_track);
+              setTrackDuration(state.track_window.current_track.duration_ms || 0);
+              setActive(true);
+              previousTrackIdRef.current = currentTrackId;
+            }
 
-            // Check if song looped (position jumped from near end to near start)
-            if (
-              currentDuration > 0 &&
-              previousTrackIdRef.current === currentTrackId &&
-              prevPos > currentDuration * 0.8 && // Was near the end (>80%)
-              newPosition < currentDuration * 0.1 && // Now near the start (<10%)
-              !hasLoopedRef.current // Haven't detected loop yet
-            ) {
-              // Song looped - award partial points if any players partially guessed, then save as last song and pause
-              logger.debug(
-                '[Host Game] Song looped (detected in interval), awarding partial points and pausing'
-              );
-              // Award 0.5 points to partially guessed players if the round ended without a correct guess
-              awardPartialPointsIfRoundEnded(gameContext);
-              if (state?.track_window?.current_track) {
-                saveLastSong(state.track_window.current_track);
+            // Update position if playing
+            if (!state.paused) {
+              const newPosition = state.position || 0;
+              const currentDuration = state.track_window.current_track.duration_ms || trackDuration;
+              const prevPos = previousPositionRef.current;
+
+              // Check if song looped (position jumped from near end to near start)
+              if (
+                currentDuration > 0 &&
+                previousTrackIdRef.current === currentTrackId &&
+                prevPos > currentDuration * 0.8 && // Was near the end (>80%)
+                newPosition < currentDuration * 0.1 && // Now near the start (<10%)
+                !hasLoopedRef.current // Haven't detected loop yet
+              ) {
+                // Song looped - award partial points if any players partially guessed, then save as last song and pause
+                logger.debug(
+                  '[Host Game] Song looped (detected in interval), awarding partial points and pausing'
+                );
+                // Award 0.5 points to partially guessed players if the round ended without a correct guess
+                awardPartialPointsIfRoundEnded(gameContext);
+                if (state?.track_window?.current_track) {
+                  saveLastSong(state.track_window.current_track);
+                }
+                hasLoopedRef.current = true;
+                await currentPlayer.togglePlay();
+                setPaused(true);
+                // Show full duration
+                setCurrentPosition(Math.ceil(currentDuration / 1000) * 1000);
+                previousPositionRef.current = Math.ceil(currentDuration / 1000) * 1000;
+              } else {
+                // Update position normally
+                setCurrentPosition(newPosition);
+                previousPositionRef.current = newPosition;
               }
-              hasLoopedRef.current = true;
-              await currentPlayer.togglePlay();
-              setPaused(true);
-              // Show full duration
-              setCurrentPosition(Math.ceil(currentDuration / 1000) * 1000);
             } else {
-              // Update position normally
-              setCurrentPosition(newPosition);
-              previousPositionRef.current = newPosition;
+              // Update paused state if it changed
+              if (!is_paused) {
+                setPaused(true);
+              }
             }
           }
         } catch (error) {
@@ -1009,7 +1174,7 @@ export default function Game() {
         positionUpdateIntervalRef.current = null;
       }
     };
-  }, [isSeeking, is_active, is_paused, player, saveLastSong, trackDuration, gameContext]);
+  }, [isSeeking, player, current_track.name, trackDuration, is_paused, saveLastSong, gameContext]);
 
   // Determine layout class for track display section - always center
   const trackDisplayClass =
@@ -1468,7 +1633,7 @@ export default function Game() {
                 Back to Lobby
               </button>
             </div>
-          ) : !is_active ? (
+          ) : !player || !deviceId ? (
             <div className="flex flex-col gap-2 sm:gap-3">
               <div className="alert alert-warning">
                 <svg
@@ -1519,8 +1684,8 @@ export default function Game() {
             </div>
           ) : (
             <div className="flex flex-col gap-2 sm:gap-3">
-              {/* Timeline - always visible when track is playing */}
-              {current_track.name && is_active && trackDuration > 0 && (
+              {/* Timeline - visible when track and duration are available */}
+              {current_track.name && trackDuration > 0 && (
                 <div className="flex flex-col gap-1.5 sm:gap-2">
                   <input
                     type="range"
@@ -1673,7 +1838,7 @@ export default function Game() {
                       );
                     }
                   }}
-                  disabled={!player || !is_active}
+                  disabled={!player}
                 >
                   {is_paused ? 'PLAY' : 'PAUSE'}
                 </button>
