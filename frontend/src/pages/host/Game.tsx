@@ -215,69 +215,66 @@ export default function Game() {
   }, []);
 
   // Helper function to handle player ready state check
-  const handlePlayerReadyState = useCallback(
-    async (spotifyPlayer: SpotifyPlayer) => {
-      try {
-        const state = await spotifyPlayer.getCurrentState();
-        // If game has started, check playback state after a delay to see if playback has started
-        if (gameStartedRef.current) {
-          logger.debug('[Game] Game has started, checking playback state after delay');
-          hasAttemptedTransferRef.current = true;
+  const handlePlayerReadyState = useCallback(async (spotifyPlayer: SpotifyPlayer) => {
+    try {
+      const state = await spotifyPlayer.getCurrentState();
+      // If game has started, check playback state after a delay to see if playback has started
+      if (gameStartedRef.current) {
+        logger.debug('[Game] Game has started, checking playback state after delay');
+        hasAttemptedTransferRef.current = true;
 
-          // Check playback state after a short delay to see if playback has started
-          setTimeout(async () => {
-            try {
-              const delayedState = await spotifyPlayer.getCurrentState();
-              if (delayedState) {
-                logger.debug('[Game] Playback has started, updating UI state');
-                setActive(true);
-                setPaused(delayedState.paused);
-                setTrack(delayedState.track_window.current_track);
-                setCurrentPosition(delayedState.position || 0);
-                setTrackDuration(delayedState.track_window.current_track.duration_ms || 0);
-                previousTrackIdRef.current = delayedState.track_window.current_track.id;
-                previousPositionRef.current = delayedState.position || 0;
-              } else {
-                logger.debug(
-                  '[Game] No playback state yet, waiting for player_state_changed listener'
-                );
-                // Let player_state_changed listener handle state update when playback starts
-              }
-            } catch (error) {
-              logger.error('[Game] Error getting delayed state:', error);
+        // Check playback state after a short delay to see if playback has started
+        setTimeout(async () => {
+          try {
+            const delayedState = await spotifyPlayer.getCurrentState();
+            if (delayedState) {
+              logger.debug('[Game] Playback has started, updating UI state');
+              setActive(true);
+              setPaused(delayedState.paused);
+              setTrack(delayedState.track_window.current_track);
+              setCurrentPosition(delayedState.position || 0);
+              setTrackDuration(delayedState.track_window.current_track.duration_ms || 0);
+              previousTrackIdRef.current = delayedState.track_window.current_track.id;
+              previousPositionRef.current = delayedState.position || 0;
+            } else {
+              logger.debug(
+                '[Game] No playback state yet, waiting for player_state_changed listener'
+              );
+              // Let player_state_changed listener handle state update when playback starts
             }
-          }, 200);
-          return;
-        }
-
-        if (state) {
-          logger.debug('[Game] Initial state:', {
-            paused: state.paused,
-            track: state.track_window.current_track.name,
-            position: state.position,
-          });
-          setActive(true);
-          setPaused(state.paused);
-          setTrack(state.track_window.current_track);
-          setCurrentPosition(state.position || 0);
-          setTrackDuration(state.track_window.current_track.duration_ms || 0);
-          hasAttemptedTransferRef.current = true;
-        } else {
-          logger.debug(
-            '[Game] No initial playback state - device should already be ready from lobby'
-          );
-          setActive(false);
-          setCurrentPosition(0);
-          setTrackDuration(0);
-          hasAttemptedTransferRef.current = true;
-          // Don't attempt transfer here - should already be done in lobby
-        }
-      } catch (error) {
-        logger.error('[Game] Error getting initial state:', error);
+          } catch (error) {
+            logger.error('[Game] Error getting delayed state:', error);
+          }
+        }, 200);
+        return;
       }
-    },
-    []
-  );
+
+      if (state) {
+        logger.debug('[Game] Initial state:', {
+          paused: state.paused,
+          track: state.track_window.current_track.name,
+          position: state.position,
+        });
+        setActive(true);
+        setPaused(state.paused);
+        setTrack(state.track_window.current_track);
+        setCurrentPosition(state.position || 0);
+        setTrackDuration(state.track_window.current_track.duration_ms || 0);
+        hasAttemptedTransferRef.current = true;
+      } else {
+        logger.debug(
+          '[Game] No initial playback state - device should already be ready from lobby'
+        );
+        setActive(false);
+        setCurrentPosition(0);
+        setTrackDuration(0);
+        hasAttemptedTransferRef.current = true;
+        // Don't attempt transfer here - should already be done in lobby
+      }
+    } catch (error) {
+      logger.error('[Game] Error getting initial state:', error);
+    }
+  }, []);
 
   // Helper function to handle player state changes
   const handlePlayerStateChanged = useCallback(
@@ -311,8 +308,7 @@ export default function Game() {
       const previousPosition = previousPositionRef.current;
 
       // Check if track changed (different track)
-      const trackChanged =
-        previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
+      const trackChanged = previousTrackIdRef.current && previousTrackIdRef.current !== newTrackId;
 
       if (trackChanged) {
         // New track started - clear last song and enable repeat mode
