@@ -8,6 +8,19 @@ import { DevFloating } from './components/DevFloating.tsx';
 import { GameProvider } from './game/context';
 import { App } from './pages/Welcome';
 
+// Unregister any existing service workers to prevent redirect loops
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().then((success) => {
+        if (success) {
+          console.log('Service worker unregistered successfully');
+        }
+      });
+    }
+  });
+}
+
 document.title = appConfig.displayName;
 
 const rootElement = document.getElementById('root');
