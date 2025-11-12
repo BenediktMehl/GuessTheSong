@@ -38,7 +38,10 @@ export default function SpotifyCallback() {
       }
 
       if (!code) {
-        setError('No authorization code received');
+        // If no code parameter, redirect to home instead of showing error
+        // This handles cases like hard refresh on the callback page
+        logger.warn('No authorization code received, redirecting to home');
+        navigate('/', { replace: true });
         return;
       }
 

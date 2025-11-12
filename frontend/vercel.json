@@ -13,6 +13,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/host-lobby",
+      "destination": "/index.html"
+    },
+    {
       "source": "/settings",
       "destination": "/index.html"
     },
@@ -27,7 +31,7 @@
   ],
   "redirects": [
     {
-      "source": "/((?!join|lobby|spotifycallback|settings|hostgame|play|_next|.*\\..*).*)",
+      "source": "/((?!join|lobby|spotifycallback|host-lobby|settings|hostgame|play|_next|.*\\..*).+)",
       "destination": "/",
       "permanent": false
     }
