@@ -47,6 +47,25 @@ Run the Vitest suite:
 npm test
 ```
 
+## Deployment (Vercel)
+
+The frontend is deployed to Vercel. To restrict deployments to only the `main` branch:
+
+1. **Configure Ignored Build Step in Vercel Dashboard**:
+   - Go to your project in the Vercel Dashboard
+   - Navigate to **Settings** > **Build & Development Settings**
+   - In the **Ignored Build Step** field, enter:
+     ```bash
+     if [ "$VERCEL_GIT_COMMIT_REF" != "main" ]; then echo "Skipping build for branch: $VERCEL_GIT_COMMIT_REF" && exit 0; fi; exit 1
+     ```
+   - Or use the script from `scripts/vercel-ignore-build.sh`:
+     ```bash
+     bash scripts/vercel-ignore-build.sh
+     ```
+   - Click **Save**
+
+This will skip builds (and deployments) for any branch other than `main`. Only commits to the `main` branch will trigger deployments.
+
 ## Notable Directories
 
 - `src/components/` – Reusable UI elements (GameCode, PlayersLobby, Card, etc.)
