@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BackendOffline } from '../../components/BackendOffline';
 import { Card } from '../../components/Card';
 import GameCode from '../../components/GameCode';
+import { InstallPrompt } from '../../components/InstallPrompt';
 import PlayersLobby from '../../components/PlayersLobby';
 import { useGameContext } from '../../game/context';
 import { getStoredHostSession, startGame, useGameInitializer } from '../../game/host';
@@ -814,6 +815,7 @@ export default function Lobby() {
           </div>
         </>
       ) : null}
+      <InstallPrompt />
     </main>
   );
 }

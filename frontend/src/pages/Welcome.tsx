@@ -1,6 +1,7 @@
 import appConfig from '@app-config';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 import { BackendOffline } from '../components/BackendOffline';
+import { InstallPrompt } from '../components/InstallPrompt';
 import { useGameContext } from '../game/context';
 import HostGame from './host/Game';
 import HostLobby from './host/Lobby';
@@ -53,6 +54,7 @@ function Welcome() {
           </div>
         </div>
       </div>
+      <InstallPrompt />
     </main>
   );
 }
