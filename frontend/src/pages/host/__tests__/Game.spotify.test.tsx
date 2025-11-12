@@ -700,7 +700,7 @@ describe('Spotify SDK Integration', () => {
 
     // Assert
     await waitFor(() => {
-      const pauseButton = screen.getByText('PLAY');
+      const pauseButton = screen.getByRole('button', { name: /play/i });
       expect(pauseButton).toBeInTheDocument();
     });
   });
@@ -749,11 +749,11 @@ describe('Spotify SDK Integration', () => {
     }
 
     await waitFor(() => {
-      const pauseButton = screen.getByText('PAUSE');
+      const pauseButton = screen.getByRole('button', { name: /pause/i });
       expect(pauseButton).toBeInTheDocument();
     });
 
-    const pauseButton = screen.getByText('PAUSE');
+    const pauseButton = screen.getByRole('button', { name: /pause/i });
     pauseButton.click();
 
     // Assert

@@ -1553,7 +1553,8 @@ export default function Game() {
               <div className="flex gap-1.5 sm:gap-2">
                 <button
                   type="button"
-                  className={`flex-1 btn-sm sm:btn-md md:btn-lg ${!autoplay && is_paused ? 'btn btn-success animate-pulse' : 'btn btn-warning'}`}
+                  aria-label={is_paused ? 'Play' : 'Pause'}
+                  className="btn btn-primary flex-1 btn-sm sm:btn-md md:btn-lg"
                   onClick={async () => {
                     if (!player) {
                       logger.error('[Spotify] Player not available');
