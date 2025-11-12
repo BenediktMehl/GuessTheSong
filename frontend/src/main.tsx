@@ -1,5 +1,6 @@
 import './index.css';
 import appConfig from '@app-config';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Background } from './Background.tsx';
@@ -22,6 +23,8 @@ createRoot(rootElement).render(
       <div className="relative z-10">
         <App />
       </div>
+      {/* Vercel Speed Insights (no-op in dev) */}
+      <SpeedInsights />
     </GameProvider>
   </StrictMode>
 );
