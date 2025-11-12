@@ -36,6 +36,10 @@ const mockGameContext = {
   setStatus: vi.fn(),
   lastSong: null,
   setLastSong: vi.fn(),
+  deviceId: '',
+  setDeviceId: vi.fn(),
+  is_active: false,
+  setIsActive: vi.fn(),
 };
 
 // Mock GameProvider
@@ -659,6 +663,8 @@ describe('Spotify SDK Integration', () => {
   it('should update pause state when player_state_changed event fires', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    mockGameContext.deviceId = 'test-device-id';
+    mockGameContext.is_active = true;
     const mockState = {
       paused: true,
       position: 0,
@@ -677,7 +683,13 @@ describe('Spotify SDK Integration', () => {
       },
     };
 
-    // Act
+    // Simulate device ready event
+    let readyCallback: ((data: { device_id: string }) => void) | null = null;
+    mockPlayer.addListener.mockImplementation((event: string, cb: unknown) => {
+      if (event === 'ready') readyCallback = cb as (data: { device_id: string }) => void;
+      if (event === 'player_state_changed') stateChangeCallback = cb as (s: any) => void;
+      return true;
+    });
     render(
       <MemoryRouter>
         <GameProvider>
@@ -685,17 +697,13 @@ describe('Spotify SDK Integration', () => {
         </GameProvider>
       </MemoryRouter>
     );
-
-    await waitFor(() => {
-      expect(stateChangeCallback).toBeTruthy();
-    });
-
+    // Fire ready event to set device
+    await act(async () => { if (readyCallback) readyCallback({ device_id: 'test-device-id' }); });
+    await waitFor(() => expect(stateChangeCallback).toBeTruthy());
+    // Fire player_state_changed for paused/playing states as needed for each test
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      const callback = stateChangeCallback;
-      act(() => {
-        callback(mockState);
-      });
+      act(() => { stateChangeCallback(mockState); });
     }
 
     // Assert
@@ -708,6 +716,8 @@ describe('Spotify SDK Integration', () => {
   it('should call togglePlay when pause/play button is clicked', async () => {
     // Arrange
     localStorage.setItem('access_token', 'test-token-123');
+    mockGameContext.deviceId = 'test-device-id';
+    mockGameContext.is_active = true;
     const mockState = {
       paused: false,
       position: 0,
@@ -726,7 +736,13 @@ describe('Spotify SDK Integration', () => {
       },
     };
 
-    // Act
+    // Simulate device ready event
+    let readyCallback: ((data: { device_id: string }) => void) | null = null;
+    mockPlayer.addListener.mockImplementation((event: string, cb: unknown) => {
+      if (event === 'ready') readyCallback = cb as (data: { device_id: string }) => void;
+      if (event === 'player_state_changed') stateChangeCallback = cb as (s: any) => void;
+      return true;
+    });
     render(
       <MemoryRouter>
         <GameProvider>
@@ -734,18 +750,13 @@ describe('Spotify SDK Integration', () => {
         </GameProvider>
       </MemoryRouter>
     );
-
-    await waitFor(() => {
-      expect(stateChangeCallback).toBeTruthy();
-    });
-
-    // Set player as active
+    // Fire ready event to set device
+    await act(async () => { if (readyCallback) readyCallback({ device_id: 'test-device-id' }); });
+    await waitFor(() => expect(stateChangeCallback).toBeTruthy());
+    // Fire player_state_changed for paused/playing states as needed for each test
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      const callback = stateChangeCallback;
-      act(() => {
-        callback(mockState);
-      });
+      act(() => { stateChangeCallback(mockState); });
     }
 
     await waitFor(() => {
