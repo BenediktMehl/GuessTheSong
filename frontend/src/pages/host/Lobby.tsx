@@ -421,17 +421,32 @@ export default function Lobby() {
 
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
         logger.error('[Lobby] Authentication error:', message);
-        setSpotifyError('Something went wrong with the Spotify connection. Please reconnect.');
+        setSpotifyError('Authentication failed. Please log out and reconnect to Spotify.');
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         logger.error('[Lobby] Initialization error:', message);
-        setSpotifyError('Something went wrong with the Spotify connection. Please reconnect.');
+        // Check for EME-related errors
+        if (
+          message.toLowerCase().includes('eme') ||
+          message.toLowerCase().includes('drm') ||
+          message.toLowerCase().includes('media')
+        ) {
+          setSpotifyError(
+            'Your browser cannot play protected content. Try: 1) Use Chrome/Edge, 2) Disable private browsing, 3) Enable DRM in browser settings.'
+          );
+        } else {
+          setSpotifyError(
+            'Failed to initialize player. Try refreshing the page or using a different browser.'
+          );
+        }
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
         logger.error('[Lobby] Account error:', message);
-        setSpotifyError('Something went wrong with the Spotify connection. Please reconnect.');
+        setSpotifyError(
+          'Spotify account error. Ensure you have an active Spotify Premium subscription.'
+        );
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
@@ -512,17 +527,32 @@ export default function Lobby() {
 
       spotifyPlayer.addListener('authentication_error', ({ message }) => {
         logger.error('[Lobby] Authentication error:', message);
-        setSpotifyError('Something went wrong with the Spotify connection. Please reconnect.');
+        setSpotifyError('Authentication failed. Please log out and reconnect to Spotify.');
       });
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         logger.error('[Lobby] Initialization error:', message);
-        setSpotifyError('Something went wrong with the Spotify connection. Please reconnect.');
+        // Check for EME-related errors
+        if (
+          message.toLowerCase().includes('eme') ||
+          message.toLowerCase().includes('drm') ||
+          message.toLowerCase().includes('media')
+        ) {
+          setSpotifyError(
+            'Your browser cannot play protected content. Try: 1) Use Chrome/Edge, 2) Disable private browsing, 3) Enable DRM in browser settings.'
+          );
+        } else {
+          setSpotifyError(
+            'Failed to initialize player. Try refreshing the page or using a different browser.'
+          );
+        }
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
         logger.error('[Lobby] Account error:', message);
-        setSpotifyError('Something went wrong with the Spotify connection. Please reconnect.');
+        setSpotifyError(
+          'Spotify account error. Ensure you have an active Spotify Premium subscription.'
+        );
       });
 
       spotifyPlayer.addListener('player_state_changed', (state) => {
