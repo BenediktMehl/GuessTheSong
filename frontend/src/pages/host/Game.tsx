@@ -1747,7 +1747,7 @@ export default function Game() {
                 className="btn btn-success btn-sm sm:btn-md md:btn-lg flex-1"
                 onClick={handleRightGuess}
               >
-                ✓ Correct
+                Correct
               </button>
               {partiallyGuessedPlayers.length === 0 && (
                 <button
@@ -1755,7 +1755,7 @@ export default function Game() {
                   className="btn btn-warning btn-sm sm:btn-md md:btn-lg flex-1"
                   onClick={handlePartiallyRightGuess}
                 >
-                  ~ Partially
+                  Partially
                 </button>
               )}
               <button
@@ -1763,7 +1763,7 @@ export default function Game() {
                 className="btn btn-error btn-sm sm:btn-md md:btn-lg flex-1"
                 onClick={handleWrongGuess}
               >
-                ✗ Wrong
+                Wrong
               </button>
             </div>
           </Card>

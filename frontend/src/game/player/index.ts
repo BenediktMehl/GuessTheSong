@@ -478,10 +478,7 @@ export function joinGame(
             // Determine next player after state updates process
             // Use a small delay to allow state updates from waitingPlayersChanged to process
             setTimeout(() => {
-              const nextWaitingPlayer = gameContext.waitingPlayers[0];
-              const toastMessage = nextWaitingPlayer
-                ? `${partialPlayerName} guessed partially correct. ${nextWaitingPlayer.name} can guess now.`
-                : `${partialPlayerName} guessed partially correct. Song continues now.`;
+              const toastMessage = `${partialPlayerName} guessed partially correct.`;
               logger.info('[Player] Showing warning toast:', toastMessage);
               showToast(gameContext, toastMessage, 'warning', 4000);
             }, 100);
@@ -498,10 +495,7 @@ export function joinGame(
             // Determine next player after state updates process
             // Use a small delay to allow state updates from waitingPlayersChanged to process
             setTimeout(() => {
-              const nextWaitingPlayer = gameContext.waitingPlayers[0];
-              const toastMessage = nextWaitingPlayer
-                ? `${wrongPlayerName} guessed wrong. ${nextWaitingPlayer.name} can guess now.`
-                : `${wrongPlayerName} guessed wrong. Song continues now.`;
+              const toastMessage = `${wrongPlayerName} guessed wrong.`;
               logger.info('[Player] Showing error toast:', toastMessage);
               showToast(gameContext, toastMessage, 'error', 4000);
             }, 100);

@@ -10,6 +10,12 @@
       "label": "frontend-tests",
       "type": "shell",
       "command": "npm test --silent"
+    },
+    {
+      "label": "Run frontend tests",
+      "type": "shell",
+      "command": "npm",
+      "args": ["test", "--silent"]
     }
   ]
 }
