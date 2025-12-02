@@ -57,11 +57,7 @@ function showToast(
   type: 'success' | 'warning' | 'error' | 'info',
   duration?: number
 ) {
-  gameContext.setPlayerToast({
-    message,
-    type,
-    duration,
-  });
+  gameContext.setPlayerToasts((prev) => [...prev, { message, type, duration }]);
 }
 
 // Helper function to get player name from playerId
@@ -797,7 +793,7 @@ export function leaveGame(gameContext: GameContextType) {
   gameContext.setStatus('notStarted');
   gameContext.setWsStatus('closed');
   gameContext.setBuzzerNotification(null);
-  gameContext.setPlayerToast(null);
+  gameContext.setPlayerToasts([]);
   gameContext.setLastSong(null);
 }
 

@@ -5,7 +5,7 @@ import { Card } from '../../components/Card';
 import { LastSongCard } from '../../components/LastSongCard';
 import PlayersLobby from '../../components/PlayersLobby';
 import { PlayerToastComponent } from '../../components/PlayerToast';
-import { useGameContext } from '../../game/context';
+import { type PlayerToast, useGameContext } from '../../game/context';
 import { leaveGame, sendPlayerBuzzedAction, sendPlayerNoClueAction } from '../../game/player';
 import {
   initializeBuzzerSound,
@@ -27,10 +27,20 @@ export default function Game() {
     noCluePlayers,
     buzzerNotification,
     setBuzzerNotification,
-    playerToast,
-    setPlayerToast,
     lastSong,
   } = gameContext;
+  const playerToasts: PlayerToast[] =
+    (
+      gameContext as unknown as {
+        playerToasts?: PlayerToast[];
+      }
+    ).playerToasts ?? [];
+  const setPlayerToasts: (updater: (prev: PlayerToast[]) => PlayerToast[]) => void =
+    (
+      gameContext as unknown as {
+        setPlayerToasts?: (updater: (prev: PlayerToast[]) => PlayerToast[]) => void;
+      }
+    ).setPlayerToasts ?? (() => {});
   const navigate = useNavigate();
 
   // Calculate notGuessedPlayers (players not in waiting, guessed, partially guessed, or no clue arrays)
@@ -361,7 +371,7 @@ export default function Game() {
         )}
       </button>
 
-      {(showJoinedToast || buzzerNotification || playerToast) && (
+      {(showJoinedToast || buzzerNotification || playerToasts.length > 0) && (
         <div className="toast toast-top toast-center z-50">
           {showJoinedToast && (
             <div className="alert alert-success shadow-2xl">
@@ -375,7 +385,15 @@ export default function Game() {
               </span>
             </div>
           )}
-          <PlayerToastComponent toast={playerToast} onDismiss={() => setPlayerToast(null)} />
+          {playerToasts.map((toast: PlayerToast, idx: number) => (
+            <PlayerToastComponent
+              key={`${toast.type}-${toast.message}-${idx}`}
+              toast={toast}
+              onDismiss={() =>
+                setPlayerToasts((prev: PlayerToast[]) => prev.filter((_, i: number) => i !== idx))
+              }
+            />
+          ))}
         </div>
       )}
 

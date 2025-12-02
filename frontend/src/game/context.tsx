@@ -26,7 +26,8 @@ export type PlayerToast = {
   message: string;
   type: 'success' | 'warning' | 'error' | 'info';
   duration?: number;
-} | null;
+};
+export type PlayerToastList = PlayerToast[];
 
 export type PausePlayerCallback = () => void | Promise<void>;
 
@@ -59,7 +60,7 @@ export interface GameContextType {
   sessionId: string;
   currentPlayerId: string;
   buzzerNotification: BuzzerNotification;
-  playerToast: PlayerToast;
+  playerToasts: PlayerToastList;
   pausePlayerCallback: PausePlayerCallback | null;
   lastSong: LastSong;
   setIsHost: Dispatch<SetStateAction<boolean>>;
@@ -74,7 +75,7 @@ export interface GameContextType {
   setSessionId: Dispatch<SetStateAction<string>>;
   setCurrentPlayerId: Dispatch<SetStateAction<string>>;
   setBuzzerNotification: Dispatch<SetStateAction<BuzzerNotification>>;
-  setPlayerToast: Dispatch<SetStateAction<PlayerToast>>;
+  setPlayerToasts: Dispatch<SetStateAction<PlayerToastList>>;
   setPausePlayerCallback: Dispatch<SetStateAction<PausePlayerCallback | null>>;
   setLastSong: Dispatch<SetStateAction<LastSong>>;
 }
@@ -94,7 +95,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [sessionId, setSessionId] = useState('');
   const [currentPlayerId, setCurrentPlayerId] = useState('');
   const [buzzerNotification, setBuzzerNotification] = useState<BuzzerNotification>(null);
-  const [playerToast, setPlayerToast] = useState<PlayerToast>(null);
+  const [playerToasts, setPlayerToasts] = useState<PlayerToastList>([]);
   const [pausePlayerCallback, setPausePlayerCallback] = useState<PausePlayerCallback | null>(null);
   const [lastSong, setLastSong] = useState<LastSong>(null);
 
@@ -113,7 +114,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         sessionId,
         currentPlayerId,
         buzzerNotification,
-        playerToast,
+        playerToasts,
         pausePlayerCallback,
         lastSong,
         setIsHost,
@@ -128,7 +129,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSessionId,
         setCurrentPlayerId,
         setBuzzerNotification,
-        setPlayerToast,
+        setPlayerToasts,
         setPausePlayerCallback,
         setLastSong,
       }}
