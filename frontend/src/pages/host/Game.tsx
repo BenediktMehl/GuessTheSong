@@ -1647,6 +1647,10 @@ export default function Game() {
                   type="button"
                   className="btn btn-outline flex-1 btn-sm sm:btn-md md:btn-lg"
                   onClick={async () => {
+                    // Save current track as last song before resetting players
+                    if (current_track?.name) {
+                      saveLastSong(current_track);
+                    }
                     // Reset all players to default list before going to next song
                     logger.debug('[Host Game] Next button clicked - resetting all players');
                     const pointsAwarded = resetAllPlayersForNewRound(gameContext);
