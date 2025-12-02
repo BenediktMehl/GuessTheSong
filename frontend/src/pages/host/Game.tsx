@@ -894,8 +894,8 @@ export default function Game() {
   // Update position periodically when playing (only if not seeking)
   useEffect(() => {
     // Check for valid track and player instead of just is_active
-    if (!player || !current_track.name || trackDuration <= 0) {
-      // Clear interval if no player, no track, or no duration
+    if (!player || !current_track.name || trackDuration <= 0 || is_paused) {
+      // Clear interval if no player, no track, no duration, or paused
       if (positionUpdateIntervalRef.current) {
         clearInterval(positionUpdateIntervalRef.current);
         positionUpdateIntervalRef.current = null;
@@ -903,8 +903,8 @@ export default function Game() {
       return;
     }
 
-    // Update position periodically (every 500ms)
-    // Only update if not seeking - but continue checking even if paused
+    // Update position periodically (every 2000ms / 2 seconds)
+    // Only update when playing and not seeking - stop when paused to save battery
     positionUpdateIntervalRef.current = window.setInterval(async () => {
       const currentPlayer = playerInstanceRef.current || player;
       if (currentPlayer && !isSeeking) {
@@ -956,17 +956,15 @@ export default function Game() {
                 previousPositionRef.current = newPosition;
               }
             } else {
-              // Update paused state if it changed
-              if (!is_paused) {
-                setPaused(true);
-              }
+              // Update paused state if it changed - song was paused, stop interval
+              setPaused(true);
             }
           }
         } catch (error) {
           logger.error('[Host Game] Error updating position:', error);
         }
       }
-    }, 500); // Check every 500ms
+    }, 2000); // Check every 2 seconds (reduced from 500ms for better battery life)
 
     return () => {
       if (positionUpdateIntervalRef.current) {

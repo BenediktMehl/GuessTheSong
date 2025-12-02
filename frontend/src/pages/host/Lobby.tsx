@@ -110,14 +110,14 @@ export default function Lobby() {
   const playerInstanceRef = useRef<SpotifyPlayer | undefined>(undefined);
   const hasAttemptedTransferRef = useRef(false);
 
-  // Check Spotify login status periodically
+  // Check Spotify login status periodically (reduced frequency for better battery life)
   useEffect(() => {
     const checkSpotifyStatus = () => {
       setIsLoggedInSpotify(spotifyIsLoggedIn());
     };
 
     checkSpotifyStatus();
-    const interval = setInterval(checkSpotifyStatus, 1000);
+    const interval = setInterval(checkSpotifyStatus, 5000); // Check every 5 seconds instead of 1 second
 
     return () => clearInterval(interval);
   }, []);
