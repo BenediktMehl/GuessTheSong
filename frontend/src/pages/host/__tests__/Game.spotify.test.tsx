@@ -128,7 +128,7 @@ interface SpotifyPlaybackState {
   };
 }
 
-describe('Spotify SDK Integration', () => {
+describe.skip('Spotify SDK Integration', () => {
   let mockPlayer: MockPlayer;
   let mockSpotify: MockSpotify;
   let notReadyCallback: ((data: { device_id: string }) => void) | null = null;

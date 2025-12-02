@@ -56,6 +56,8 @@ export default function Game() {
     ...(partiallyGuessedPlayers || []),
     ...(noCluePlayers || []),
   ];
+  // Build a lookup map from the canonical players array to ensure we always display up-to-date points
+  const playersById = new Map((players || []).map((p) => [p.id, p] as const));
   const currentPlayer = currentPlayerId
     ? allPlayers.find((p) => p.id === currentPlayerId)
     : undefined;
@@ -387,11 +389,14 @@ export default function Game() {
         <LastSongCard lastSong={lastSong} />
 
         <PlayersLobby
+          // Ensure lists use canonical player objects (for correct points) when available
           notGuessedPlayers={notGuessedPlayers}
-          waitingPlayers={waitingPlayers}
-          guessedPlayers={guessedPlayers}
-          partiallyGuessedPlayers={partiallyGuessedPlayers}
-          noCluePlayers={noCluePlayers}
+          waitingPlayers={(waitingPlayers || []).map((p) => playersById.get(p.id) || p)}
+          guessedPlayers={(guessedPlayers || []).map((p) => playersById.get(p.id) || p)}
+          partiallyGuessedPlayers={(partiallyGuessedPlayers || []).map(
+            (p) => playersById.get(p.id) || p
+          )}
+          noCluePlayers={(noCluePlayers || []).map((p) => playersById.get(p.id) || p)}
           currentPlayer={currentPlayer}
         />
 
