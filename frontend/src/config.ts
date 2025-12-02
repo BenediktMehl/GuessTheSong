@@ -41,7 +41,11 @@ const getWsUrl = (): string => {
 
   // In dev mode, check if user wants to use local or pi backend
   if (env === 'development') {
-    const useLocal = localStorage.getItem(BACKEND_TOGGLE_KEY) === 'local';
+    // Guard against localStorage not being available (e.g., in some test environments)
+    const useLocal =
+      typeof localStorage !== 'undefined' &&
+      typeof localStorage.getItem === 'function' &&
+      localStorage.getItem(BACKEND_TOGGLE_KEY) === 'local';
     return normaliseToSecure(useLocal ? config.development.wsUrl : config.production.wsUrl);
   }
 

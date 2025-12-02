@@ -426,20 +426,10 @@ export default function Lobby() {
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         logger.error('[Lobby] Initialization error:', message);
-        // Check for EME-related errors
-        if (
-          message.toLowerCase().includes('eme') ||
-          message.toLowerCase().includes('drm') ||
-          message.toLowerCase().includes('media')
-        ) {
-          setSpotifyError(
-            'Your browser cannot play protected content. Try: 1) Use Chrome/Edge, 2) Disable private browsing, 3) Enable DRM in browser settings.'
-          );
-        } else {
-          setSpotifyError(
-            'Failed to initialize player. Try refreshing the page or using a different browser.'
-          );
-        }
+        // Most initialization errors are DRM/EME related (EMEError is the most common)
+        setSpotifyError(
+          'Browser cannot initialize Spotify player. This is usually a DRM issue. Try: 1) Use Chrome/Edge (not Firefox), 2) Disable private/incognito mode, 3) Enable DRM in browser settings, 4) Clear cache and reload.'
+        );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {
@@ -532,20 +522,10 @@ export default function Lobby() {
 
       spotifyPlayer.addListener('initialization_error', ({ message }) => {
         logger.error('[Lobby] Initialization error:', message);
-        // Check for EME-related errors
-        if (
-          message.toLowerCase().includes('eme') ||
-          message.toLowerCase().includes('drm') ||
-          message.toLowerCase().includes('media')
-        ) {
-          setSpotifyError(
-            'Your browser cannot play protected content. Try: 1) Use Chrome/Edge, 2) Disable private browsing, 3) Enable DRM in browser settings.'
-          );
-        } else {
-          setSpotifyError(
-            'Failed to initialize player. Try refreshing the page or using a different browser.'
-          );
-        }
+        // Most initialization errors are DRM/EME related (EMEError is the most common)
+        setSpotifyError(
+          'Browser cannot initialize Spotify player. This is usually a DRM issue. Try: 1) Use Chrome/Edge (not Firefox), 2) Disable private/incognito mode, 3) Enable DRM in browser settings, 4) Clear cache and reload.'
+        );
       });
 
       spotifyPlayer.addListener('account_error', ({ message }) => {

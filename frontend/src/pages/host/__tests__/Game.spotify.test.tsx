@@ -687,7 +687,8 @@ describe('Spotify SDK Integration', () => {
     let readyCallback: ((data: { device_id: string }) => void) | null = null;
     mockPlayer.addListener.mockImplementation((event: string, cb: unknown) => {
       if (event === 'ready') readyCallback = cb as (data: { device_id: string }) => void;
-      if (event === 'player_state_changed') stateChangeCallback = cb as (s: any) => void;
+      if (event === 'player_state_changed')
+        stateChangeCallback = cb as (s: SpotifyPlaybackState) => void;
       return true;
     });
     render(
@@ -698,12 +699,17 @@ describe('Spotify SDK Integration', () => {
       </MemoryRouter>
     );
     // Fire ready event to set device
-    await act(async () => { if (readyCallback) readyCallback({ device_id: 'test-device-id' }); });
+    await act(async () => {
+      if (readyCallback) readyCallback({ device_id: 'test-device-id' });
+    });
     await waitFor(() => expect(stateChangeCallback).toBeTruthy());
     // Fire player_state_changed for paused/playing states as needed for each test
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      act(() => { stateChangeCallback(mockState); });
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     // Assert
@@ -740,7 +746,8 @@ describe('Spotify SDK Integration', () => {
     let readyCallback: ((data: { device_id: string }) => void) | null = null;
     mockPlayer.addListener.mockImplementation((event: string, cb: unknown) => {
       if (event === 'ready') readyCallback = cb as (data: { device_id: string }) => void;
-      if (event === 'player_state_changed') stateChangeCallback = cb as (s: any) => void;
+      if (event === 'player_state_changed')
+        stateChangeCallback = cb as (s: SpotifyPlaybackState) => void;
       return true;
     });
     render(
@@ -751,12 +758,17 @@ describe('Spotify SDK Integration', () => {
       </MemoryRouter>
     );
     // Fire ready event to set device
-    await act(async () => { if (readyCallback) readyCallback({ device_id: 'test-device-id' }); });
+    await act(async () => {
+      if (readyCallback) readyCallback({ device_id: 'test-device-id' });
+    });
     await waitFor(() => expect(stateChangeCallback).toBeTruthy());
     // Fire player_state_changed for paused/playing states as needed for each test
     if (stateChangeCallback) {
       mockPlayer.getCurrentState.mockResolvedValue(mockState);
-      act(() => { stateChangeCallback(mockState); });
+      const callback = stateChangeCallback;
+      act(() => {
+        callback(mockState);
+      });
     }
 
     await waitFor(() => {
