@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run frontend tests",
+      "type": "shell",
+      "command": "npm test --silent"
+    }
+  ]
+}

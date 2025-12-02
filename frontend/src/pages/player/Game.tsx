@@ -359,25 +359,23 @@ export default function Game() {
         )}
       </button>
 
-      {showJoinedToast && (
-        <div className="toast toast-top toast-center">
-          <div className="alert alert-success">
-            <span>Successfully joined the game!</span>
-          </div>
-        </div>
-      )}
-
-      {buzzerNotification && (
+      {(showJoinedToast || buzzerNotification || playerToast) && (
         <div className="toast toast-top toast-center z-50">
-          <div className="alert alert-info shadow-2xl">
-            <span>
-              <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
-            </span>
-          </div>
+          {showJoinedToast && (
+            <div className="alert alert-success shadow-2xl">
+              <span>Successfully joined the game!</span>
+            </div>
+          )}
+          {buzzerNotification && (
+            <div className="alert alert-info shadow-2xl">
+              <span>
+                <strong>{buzzerNotification.playerName}</strong> pressed the buzzer!
+              </span>
+            </div>
+          )}
+          <PlayerToastComponent toast={playerToast} onDismiss={() => setPlayerToast(null)} />
         </div>
       )}
-
-      <PlayerToastComponent toast={playerToast} onDismiss={() => setPlayerToast(null)} />
 
       {/* biome-ignore lint/a11y/noStaticElementInteractions: This div only stops event propagation, not interactive */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: This div only stops event propagation, not interactive */}

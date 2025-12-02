@@ -33,10 +33,8 @@ export function PlayerToastComponent({ toast, onDismiss }: PlayerToastProps) {
   }[toast.type];
 
   return (
-    <div className="toast toast-top toast-center z-[60]">
-      <div className={`alert ${alertClass} shadow-2xl`}>
-        <span>{toast.message}</span>
-      </div>
+    <div className={`alert ${alertClass} shadow-2xl`}>
+      <span>{toast.message}</span>
     </div>
   );
 }
